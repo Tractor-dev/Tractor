@@ -95,6 +95,16 @@ export default function GameBoard() {
       }));
     });
 
+    // 新回合开始 - 清空所有玩家的出牌
+    socket.on('round_complete', () => {
+      setPlayedCards({});
+    });
+
+    socket.on('turn_changed', () => {
+      // 回合切换时也可以清空，取决于游戏规则
+      // setPlayedCards({});
+    });
+
     // 玩家跳过
     socket.on('turn_passed', ({ playerName }) => {
       messageApi.info(`${playerName} 跳过了回合`);
@@ -135,6 +145,8 @@ export default function GameBoard() {
       socket.off('cards_buried');
       socket.off('first_player_set');
       socket.off('cards_played');
+      socket.off('round_complete');
+      socket.off('turn_changed');
       socket.off('turn_passed');
       socket.off('bottom_cards_revealed');
       socket.off('player_confirmed');
@@ -302,35 +314,46 @@ export default function GameBoard() {
 
       case GamePhases.DRAWING:
         return (
-          <div className="phase-content">
-            <Title level={3}>摸牌阶段</Title>
-            <Text>系统正在自动发牌...</Text>
-            <br />
-            <Text>已发牌数: {myCards.length}</Text>
-            <br />
-            <br />
-            <Space>
-              <Button onClick={handleShowCards} disabled={selectedCards.length === 0}>
-                展示选中的牌 ({selectedCards.length})
-              </Button>
-              {isHost && (
-                <Button type="primary" onClick={() => setBuryingPlayerModal(true)}>
-                  指定埋底玩家（结束摸牌）
-                </Button>
-              )}
-            </Space>
+          <div className="phase-content playing-phase">
+            {/* 游戏桌面 - 摸牌阶段显示展示的牌 */}
+            <GameTable
+              players={currentRoom.players}
+              currentPlayer={currentPlayer}
+              playedCards={{}}
+              shownCards={shownCards}
+              myCards={myCards}
+              selectedCards={selectedCards}
+              onCardClick={toggleCardSelection}
+              currentTurnPlayerId={null}
+            />
 
-            {Object.keys(shownCards).length > 0 && (
-              <div style={{ marginTop: 20 }}>
-                <Title level={4}>玩家展示的牌</Title>
-                {Object.entries(shownCards).map(([playerId, shown]) => (
-                  <div key={playerId} style={{ marginBottom: 16 }}>
-                    <Text strong>{shown.playerName}:</Text>
-                    <Hand cards={shown.cards} disabled small />
-                  </div>
-                ))}
+            {/* 控制区域 - 右下角 */}
+            <div className="game-controls">
+              <div className="game-info">
+                <Text strong>摸牌阶段</Text>
+                <br />
+                <Text>已发牌数: {myCards.length}</Text>
               </div>
-            )}
+
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  onClick={handleShowCards}
+                  disabled={selectedCards.length === 0}
+                  block
+                >
+                  展示选中的牌 ({selectedCards.length})
+                </Button>
+                {isHost && (
+                  <Button
+                    type="primary"
+                    onClick={() => setBuryingPlayerModal(true)}
+                    block
+                  >
+                    指定埋底玩家
+                  </Button>
+                )}
+              </Space>
+            </div>
           </div>
         );
 
@@ -359,12 +382,12 @@ export default function GameBoard() {
       case GamePhases.PLAYING:
         return (
           <div className="phase-content playing-phase">
-            {/* 游戏桌面 */}
+            {/* 游戏桌面 - 出牌阶段不显示展示的牌 */}
             <GameTable
               players={currentRoom.players}
               currentPlayer={currentPlayer}
               playedCards={playedCards}
-              shownCards={shownCards}
+              shownCards={{}}
               myCards={myCards}
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
@@ -451,55 +474,9 @@ export default function GameBoard() {
     <div className="game-board">
       {contextHolder}
 
-      {/* 玩家信息区域 */}
-      <div className="players-area">
-        {currentRoom.players.map((player) => (
-          <div
-            key={player.id}
-            className={`player-info ${player.id === currentPlayer.id ? 'self' : ''} ${
-              currentTurnPlayer?.id === player.id ? 'active-turn' : ''
-            }`}
-          >
-            <Text strong>{player.name}</Text>
-            {player.socketId === currentRoom.hostId && <Text type="secondary"> (房主)</Text>}
-            {player.id === currentPlayer.id && <Text type="success"> (你)</Text>}
-            <br />
-            <Text>分数: {player.score} | 等级: {player.level}</Text>
-            {player.id === gameState?.buryingPlayerId && <Text type="warning"> [埋底]</Text>}
-          </div>
-        ))}
-      </div>
-
-      {/* 中央出牌区域 */}
-      <div className="play-area">
+      {/* 主游戏区域 */}
+      <div className="main-game-area">
         {renderPhaseContent()}
-
-        {/* 显示所有玩家的出牌 */}
-        {gameState?.playedCards && Object.keys(gameState.playedCards).length > 0 && (
-          <div className="played-cards-area">
-            <Title level={4}>出牌区</Title>
-            {Object.entries(gameState.playedCards).map(([playerId, cards]) => {
-              const player = currentRoom.players.find(p => p.id === playerId);
-              return (
-                <div key={playerId} className="player-played">
-                  <Text strong>{player?.name}:</Text>
-                  <Hand cards={cards} disabled small />
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 我的手牌区域 */}
-      <div className="my-hand-area">
-        <Title level={4}>我的手牌 ({myCards.length})</Title>
-        <Hand
-          cards={myCards}
-          selectedCards={selectedCards}
-          onCardClick={toggleCardSelection}
-          disabled={phase === GamePhases.WAITING || phase === GamePhases.FINISHED}
-        />
       </div>
 
       {/* 埋底玩家选择弹窗 */}

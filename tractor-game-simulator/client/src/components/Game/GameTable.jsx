@@ -71,6 +71,8 @@ export default function GameTable({
           {isCurrentTurn && <Text type="warning"> (出牌中)</Text>}
           <br />
           <Text type="secondary">手牌: {player.cardsCount || 0}</Text>
+          <br />
+          <Text type="secondary">分数: {player.score || 0} | 等级: {player.level || 2}</Text>
         </div>
 
         <div className="player-cards-area">

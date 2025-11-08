@@ -26,12 +26,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: 30px;
   min-height: 200px;
 }
 
 .position-left {
-  flex: 0 0 200px;
+  flex: 0 0 280px;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -45,10 +45,11 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   min-height: 150px;
+  max-width: 400px;
 }
 
 .position-right {
-  flex: 0 0 200px;
+  flex: 0 0 280px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -138,17 +139,18 @@
 
 /* 不同位置的样式调整 */
 .player-top {
-  width: 300px;
+  width: 400px;
+  max-width: 500px;
 }
 
 .player-left,
 .player-right {
-  width: 180px;
+  width: 260px;
 }
 
 .player-bottom {
   width: 100%;
-  max-width: 800px;
+  max-width: 1000px;
 }
 
 /* 响应式调整 */

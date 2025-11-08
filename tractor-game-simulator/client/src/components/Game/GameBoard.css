@@ -6,81 +6,23 @@
   color: white;
 }
 
-.players-area {
-  display: flex;
-  justify-content: space-around;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-.player-info {
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  min-width: 150px;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.player-info.self {
-  background: rgba(24, 144, 255, 0.3);
-  border: 2px solid #1890ff;
-}
-
-.player-info.active-turn {
-  background: rgba(82, 196, 26, 0.3);
-  border: 2px solid #52c41a;
-  box-shadow: 0 0 20px rgba(82, 196, 26, 0.5);
-}
-
-.play-area {
+.main-game-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .phase-content {
+  flex: 1;
   background: rgba(255, 255, 255, 0.95);
   padding: 40px;
   border-radius: 16px;
   text-align: center;
   color: #333;
-  min-width: 400px;
+  margin: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.played-cards-area {
-  margin-top: 30px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 20px;
-  border-radius: 12px;
-  color: #333;
-  max-width: 800px;
-  width: 100%;
-}
-
-.player-played {
-  margin-bottom: 15px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-}
-
-.my-hand-area {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 20px;
-  border-top: 2px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
-}
-
-.my-hand-area h4 {
-  color: white;
-  margin-bottom: 10px;
+  overflow-y: auto;
 }
 
 /* 出牌阶段特殊布局 */
@@ -89,7 +31,8 @@
   padding: 10px;
   background: transparent;
   box-shadow: none;
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 40px);
+  margin: 0;
 }
 
 /* 游戏控制面板 - 右下角 */
