@@ -82,3 +82,39 @@
   color: white;
   margin-bottom: 10px;
 }
+
+/* 出牌阶段特殊布局 */
+.phase-content.playing-phase {
+  position: relative;
+  padding: 10px;
+  background: transparent;
+  box-shadow: none;
+  min-height: calc(100vh - 200px);
+}
+
+/* 游戏控制面板 - 右下角 */
+.game-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  max-width: 300px;
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.game-info {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.game-info .ant-typography {
+  margin: 0;
+  line-height: 1.8;
+  color: #333;
+}

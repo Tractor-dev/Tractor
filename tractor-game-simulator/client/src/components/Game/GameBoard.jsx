@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
 import Hand from './Hand';
+import GameTable from './GameTable';
 import './GameBoard.css';
 
 const { Title, Text } = Typography;
@@ -30,7 +31,7 @@ export default function GameBoard() {
   const [levelAdjustModal, setLevelAdjustModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [adjustValue, setAdjustValue] = useState(0);
-  const [shownCards, setShownCards] = useState([]); // { playerId, playerName, cards }[]
+  const [shownCards, setShownCards] = useState({}); // { [playerId]: { playerName, cards } }
   const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
 
   const socket = socketService.socket;
@@ -56,8 +57,11 @@ export default function GameBoard() {
     // 玩家展示手牌
     socket.on('cards_shown', ({ playerId, playerName, cards }) => {
       messageApi.info(`${playerName} 展示了 ${cards.length} 张牌`);
-      // 添加到展示列表
-      setShownCards(prev => [...prev, { playerId, playerName, cards }]);
+      // 更新该玩家的展示牌区域（覆盖之前的牌）
+      setShownCards(prev => ({
+        ...prev,
+        [playerId]: { playerName, cards }
+      }));
     });
 
     // 收到底牌（埋底玩家）
@@ -316,11 +320,11 @@ export default function GameBoard() {
               )}
             </Space>
 
-            {shownCards.length > 0 && (
+            {Object.keys(shownCards).length > 0 && (
               <div style={{ marginTop: 20 }}>
                 <Title level={4}>玩家展示的牌</Title>
-                {shownCards.map((shown, index) => (
-                  <div key={index} style={{ marginBottom: 16 }}>
+                {Object.entries(shownCards).map(([playerId, shown]) => (
+                  <div key={playerId} style={{ marginBottom: 16 }}>
                     <Text strong>{shown.playerName}:</Text>
                     <Hand cards={shown.cards} disabled small />
                   </div>
@@ -354,39 +358,52 @@ export default function GameBoard() {
 
       case GamePhases.PLAYING:
         return (
-          <div className="phase-content">
-            <Title level={3}>出牌阶段</Title>
-            <Text>出牌模式: {gameState.playMode === PlayModes.ORDERED ? '有序出牌' : '自由抢先'}</Text>
-            <br />
-            <Text>当前玩家: {currentTurnPlayer?.name}</Text>
-            <br />
-            <br />
-            {phase === GamePhases.PLAYING && !gameState.buryingPlayerId && isHost && (
-              <Button type="primary" onClick={() => setFirstPlayerModal(true)} style={{ marginBottom: 16 }}>
-                设置首发玩家
-              </Button>
-            )}
-            {gameState.buryingPlayerId && (
-              <>
-                {canPlay ? (
-                  <Space>
-                    <Button
-                      type="primary"
-                      size="large"
-                      onClick={handlePlayCards}
-                      disabled={selectedCards.length === 0}
-                    >
-                      出牌 (已选 {selectedCards.length})
-                    </Button>
-                    <Button size="large" onClick={handlePass}>
-                      跳过
-                    </Button>
-                  </Space>
-                ) : (
-                  <Text>等待 {currentTurnPlayer?.name} 出牌...</Text>
+          <div className="phase-content playing-phase">
+            {/* 游戏桌面 */}
+            <GameTable
+              players={currentRoom.players}
+              currentPlayer={currentPlayer}
+              playedCards={playedCards}
+              shownCards={shownCards}
+              myCards={myCards}
+              selectedCards={selectedCards}
+              onCardClick={toggleCardSelection}
+              currentTurnPlayerId={currentTurnPlayer?.id}
+            />
+
+            {/* 辅助信息和操作区域 - 右下角 */}
+            <div className="game-controls">
+              <div className="game-info">
+                <Text strong>出牌模式: {gameState.playMode === PlayModes.ORDERED ? '有序出牌' : '自由抢先'}</Text>
+                <br />
+                {currentTurnPlayer && (
+                  <Text>当前玩家: {currentTurnPlayer.name}</Text>
                 )}
-              </>
-            )}
+              </div>
+
+              {phase === GamePhases.PLAYING && !gameState.buryingPlayerId && isHost && (
+                <Button type="primary" onClick={() => setFirstPlayerModal(true)}>
+                  设置首发玩家
+                </Button>
+              )}
+
+              {gameState.buryingPlayerId && canPlay && (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Button
+                    type="primary"
+                    size="large"
+                    onClick={handlePlayCards}
+                    disabled={selectedCards.length === 0}
+                    block
+                  >
+                    出牌 (已选 {selectedCards.length})
+                  </Button>
+                  <Button size="large" onClick={handlePass} block>
+                    跳过
+                  </Button>
+                </Space>
+              )}
+            </div>
           </div>
         );
 

@@ -1,0 +1,183 @@
+.game-table {
+  width: 100%;
+  height: calc(100vh - 200px);
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* 上方玩家区域 */
+.position-top {
+  flex: 0 0 120px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+/* 中间区域（左、中央、右） */
+.position-middle {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  min-height: 200px;
+}
+
+.position-left {
+  flex: 0 0 200px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.table-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  min-height: 150px;
+}
+
+.position-right {
+  flex: 0 0 200px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* 下方玩家区域（自己） */
+.position-bottom {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: 10px;
+}
+
+/* 玩家区域通用样式 */
+.player-area {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.player-area.current-turn {
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+  }
+}
+
+.player-area.current-player {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 玩家信息 */
+.player-info {
+  margin-bottom: 8px;
+  text-align: center;
+  color: white;
+}
+
+.player-info .ant-typography {
+  color: white;
+}
+
+/* 玩家牌区域 */
+.player-cards-area {
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.played-cards,
+.shown-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.played-cards .ant-typography,
+.shown-cards .ant-typography {
+  color: white;
+  font-size: 12px;
+}
+
+/* 自己的手牌区域 */
+.my-hand {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  min-height: 100px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 不同位置的样式调整 */
+.player-top {
+  width: 300px;
+}
+
+.player-left,
+.player-right {
+  width: 180px;
+}
+
+.player-bottom {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .position-left,
+  .position-right {
+    flex: 0 0 150px;
+  }
+
+  .player-left,
+  .player-right {
+    width: 140px;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-table {
+    height: calc(100vh - 150px);
+    padding: 10px;
+  }
+
+  .position-middle {
+    gap: 10px;
+  }
+
+  .player-top,
+  .player-left,
+  .player-right {
+    width: auto;
+    font-size: 12px;
+  }
+}
