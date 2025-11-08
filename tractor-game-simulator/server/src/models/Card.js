@@ -1,0 +1,29 @@
+import { Suits, Ranks, RANK_ORDER, SUIT_ORDER } from '../utils/constants.js';
+
+export class Card {
+  constructor(suit, rank, copyIndex = 0) {
+    this.id = `${suit}-${rank}-${copyIndex}`;
+    this.suit = suit;
+    this.rank = rank;
+    this.value = this.calculateValue();
+    this.displayOrder = 0;
+    this.isShown = false;
+  }
+
+  calculateValue() {
+    const suitValue = SUIT_ORDER[this.suit] * 1000;
+    const rankValue = RANK_ORDER[this.rank] || 0;
+    return suitValue + rankValue;
+  }
+
+  toJSON() {
+    return {
+      id: this.id,
+      suit: this.suit,
+      rank: this.rank,
+      value: this.value,
+      displayOrder: this.displayOrder,
+      isShown: this.isShown
+    };
+  }
+}
