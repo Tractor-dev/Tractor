@@ -167,7 +167,7 @@ function App() {
               {currentRoom.players.map((player, index) => (
                 <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px' }}>
                   {index + 1}. {player.name}
-                  {player.id === currentRoom.hostId && ' (房主)'}
+                  {player.socketId === currentRoom.hostId && ' (房主)'}
                   {player.id === currentPlayer?.id && ' (你)'}
                   - 分数: {player.score} - 等级: {player.level}
                 </div>
@@ -179,7 +179,7 @@ function App() {
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
             </div>
             <Space>
-              {currentPlayer?.id === currentRoom.hostId && (
+              {currentPlayer?.socketId === currentRoom.hostId && (
                 <Button
                   type="primary"
                   size="large"

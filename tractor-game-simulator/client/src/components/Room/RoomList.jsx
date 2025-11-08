@@ -57,7 +57,8 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
       key: 'action',
       render: (_, record) => {
         const isFull = record.playerCount >= record.maxPlayers;
-        const isPlaying = record.gameState?.phase !== 'waiting' && record.gameState?.phase !== 'finished';
+        const phase = record.gameState?.phase;
+        const isPlaying = phase && phase !== 'waiting' && phase !== 'finished';
         const canJoin = !isFull && !isPlaying;
 
         return (

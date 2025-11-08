@@ -30,7 +30,7 @@ export default function GameBoard() {
   const [adjustValue, setAdjustValue] = useState(0);
 
   const socket = socketService.socket;
-  const isHost = currentPlayer?.id === currentRoom?.hostId;
+  const isHost = currentPlayer?.socketId === currentRoom?.hostId;
   const gameState = currentRoom?.gameState;
   const phase = gameState?.phase || GamePhases.WAITING;
 
@@ -398,7 +398,7 @@ export default function GameBoard() {
             }`}
           >
             <Text strong>{player.name}</Text>
-            {player.id === currentRoom.hostId && <Text type="secondary"> (房主)</Text>}
+            {player.socketId === currentRoom.hostId && <Text type="secondary"> (房主)</Text>}
             {player.id === currentPlayer.id && <Text type="success"> (你)</Text>}
             <br />
             <Text>分数: {player.score} | 等级: {player.level}</Text>
