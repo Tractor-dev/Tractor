@@ -1,13 +1,35 @@
 .hand {
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-end;
   padding: 20px;
   min-height: 150px;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */
+.hand > * {
+  margin-left: -30px;
+}
+
+.hand > *:first-child {
+  margin-left: 0;
 }
 
 .hand.small {
   padding: 10px;
   min-height: 90px;
+  gap: 5px;
+}
+
+.hand.small > * {
+  margin-left: -20px;
+}
+
+.hand.small > *:first-child {
+  margin-left: 0;
 }

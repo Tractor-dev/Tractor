@@ -96,13 +96,18 @@ export default function GameBoard() {
     });
 
     // 新回合开始 - 清空所有玩家的出牌
-    socket.on('round_complete', () => {
+    socket.on('round_started', ({ round, firstPlayerName }) => {
+      messageApi.info(`第 ${round} 轮开始，${firstPlayerName} 先出`);
       setPlayedCards({});
     });
 
-    socket.on('turn_changed', () => {
-      // 回合切换时也可以清空，取决于游戏规则
-      // setPlayedCards({});
+    // 自由出牌阶段开始
+    socket.on('free_play_started', ({ round, message }) => {
+      messageApi.info(message);
+    });
+
+    socket.on('turn_changed', ({ currentPlayerName }) => {
+      // 回合切换到下一个玩家
     });
 
     // 玩家跳过
@@ -145,7 +150,8 @@ export default function GameBoard() {
       socket.off('cards_buried');
       socket.off('first_player_set');
       socket.off('cards_played');
-      socket.off('round_complete');
+      socket.off('round_started');
+      socket.off('free_play_started');
       socket.off('turn_changed');
       socket.off('turn_passed');
       socket.off('bottom_cards_revealed');

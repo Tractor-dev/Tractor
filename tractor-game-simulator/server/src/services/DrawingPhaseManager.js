@@ -101,19 +101,19 @@ export class DrawingPhaseManager {
   }
 
   /**
-   * 结束摸牌阶段
+   * 结束摸牌阶段 - 发完牌，但仍保持DRAWING阶段直到房主指定埋底玩家
    */
   finish() {
     this.stop();
 
-    this.room.gameState.phase = GamePhases.BURYING;
+    // 保持在DRAWING阶段，允许玩家展示手牌
+    // 不设置为BURYING，等房主指定埋底玩家时再切换
 
-    logger.info(`房间 ${this.room.id} 摸牌阶段结束`);
+    logger.info(`房间 ${this.room.id} 发牌完成，玩家可以展示手牌`);
 
-    // 广播进入埋底阶段
-    this.io.to(this.room.id).emit('phase_changed', {
-      phase: GamePhases.BURYING,
-      message: '发牌完成，等待房主指定埋底玩家'
+    // 广播发牌完成
+    this.io.to(this.room.id).emit('drawing_complete', {
+      message: '发牌完成，玩家可以展示手牌，等待房主指定埋底玩家'
     });
   }
 

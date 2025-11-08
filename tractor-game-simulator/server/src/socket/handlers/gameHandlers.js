@@ -66,6 +66,9 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error('游戏未开始');
       }
 
+      // 进入埋底阶段
+      room.gameState.phase = GamePhases.BURYING;
+
       const buryingPlayer = gameEngine.setBuryingPlayer(playerId);
 
       // 私密发送底牌给埋底玩家
@@ -278,10 +281,61 @@ export function registerGameHandlers(io, socket, roomManager) {
    */
   socket.on('pass_turn', ({ roomId }) => {
     try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) {
+        throw new Error('游戏未开始');
+      }
+
       // 跳过就是出0张牌
-      socket.emit('play_cards', { roomId, cardIds: [] });
+      const result = gameEngine.playCards(player.id, []);
+
+      // 广播跳过
+      io.to(room.id).emit('turn_passed', {
+        playerId: player.id,
+        playerName: player.name
+      });
+
+      // 根据回合结果广播不同事件
+      if (result.type === 'turn_changed') {
+        const currentPlayer = room.findPlayerByIndex(result.currentPlayerIndex);
+        io.to(room.id).emit('turn_changed', {
+          currentPlayerIndex: result.currentPlayerIndex,
+          currentPlayerId: currentPlayer.id,
+          currentPlayerName: currentPlayer.name
+        });
+      } else if (result.type === 'free_play_started') {
+        io.to(room.id).emit('free_play_started', {
+          round: result.round,
+          message: result.message
+        });
+      } else if (result.type === 'round_started') {
+        io.to(room.id).emit('round_started', {
+          round: result.round,
+          firstPlayerId: result.firstPlayerId,
+          firstPlayerName: result.firstPlayerName,
+          currentPlayerId: result.currentPlayerId,
+          currentPlayerName: result.currentPlayerName
+        });
+      }
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
     } catch (error) {
       socket.emit('error', { message: error.message });
+      logger.error('跳过失败:', error);
     }
   });
 
