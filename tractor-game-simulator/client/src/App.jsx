@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
+import JoinRoomModal from './components/Room/JoinRoomModal';
+import RoomList from './components/Room/RoomList';
 import GameBoard from './components/Game/GameBoard';
 import { SOCKET_EVENTS, GamePhases } from './utils/constants';
 import './styles/App.css';
@@ -12,8 +14,11 @@ const { Title } = Typography;
 
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
-  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer } = useGameStore();
+  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, roomList, setRoomList } = useGameStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   useEffect(() => {
     // 连接Socket
@@ -58,6 +63,22 @@ function App() {
       setCurrentRoom(room);
     });
 
+    // 监听加入房间成功
+    socket.on('room_joined', ({ room, player }) => {
+      console.log('加入房间成功:', { room, player });
+      messageApi.success('加入房间成功！');
+      setCurrentRoom(room);
+      setCurrentPlayer(player);
+      setShowJoinModal(false);
+    });
+
+    // 监听房间列表
+    socket.on('room_list', ({ rooms }) => {
+      console.log('收到房间列表:', rooms);
+      setRoomList(rooms);
+      setLoadingRooms(false);
+    });
+
     return () => {
       socketService.disconnect();
     };
@@ -75,6 +96,25 @@ function App() {
     });
   };
 
+  const handleJoinRoom = (values) => {
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.JOIN_ROOM, {
+      roomId: values.roomId,
+      playerName: values.playerName
+    });
+  };
+
+  const handleJoinRoomFromList = (roomId) => {
+    setSelectedRoomId(roomId);
+    setShowJoinModal(true);
+  };
+
+  const handleRefreshRooms = () => {
+    setLoadingRooms(true);
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.GET_ROOM_LIST);
+  };
+
   const handleLeaveRoom = () => {
     const socket = socketService.socket;
     socket.emit(SOCKET_EVENTS.LEAVE_ROOM, {
@@ -84,6 +124,13 @@ function App() {
     setCurrentPlayer(null);
     messageApi.info('已离开房间');
   };
+
+  // 初始加载房间列表
+  useEffect(() => {
+    if (isConnected && !currentRoom) {
+      handleRefreshRooms();
+    }
+  }, [isConnected, currentRoom]);
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
@@ -144,33 +191,61 @@ function App() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {contextHolder}
-      <Header style={{ background: '#001529', padding: '0 24px' }}>
+      <Header style={{ background: '#001529', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={3} style={{ color: 'white', margin: '16px 0' }}>
           拖拉机纸牌游戏模拟器
         </Title>
+        <div style={{ color: 'white' }}>
+          连接状态: {isConnected ? '✅ 已连接' : '❌ 未连接'}
+        </div>
       </Header>
       <Content style={{ padding: '24px' }}>
         <div style={{
           background: 'white',
-          padding: '48px',
+          padding: '32px',
           borderRadius: '8px',
-          textAlign: 'center'
+          marginBottom: '24px'
         }}>
-          <Title level={2}>欢迎来到拖拉机纸牌游戏</Title>
-          <p style={{ fontSize: '16px', marginBottom: '24px' }}>
-            连接状态: {isConnected ? '✅ 已连接' : '❌ 未连接'}
-          </p>
-          <p style={{ color: '#666', marginBottom: '32px' }}>
-            点击下方按钮创建房间开始游戏
-          </p>
-          <Button
-            type="primary"
-            size="large"
-            disabled={!isConnected}
-            onClick={() => setShowCreateModal(true)}
-          >
-            创建房间
-          </Button>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <Title level={2}>欢迎来到拖拉机纸牌游戏</Title>
+            <p style={{ color: '#666', marginBottom: '24px' }}>
+              在线多人拖拉机纸牌游戏模拟器
+            </p>
+            <Space size="large">
+              <Button
+                type="primary"
+                size="large"
+                disabled={!isConnected}
+                onClick={() => setShowCreateModal(true)}
+              >
+                创建房间
+              </Button>
+              <Button
+                size="large"
+                disabled={!isConnected}
+                onClick={() => {
+                  setSelectedRoomId('');
+                  setShowJoinModal(true);
+                }}
+              >
+                加入房间
+              </Button>
+            </Space>
+          </div>
+        </div>
+
+        {/* 房间列表 */}
+        <div style={{
+          background: 'white',
+          padding: '32px',
+          borderRadius: '8px'
+        }}>
+          <RoomList
+            rooms={roomList}
+            onJoinRoom={handleJoinRoomFromList}
+            onRefresh={handleRefreshRooms}
+            loading={loadingRooms}
+          />
         </div>
       </Content>
 
@@ -178,6 +253,16 @@ function App() {
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreateRoom={handleCreateRoom}
+      />
+
+      <JoinRoomModal
+        visible={showJoinModal}
+        roomId={selectedRoomId}
+        onClose={() => {
+          setShowJoinModal(false);
+          setSelectedRoomId('');
+        }}
+        onJoinRoom={handleJoinRoom}
       />
     </Layout>
   );
