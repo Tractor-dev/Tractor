@@ -96,5 +96,8 @@ export const RANK_ORDER = {
   [Ranks.BIG_JOKER]: 101
 };
 
-// 服务器URL（改为5001以避免与macOS AirPlay冲突）
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5001';
+// 服务器URL配置
+// 生产环境：使用当前域名（前后端在同一服务器）
+// 开发环境：使用 localhost:5001
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL ||
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5001');
