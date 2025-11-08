@@ -3,6 +3,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { RoomManager } from './services/RoomManager.js';
 import { setupSocketIO } from './socket/index.js';
 import logger from './utils/logger.js';
@@ -12,6 +14,11 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// 获取当前文件的目录路径
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 创建Express应用
 const app = express();
@@ -23,10 +30,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// 健康检查接口
+// 健康检查接口（放在最前面）
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// 在生产环境中服务静态文件
+if (NODE_ENV === 'production') {
+  const clientDistPath = path.join(__dirname, '../../client/dist');
+  logger.info(`服务静态文件: ${clientDistPath}`);
+
+  app.use(express.static(clientDistPath));
+
+  // SPA 路由支持 - 所有其他路由返回 index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // 创建HTTP服务器
 const httpServer = createServer(app);
