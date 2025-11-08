@@ -4,10 +4,10 @@
 
 一个功能完整的在线多人拖拉机纸牌游戏模拟器，支持2-4名玩家实时对战。
 
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)]()
-[![React](https://img.shields.io/badge/React-18-blue)]()
-[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.x-orange)]()
-[![License](https://img.shields.io/badge/License-MIT-yellow)]()
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue)](https://react.dev/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.x-orange)](https://socket.io/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](./LICENSE)
 
 [功能特性](#功能特性) • [快速开始](#快速开始) • [游戏规则](#游戏规则) • [技术栈](#技术栈) • [文档](#文档)
 
