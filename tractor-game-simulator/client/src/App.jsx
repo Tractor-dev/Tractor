@@ -178,9 +178,24 @@ function App() {
               <p>底牌数量: {currentRoom.config.bottomCardsCount} 张</p>
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
             </div>
-            <Button type="default" onClick={handleLeaveRoom}>
-              离开房间
-            </Button>
+            <Space>
+              {currentPlayer?.id === currentRoom.hostId && (
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => {
+                    const socket = socketService.socket;
+                    socket.emit(SOCKET_EVENTS.START_GAME, { roomId: currentRoom.id });
+                  }}
+                  disabled={currentRoom.playerCount < 2}
+                >
+                  开始游戏
+                </Button>
+              )}
+              <Button type="default" onClick={handleLeaveRoom}>
+                离开房间
+              </Button>
+            </Space>
           </div>
         </Content>
       </Layout>

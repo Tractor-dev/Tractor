@@ -1,10 +1,10 @@
-import { v4 as uuidv4 } from 'uuid';
 import { GameState } from './GameState.js';
 import { DEFAULT_CONFIG } from '../utils/constants.js';
 
 export class Room {
   constructor(name, hostSocketId, config = {}) {
-    this.id = uuidv4();
+    // 生成4位数字房间ID (1000-9999)
+    this.id = String(Math.floor(1000 + Math.random() * 9000));
     this.name = name;
     this.hostId = hostSocketId;
     this.players = [];

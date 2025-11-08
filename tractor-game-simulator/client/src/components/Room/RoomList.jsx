@@ -15,7 +15,7 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
       title: '房间ID',
       dataIndex: 'id',
       key: 'id',
-      render: (text) => <code style={{ fontSize: '12px' }}>{text.substring(0, 8)}</code>
+      render: (text) => <code style={{ fontSize: '14px', fontWeight: 'bold' }}>{text}</code>
     },
     {
       title: '玩家',

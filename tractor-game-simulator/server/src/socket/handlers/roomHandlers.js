@@ -62,6 +62,11 @@ export function registerRoomHandlers(io, socket, roomManager) {
         player: player.toJSON()
       });
 
+      // 广播房间状态更新给所有人（包括新加入的玩家）
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
       logger.info(`玩家 ${player.name} 加入房间: ${room.id}`);
     } catch (error) {
       socket.emit('error', { message: error.message });
