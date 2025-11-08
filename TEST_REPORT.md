@@ -42,14 +42,14 @@ cd server && npm start
 ```
 [INFO] Socket.IO 已初始化
 [INFO] 🚀 拖拉机纸牌游戏服务器已启动
-[INFO] 📡 端口: 5000
+[INFO] 📡 端口: 5001
 [INFO] 🌐 客户端URL: http://localhost:3000
 ```
 
 **验证项**:
 - ✅ Express服务器正常启动
 - ✅ Socket.IO成功初始化
-- ✅ 端口5000监听正常
+- ✅ 端口5001监听正常（已改为5001以避免与macOS AirPlay冲突）
 - ✅ CORS配置正确
 - ✅ 优雅关闭处理正常
 
@@ -225,7 +225,7 @@ npm run build            # 构建测试
 npm run dev              # 开发模式
 
 # 健康检查
-curl http://localhost:5000/health
+curl http://localhost:5001/health
 ```
 
 ---

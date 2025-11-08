@@ -8,7 +8,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',  // 改为5001以避免与macOS AirPlay冲突
         ws: true,
       },
     },

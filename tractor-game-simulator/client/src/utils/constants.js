@@ -40,5 +40,5 @@ export const SOCKET_EVENTS = {
   REORDER_CARDS: 'reorder_cards'
 };
 
-// 服务器URL
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+// 服务器URL（改为5001以避免与macOS AirPlay冲突）
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5001';

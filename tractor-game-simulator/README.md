@@ -73,7 +73,9 @@ cd server
 npm run dev
 ```
 
-服务器将运行在 `http://localhost:5000`
+服务器将运行在 `http://localhost:5001`
+
+> **注意**: 端口使用5001而非5000，以避免与macOS AirPlay Receiver冲突
 
 **2. 启动前端开发服务器**
 
@@ -150,7 +152,7 @@ npm run dev
 
 ### 后端 (.env)
 ```env
-PORT=5000
+PORT=5001
 CLIENT_URL=http://localhost:3000
 LOG_LEVEL=INFO
 ```
@@ -158,7 +160,7 @@ LOG_LEVEL=INFO
 ### 前端
 在 `client/.env` 中配置（可选）:
 ```env
-VITE_SERVER_URL=http://localhost:5000
+VITE_SERVER_URL=http://localhost:5001
 ```
 
 ## API文档
@@ -208,7 +210,7 @@ VITE_SERVER_URL=http://localhost:5000
 
 ### 后端无法启动
 - 检查Node.js版本
-- 检查端口5000是否被占用
+- 检查端口5001是否被占用（macOS用户注意：端口5000被AirPlay占用）
 - 查看 `server/.env` 配置
 
 ### 前端无法连接
