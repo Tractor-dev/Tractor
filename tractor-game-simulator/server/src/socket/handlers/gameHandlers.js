@@ -4,6 +4,11 @@ import logger from '../../utils/logger.js';
 // 存储每个房间的游戏引擎
 const gameEngines = new Map();
 
+// 导出gameEngines供其他模块使用（如roomHandlers中清理资源）
+export function getGameEngines() {
+  return gameEngines;
+}
+
 export function registerGameHandlers(io, socket, roomManager) {
 
   /**

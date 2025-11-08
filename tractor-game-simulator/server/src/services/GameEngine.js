@@ -221,4 +221,22 @@ export class GameEngine {
     this.room.resetForNewGame();
     this.startGame();
   }
+
+  /**
+   * 清理游戏资源（停止所有定时器等）
+   */
+  cleanup() {
+    logger.info(`清理房间 ${this.room.id} 的游戏引擎资源`);
+
+    // 停止摸牌管理器
+    if (this.drawingManager) {
+      this.drawingManager.stop();
+      this.drawingManager = null;
+    }
+
+    // 停止回合管理器（如果有需要清理的资源）
+    if (this.roundManager) {
+      this.roundManager = null;
+    }
+  }
 }

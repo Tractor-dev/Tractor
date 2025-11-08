@@ -1,5 +1,6 @@
 import { Player } from '../../models/Player.js';
 import logger from '../../utils/logger.js';
+import { getGameEngines } from './gameHandlers.js';
 
 export function registerRoomHandlers(io, socket, roomManager) {
 
@@ -141,6 +142,14 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
 
     // 如果游戏正在进行，终止游戏
     if (room.gameState.phase !== 'waiting' && room.gameState.phase !== 'finished') {
+      // 清理游戏引擎资源（停止发牌定时器等）
+      const gameEngines = getGameEngines();
+      const gameEngine = gameEngines.get(room.id);
+      if (gameEngine) {
+        gameEngine.cleanup();
+        gameEngines.delete(room.id);
+      }
+
       io.to(room.id).emit('game_terminated', {
         reason: `玩家 ${player.name} 离开，游戏终止`,
         disconnectedPlayer: player.name
@@ -171,6 +180,9 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
         });
         logger.info(`房间 ${room.id} 房主转移给: ${room.players[0].name}`);
       } else {
+        // 房间被删除时也清理游戏引擎
+        const gameEngines = getGameEngines();
+        gameEngines.delete(room.id);
         roomManager.deleteRoom(room.id);
       }
     }

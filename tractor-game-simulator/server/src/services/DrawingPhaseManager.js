@@ -56,9 +56,24 @@ export class DrawingPhaseManager {
       return;
     }
 
+    // 检查玩家是否还在（可能有人离开了）
+    if (players.length === 0) {
+      logger.warn(`房间 ${this.room.id} 没有玩家，停止发牌`);
+      this.stop();
+      return;
+    }
+
     // 确定这张牌发给谁
     const playerIndex = drawingIndex % players.length;
     const player = players[playerIndex];
+
+    // 防御性检查：确保玩家存在
+    if (!player) {
+      logger.error(`房间 ${this.room.id} 玩家索引 ${playerIndex} 不存在，停止发牌`);
+      this.stop();
+      return;
+    }
+
     const card = deck[drawingIndex];
 
     // 将牌加入玩家手牌
