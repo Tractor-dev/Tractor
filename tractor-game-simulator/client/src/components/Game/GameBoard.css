@@ -44,8 +44,8 @@
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  min-width: 200px;
-  max-width: 300px;
+  min-width: 180px;
+  max-width: 240px;
   backdrop-filter: blur(10px);
   z-index: 100;
 }

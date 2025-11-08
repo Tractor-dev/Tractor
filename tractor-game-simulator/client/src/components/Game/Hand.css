@@ -3,11 +3,11 @@
   flex-direction: row;
   justify-content: flex-start;
   align-items: flex-end;
-  padding: 20px;
+  padding: 10px 5px; /* 减小内边距，增加可用空间 */
   min-height: 150px;
   flex-wrap: nowrap;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: visible; /* 允许溢出可见，而不是滚动 */
 }
 
 /* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */

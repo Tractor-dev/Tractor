@@ -147,19 +147,19 @@
   font-size: 12px;
 }
 
-/* 自己的手牌区域 - 偏左放置，为右下角控制区留空间 */
+/* 自己的手牌区域 - 居中显示，为右下角控制区留空间 */
 .my-hand {
   margin-top: 10px;
-  padding: 10px;
-  padding-left: 20px; /* 基础左侧内边距 */
-  margin-left: 100px; /* 左侧外边距，确保牌不被挡住 */
+  padding: 10px 20px;
+  margin-left: 20px; /* 最小左边距，避免截断 */
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  min-height: 100px;
+  min-height: 120px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center; /* 居中显示手牌 */
   /* 为右下角控制区留出空间 */
-  margin-right: 280px;
+  margin-right: 20px; /* 减小右边距，控制区会自动浮动在上面 */
+  width: auto;
 }
 
 /* 不同位置的样式调整 */
@@ -175,7 +175,7 @@
 
 .player-bottom {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px; /* 增加最大宽度 */
 }
 
 /* 响应式调整 */
