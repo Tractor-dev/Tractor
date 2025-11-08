@@ -84,7 +84,7 @@ export class RoundManager {
 
   /**
    * 移动到下一个玩家（有序模式）
-   * 默认逆时针
+   * 默认逆时针（从玩家视角，向右传递）
    */
   moveToNextPlayer(currentPlayerIndex) {
     const { turnOrder, customTurnOrder } = this.config;
@@ -96,9 +96,9 @@ export class RoundManager {
       const nextPos = (currentPos + 1) % playerCount;
       this.gameState.currentPlayerIndex = customTurnOrder[nextPos];
     } else {
-      // 默认逆时针：索引递减
+      // 默认逆时针：索引递增
       this.gameState.currentPlayerIndex =
-        (currentPlayerIndex - 1 + playerCount) % playerCount;
+        (currentPlayerIndex + 1) % playerCount;
     }
   }
 
