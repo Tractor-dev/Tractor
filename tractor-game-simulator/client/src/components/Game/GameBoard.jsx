@@ -17,7 +17,8 @@ export default function GameBoard() {
     toggleCardSelection,
     clearSelection,
     setMyCards,
-    addCard
+    addCard,
+    removeCards
   } = useGameStore();
 
   const [messageApi, contextHolder] = message.useMessage();
@@ -54,14 +55,25 @@ export default function GameBoard() {
       messageApi.info(`${playerName} 展示了 ${cards.length} 张牌`);
     });
 
+    // 收到底牌（埋底玩家）
+    socket.on('bottom_cards_received', ({ bottomCards, totalCards }) => {
+      bottomCards.forEach(card => addCard(card));
+      messageApi.success(`收到 ${bottomCards.length} 张底牌，当前共 ${totalCards} 张牌`);
+    });
+
     // 埋底玩家设置
     socket.on('burying_player_set', ({ playerName }) => {
       messageApi.info(`${playerName} 被指定为埋底玩家`);
     });
 
     // 埋底完成
-    socket.on('cards_buried', ({ playerName }) => {
+    socket.on('cards_buried', ({ playerName, playerId }) => {
       messageApi.success(`${playerName} 完成埋底`);
+    });
+
+    // 首发玩家设置
+    socket.on('first_player_set', ({ playerName }) => {
+      messageApi.info(`${playerName} 先出牌`);
     });
 
     // 玩家出牌
@@ -104,8 +116,10 @@ export default function GameBoard() {
       socket.off('game_started');
       socket.off('card_dealt');
       socket.off('cards_shown');
+      socket.off('bottom_cards_received');
       socket.off('burying_player_set');
       socket.off('cards_buried');
+      socket.off('first_player_set');
       socket.off('cards_played');
       socket.off('turn_passed');
       socket.off('bottom_cards_revealed');
@@ -114,7 +128,7 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
     };
-  }, [socket, messageApi, clearSelection, addCard]);
+  }, [socket, messageApi, clearSelection, addCard, removeCards]);
 
   // 开始游戏
   const handleStartGame = () => {
@@ -153,10 +167,13 @@ export default function GameBoard() {
       messageApi.warning(`请选择 ${currentRoom.config.bottomCardsCount} 张牌进行埋底`);
       return;
     }
+    const cardsToRemove = [...selectedCards];
     socket.emit(SOCKET_EVENTS.BURY_CARDS, {
       roomId: currentRoom.id,
-      cardIds: selectedCards
+      cardIds: cardsToRemove
     });
+    // 立即从手牌中移除（乐观更新）
+    removeCards(cardsToRemove);
     clearSelection();
   };
 

@@ -119,10 +119,17 @@ export function registerGameHandlers(io, socket, roomManager) {
         playerName: player.name
       });
 
+      // 广播首发玩家已设置（埋底玩家自动成为首发）
+      io.to(room.id).emit('first_player_set', {
+        playerId: player.id,
+        playerName: player.name,
+        currentPlayerIndex: room.gameState.currentPlayerIndex
+      });
+
       // 广播阶段切换
       io.to(room.id).emit('phase_changed', {
         phase: 'playing',
-        message: '埋底完成，等待房主指定首发玩家'
+        message: `埋底完成，${player.name} 先出牌`
       });
 
       // 广播房间状态更新

@@ -90,9 +90,22 @@ export class GameEngine {
 
     logger.info(`房间 ${this.room.id} 埋底完成`);
 
-    // 进入出牌阶段（等待房主指定首发玩家）
+    // 进入出牌阶段，自动设置埋底玩家为首发玩家
     this.room.gameState.phase = GamePhases.PLAYING;
     this.room.gameState.playMode = PlayModes.ORDERED;
+
+    // 自动设置首发玩家为埋底玩家
+    const playerIndex = this.room.getPlayerIndex(playerId);
+    this.room.gameState.firstPlayerId = playerId;
+    this.room.gameState.currentPlayerIndex = playerIndex;
+    this.room.gameState.roundStartPlayerIndex = playerIndex;
+    this.room.gameState.currentRound = 1;
+    this.room.gameState.playersPlayedThisRound.clear();
+
+    // 创建回合管理器
+    this.roundManager = new RoundManager(this.room);
+
+    logger.info(`房间 ${this.room.id} 首发玩家（埋底玩家）: ${player.name}`);
 
     return true;
   }
