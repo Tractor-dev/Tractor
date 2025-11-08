@@ -288,16 +288,16 @@ export default function GameBoard() {
     });
   };
 
-  // 调整分数
-  const handleUpdateScore = (amount) => {
+  // 快速调整分数（快捷按钮）
+  const handleQuickAdjustScore = (amount) => {
     socket.emit(SOCKET_EVENTS.UPDATE_SCORE, {
       roomId: currentRoom.id,
       amount
     });
   };
 
-  // 调整等级
-  const handleUpdateLevel = (amount) => {
+  // 快速调整等级（快捷按钮）
+  const handleQuickAdjustLevel = (amount) => {
     socket.emit(SOCKET_EVENTS.UPDATE_LEVEL, {
       roomId: currentRoom.id,
       amount
@@ -472,9 +472,9 @@ export default function GameBoard() {
 
                 {/* 快捷操作按钮 */}
                 <Space.Compact style={{ width: '100%' }}>
-                  <Button onClick={() => handleUpdateScore(5)}>+5分</Button>
-                  <Button onClick={() => handleUpdateScore(10)}>+10分</Button>
-                  <Button onClick={() => handleUpdateLevel(1)}>+1级</Button>
+                  <Button onClick={() => handleQuickAdjustScore(5)}>+5分</Button>
+                  <Button onClick={() => handleQuickAdjustScore(10)}>+10分</Button>
+                  <Button onClick={() => handleQuickAdjustLevel(1)}>+1级</Button>
                 </Space.Compact>
 
                 {/* 房主可以随时重新开始 */}
