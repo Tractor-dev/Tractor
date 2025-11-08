@@ -46,32 +46,43 @@ export function registerPlayerHandlers(io, socket, roomManager) {
   });
 
   /**
-   * 更新分数
+   * 更新分数（房主）
    */
-  socket.on('update_score', ({ roomId, score }) => {
+  socket.on('update_score', ({ roomId, playerId, newScore }) => {
     try {
       const room = roomManager.getRoom(roomId);
       if (!room) {
         throw new Error('房间不存在');
       }
 
-      const player = room.findPlayerBySocketId(socket.id);
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以调整分数');
+      }
+
+      const player = room.players.find(p => p.id === playerId);
       if (!player) {
         throw new Error('玩家不存在');
       }
 
-      if (typeof score !== 'number' || score < 0) {
+      if (typeof newScore !== 'number' || newScore < 0) {
         throw new Error('分数必须是非负数');
       }
 
-      player.score = Math.floor(score);
+      player.score = Math.floor(newScore);
 
       // 广播更新
-      io.to(room.id).emit('player_updated', {
-        player: player.toJSON()
+      io.to(room.id).emit('score_updated', {
+        playerId: player.id,
+        playerName: player.name,
+        newScore: player.score
       });
 
-      logger.info(`玩家 ${player.name} 更新分数: ${player.score}`);
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房主调整 ${player.name} 分数为: ${player.score}`);
 
     } catch (error) {
       socket.emit('error', { message: error.message });
@@ -80,32 +91,43 @@ export function registerPlayerHandlers(io, socket, roomManager) {
   });
 
   /**
-   * 更新等级
+   * 更新等级（房主）
    */
-  socket.on('update_level', ({ roomId, level }) => {
+  socket.on('update_level', ({ roomId, playerId, newLevel }) => {
     try {
       const room = roomManager.getRoom(roomId);
       if (!room) {
         throw new Error('房间不存在');
       }
 
-      const player = room.findPlayerBySocketId(socket.id);
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以调整等级');
+      }
+
+      const player = room.players.find(p => p.id === playerId);
       if (!player) {
         throw new Error('玩家不存在');
       }
 
-      if (typeof level !== 'number' || level < 1) {
-        throw new Error('等级必须是正整数');
+      if (typeof newLevel !== 'number' || newLevel < 2 || newLevel > 14) {
+        throw new Error('等级必须在2-14之间');
       }
 
-      player.level = Math.floor(level);
+      player.level = Math.floor(newLevel);
 
       // 广播更新
-      io.to(room.id).emit('player_updated', {
-        player: player.toJSON()
+      io.to(room.id).emit('level_updated', {
+        playerId: player.id,
+        playerName: player.name,
+        newLevel: player.level
       });
 
-      logger.info(`玩家 ${player.name} 更新等级: ${player.level}`);
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房主调整 ${player.name} 等级为: ${player.level}`);
 
     } catch (error) {
       socket.emit('error', { message: error.message });

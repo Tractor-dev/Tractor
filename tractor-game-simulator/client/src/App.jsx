@@ -3,7 +3,8 @@ import { Layout, Typography, Button, message } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
-import { SOCKET_EVENTS } from './utils/constants';
+import GameBoard from './components/Game/GameBoard';
+import { SOCKET_EVENTS, GamePhases } from './utils/constants';
 import './styles/App.css';
 
 const { Header, Content } = Layout;
@@ -51,6 +52,12 @@ function App() {
       messageApi.warning(`${playerName} 离开了房间`);
     });
 
+    // 监听房间状态更新
+    socket.on('room_updated', ({ room }) => {
+      console.log('房间状态更新:', room);
+      setCurrentRoom(room);
+    });
+
     return () => {
       socketService.disconnect();
     };
@@ -60,6 +67,7 @@ function App() {
     const socket = socketService.socket;
     socket.emit(SOCKET_EVENTS.CREATE_ROOM, {
       name: values.roomName,
+      playerName: values.playerName,
       config: {
         bottomCardsCount: values.bottomCardsCount,
         dealInterval: values.dealInterval
@@ -77,8 +85,15 @@ function App() {
     messageApi.info('已离开房间');
   };
 
-  // 如果在房间内，显示房间界面
+  // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
+    // 如果游戏已开始，显示游戏界面
+    const gamePhase = currentRoom.gameState?.phase || GamePhases.WAITING;
+    if (gamePhase !== GamePhases.WAITING) {
+      return <GameBoard />;
+    }
+
+    // 否则显示房间等待界面
     return (
       <Layout style={{ minHeight: '100vh' }}>
         {contextHolder}

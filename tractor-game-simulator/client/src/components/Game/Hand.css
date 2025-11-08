@@ -1,0 +1,13 @@
+.hand {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 20px;
+  min-height: 150px;
+}
+
+.hand.small {
+  padding: 10px;
+  min-height: 90px;
+}

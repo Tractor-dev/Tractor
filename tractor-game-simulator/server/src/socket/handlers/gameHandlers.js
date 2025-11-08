@@ -31,6 +31,11 @@ export function registerGameHandlers(io, socket, roomManager) {
       // 开始游戏
       gameEngine.startGame();
 
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('开始游戏失败:', error);
@@ -70,6 +75,11 @@ export function registerGameHandlers(io, socket, roomManager) {
         playerName: buryingPlayer.name
       });
 
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('设置埋底玩家失败:', error);
@@ -100,13 +110,19 @@ export function registerGameHandlers(io, socket, roomManager) {
 
       // 广播埋底完成
       io.to(room.id).emit('cards_buried', {
-        playerId: player.id
+        playerId: player.id,
+        playerName: player.name
       });
 
       // 广播阶段切换
       io.to(room.id).emit('phase_changed', {
         phase: 'playing',
         message: '埋底完成，等待房主指定首发玩家'
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
       });
 
     } catch (error) {
@@ -143,6 +159,11 @@ export function registerGameHandlers(io, socket, roomManager) {
         currentPlayerIndex: room.gameState.currentPlayerIndex,
         currentPlayerId: firstPlayer.id,
         currentPlayerName: firstPlayer.name
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
       });
 
       logger.info(`房间 ${room.id} 首发玩家: ${firstPlayer.name}`);
@@ -229,6 +250,11 @@ export function registerGameHandlers(io, socket, roomManager) {
         });
       }
 
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('出牌失败:', error);
@@ -286,6 +312,11 @@ export function registerGameHandlers(io, socket, roomManager) {
           duration,
           totalRounds: room.gameState.currentRound
         });
+
+        // 广播房间状态更新
+        io.to(room.id).emit('room_updated', {
+          room: room.toJSON()
+        });
       }
 
     } catch (error) {
@@ -314,6 +345,11 @@ export function registerGameHandlers(io, socket, roomManager) {
       }
 
       gameEngine.restartGame();
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
 
       logger.info(`房间 ${room.id} 重新开始游戏`);
 

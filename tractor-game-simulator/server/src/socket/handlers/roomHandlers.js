@@ -6,12 +6,12 @@ export function registerRoomHandlers(io, socket, roomManager) {
   /**
    * 创建房间
    */
-  socket.on('create_room', ({ name, config }) => {
+  socket.on('create_room', ({ name, playerName, config }) => {
     try {
       const room = roomManager.createRoom(name || '新房间', socket.id, config);
 
       // 创建房主玩家
-      const host = new Player(socket.id, '房主', 0);
+      const host = new Player(socket.id, playerName || '房主', 0);
       room.addPlayer(host);
 
       // 加入Socket.IO房间
