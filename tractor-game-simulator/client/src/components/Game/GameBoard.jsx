@@ -105,10 +105,13 @@ export default function GameBoard() {
       }));
     });
 
-    // 新回合开始 - 清空所有玩家的出牌
-    socket.on('round_started', ({ round, firstPlayerName }) => {
+    // 新回合开始 - 清空所有玩家的出牌，然后显示首位玩家的牌
+    socket.on('round_started', ({ round, firstPlayerName, firstPlayerId, firstPlayerCards }) => {
       messageApi.info(`第 ${round} 轮开始，${firstPlayerName} 先出`);
-      setPlayedCards({});
+      // 清空后重新设置首位玩家的牌
+      setPlayedCards({
+        [firstPlayerId]: { playerName: firstPlayerName, cards: firstPlayerCards }
+      });
     });
 
     // 自由出牌阶段开始

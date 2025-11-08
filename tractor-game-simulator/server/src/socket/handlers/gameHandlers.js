@@ -239,6 +239,7 @@ export function registerGameHandlers(io, socket, roomManager) {
           firstPlayerIndex: result.firstPlayerIndex,
           firstPlayerId: result.firstPlayerId,
           firstPlayerName: result.firstPlayerName,
+          firstPlayerCards: result.playedCards, // 包含首位玩家的出牌
           currentPlayerIndex: result.currentPlayerIndex,
           currentPlayerId: result.currentPlayerId,
           currentPlayerName: result.currentPlayerName,
@@ -322,10 +323,14 @@ export function registerGameHandlers(io, socket, roomManager) {
       } else if (result.type === 'round_started') {
         io.to(room.id).emit('round_started', {
           round: result.round,
+          firstPlayerIndex: result.firstPlayerIndex,
           firstPlayerId: result.firstPlayerId,
           firstPlayerName: result.firstPlayerName,
+          firstPlayerCards: result.playedCards || [], // 跳过时没有牌
+          currentPlayerIndex: result.currentPlayerIndex,
           currentPlayerId: result.currentPlayerId,
-          currentPlayerName: result.currentPlayerName
+          currentPlayerName: result.currentPlayerName,
+          message: result.message
         });
       }
 
