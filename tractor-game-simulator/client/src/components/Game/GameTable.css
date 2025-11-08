@@ -151,13 +151,14 @@
 .my-hand {
   margin-top: 10px;
   padding: 10px;
+  padding-left: 80px; /* 从稍微右边一点开始，避免最左边被挡住 */
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   min-height: 100px;
   display: flex;
   justify-content: flex-start;
   /* 为右下角控制区留出空间 */
-  margin-right: 320px;
+  margin-right: 280px;
 }
 
 /* 不同位置的样式调整 */
@@ -173,7 +174,7 @@
 
 .player-bottom {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1200px;
 }
 
 /* 响应式调整 */

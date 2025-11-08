@@ -413,6 +413,11 @@ export function registerGameHandlers(io, socket, roomManager) {
 
       gameEngine.restartGame();
 
+      // 广播游戏重新开始事件
+      io.to(room.id).emit('game_restarted', {
+        room: room.toJSON()
+      });
+
       // 广播房间状态更新
       io.to(room.id).emit('room_updated', {
         room: room.toJSON()

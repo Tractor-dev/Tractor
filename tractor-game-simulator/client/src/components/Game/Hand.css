@@ -22,15 +22,15 @@
 
 /* 牌多时更紧凑 */
 .hand.compact-1 > * {
-  margin-left: -40px;
+  margin-left: -35px;
 }
 
 .hand.compact-2 > * {
-  margin-left: -50px;
+  margin-left: -45px;
 }
 
 .hand.compact-3 > * {
-  margin-left: -60px;
+  margin-left: -52px;
 }
 
 .hand.small {

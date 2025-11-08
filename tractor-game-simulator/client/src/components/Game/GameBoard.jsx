@@ -47,7 +47,16 @@ export default function GameBoard() {
     // 游戏开始
     socket.on('game_started', ({ gameState }) => {
       messageApi.success('游戏开始！');
-      setShownCards([]); // 清空展示的牌
+      setShownCards({}); // 清空展示的牌
+    });
+
+    // 游戏重新开始
+    socket.on('game_restarted', () => {
+      messageApi.success('游戏重新开始！');
+      setMyCards([]); // 清空手牌
+      setShownCards({}); // 清空展示的牌
+      setPlayedCards({}); // 清空已出的牌
+      clearSelection(); // 清空选中的牌
     });
 
     // 收到手牌
@@ -472,8 +481,11 @@ export default function GameBoard() {
 
                 {/* 快捷操作按钮 */}
                 <Space.Compact style={{ width: '100%' }}>
+                  <Button onClick={() => handleQuickAdjustScore(-5)}>-5分</Button>
                   <Button onClick={() => handleQuickAdjustScore(5)}>+5分</Button>
                   <Button onClick={() => handleQuickAdjustScore(10)}>+10分</Button>
+                </Space.Compact>
+                <Space.Compact style={{ width: '100%' }}>
                   <Button onClick={() => handleQuickAdjustLevel(1)}>+1级</Button>
                 </Space.Compact>
 

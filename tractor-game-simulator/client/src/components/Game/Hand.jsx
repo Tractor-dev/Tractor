@@ -14,8 +14,8 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
   // 根据牌数计算紧凑程度
   const getCompactClass = () => {
     const cardCount = cards.length;
-    if (cardCount > 30) return 'compact-3';
-    if (cardCount > 20) return 'compact-2';
+    if (cardCount > 28) return 'compact-3';
+    if (cardCount > 22) return 'compact-2';
     if (cardCount > 15) return 'compact-1';
     return '';
   };
