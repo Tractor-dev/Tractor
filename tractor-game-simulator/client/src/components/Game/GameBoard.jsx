@@ -30,6 +30,7 @@ export default function GameBoard() {
   const [levelAdjustModal, setLevelAdjustModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [adjustValue, setAdjustValue] = useState(0);
+  const [shownCards, setShownCards] = useState([]); // { playerId, playerName, cards }[]
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -43,6 +44,7 @@ export default function GameBoard() {
     // 游戏开始
     socket.on('game_started', ({ gameState }) => {
       messageApi.success('游戏开始！');
+      setShownCards([]); // 清空展示的牌
     });
 
     // 收到手牌
@@ -51,8 +53,10 @@ export default function GameBoard() {
     });
 
     // 玩家展示手牌
-    socket.on('cards_shown', ({ playerName, cards }) => {
+    socket.on('cards_shown', ({ playerId, playerName, cards }) => {
       messageApi.info(`${playerName} 展示了 ${cards.length} 张牌`);
+      // 添加到展示列表
+      setShownCards(prev => [...prev, { playerId, playerName, cards }]);
     });
 
     // 收到底牌（埋底玩家）
@@ -299,6 +303,18 @@ export default function GameBoard() {
                 </Button>
               )}
             </Space>
+
+            {shownCards.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <Title level={4}>玩家展示的牌</Title>
+                {shownCards.map((shown, index) => (
+                  <div key={index} style={{ marginBottom: 16 }}>
+                    <Text strong>{shown.playerName}:</Text>
+                    <Hand cards={shown.cards} disabled small />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
