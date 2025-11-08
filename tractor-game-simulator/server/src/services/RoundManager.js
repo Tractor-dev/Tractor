@@ -84,20 +84,21 @@ export class RoundManager {
 
   /**
    * 移动到下一个玩家（有序模式）
+   * 默认逆时针
    */
   moveToNextPlayer(currentPlayerIndex) {
     const { turnOrder, customTurnOrder } = this.config;
     const playerCount = this.room.players.length;
 
-    if (turnOrder === TurnOrders.COUNTER_CLOCKWISE) {
-      // 逆时针：索引递减
-      this.gameState.currentPlayerIndex =
-        (currentPlayerIndex - 1 + playerCount) % playerCount;
-    } else if (turnOrder === TurnOrders.CUSTOM && customTurnOrder) {
+    if (turnOrder === TurnOrders.CUSTOM && customTurnOrder) {
       // 自定义顺序
       const currentPos = customTurnOrder.indexOf(currentPlayerIndex);
       const nextPos = (currentPos + 1) % playerCount;
       this.gameState.currentPlayerIndex = customTurnOrder[nextPos];
+    } else {
+      // 默认逆时针：索引递减
+      this.gameState.currentPlayerIndex =
+        (currentPlayerIndex - 1 + playerCount) % playerCount;
     }
   }
 

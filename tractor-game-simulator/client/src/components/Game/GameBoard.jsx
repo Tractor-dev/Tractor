@@ -19,7 +19,8 @@ export default function GameBoard() {
     clearSelection,
     setMyCards,
     addCard,
-    removeCards
+    removeCards,
+    reorderCards
   } = useGameStore();
 
   const [messageApi, contextHolder] = message.useMessage();
@@ -287,6 +288,22 @@ export default function GameBoard() {
     });
   };
 
+  // 调整分数
+  const handleUpdateScore = (amount) => {
+    socket.emit(SOCKET_EVENTS.UPDATE_SCORE, {
+      roomId: currentRoom.id,
+      amount
+    });
+  };
+
+  // 调整等级
+  const handleUpdateLevel = (amount) => {
+    socket.emit(SOCKET_EVENTS.UPDATE_LEVEL, {
+      roomId: currentRoom.id,
+      amount
+    });
+  };
+
   // 获取当前玩家
   const getCurrentTurnPlayer = () => {
     if (typeof gameState?.currentPlayerIndex !== 'number') return null;
@@ -330,6 +347,7 @@ export default function GameBoard() {
               myCards={myCards}
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
+              onReorder={reorderCards}
               currentTurnPlayerId={null}
             />
 
@@ -375,6 +393,7 @@ export default function GameBoard() {
               myCards={myCards}
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
+              onReorder={reorderCards}
               currentTurnPlayerId={null}
             />
 
@@ -413,6 +432,7 @@ export default function GameBoard() {
               myCards={myCards}
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
+              onReorder={reorderCards}
               currentTurnPlayerId={currentTurnPlayer?.id}
             />
 
@@ -426,28 +446,44 @@ export default function GameBoard() {
                 )}
               </div>
 
-              {phase === GamePhases.PLAYING && !gameState.buryingPlayerId && isHost && (
-                <Button type="primary" onClick={() => setFirstPlayerModal(true)}>
-                  设置首发玩家
-                </Button>
-              )}
+              <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
+                {phase === GamePhases.PLAYING && !gameState.buryingPlayerId && isHost && (
+                  <Button type="primary" onClick={() => setFirstPlayerModal(true)} block>
+                    设置首发玩家
+                  </Button>
+                )}
 
-              {gameState.buryingPlayerId && canPlay && (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Button
-                    type="primary"
-                    size="large"
-                    onClick={handlePlayCards}
-                    disabled={selectedCards.length === 0}
-                    block
-                  >
-                    出牌 (已选 {selectedCards.length})
+                {gameState.buryingPlayerId && canPlay && (
+                  <>
+                    <Button
+                      type="primary"
+                      size="large"
+                      onClick={handlePlayCards}
+                      disabled={selectedCards.length === 0}
+                      block
+                    >
+                      出牌 (已选 {selectedCards.length})
+                    </Button>
+                    <Button size="large" onClick={handlePass} block>
+                      跳过
+                    </Button>
+                  </>
+                )}
+
+                {/* 快捷操作按钮 */}
+                <Space.Compact style={{ width: '100%' }}>
+                  <Button onClick={() => handleUpdateScore(5)}>+5分</Button>
+                  <Button onClick={() => handleUpdateScore(10)}>+10分</Button>
+                  <Button onClick={() => handleUpdateLevel(1)}>+1级</Button>
+                </Space.Compact>
+
+                {/* 房主可以随时重新开始 */}
+                {isHost && (
+                  <Button danger onClick={handleRestartGame} block>
+                    重新开始
                   </Button>
-                  <Button size="large" onClick={handlePass} block>
-                    跳过
-                  </Button>
-                </Space>
-              )}
+                )}
+              </Space>
             </div>
           </div>
         );

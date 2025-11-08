@@ -5,8 +5,7 @@
   align-items: flex-end;
   padding: 20px;
   min-height: 150px;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   max-width: 100%;
   overflow-x: auto;
 }
@@ -14,22 +13,49 @@
 /* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */
 .hand > * {
   margin-left: -30px;
+  flex-shrink: 0;
 }
 
 .hand > *:first-child {
   margin-left: 0;
 }
 
+/* 牌多时更紧凑 */
+.hand.compact-1 > * {
+  margin-left: -40px;
+}
+
+.hand.compact-2 > * {
+  margin-left: -50px;
+}
+
+.hand.compact-3 > * {
+  margin-left: -60px;
+}
+
 .hand.small {
   padding: 10px;
   min-height: 90px;
-  gap: 5px;
+  flex-wrap: nowrap;
 }
 
 .hand.small > * {
   margin-left: -20px;
+  flex-shrink: 0;
 }
 
 .hand.small > *:first-child {
   margin-left: 0;
+}
+
+.hand.small.compact-1 > * {
+  margin-left: -30px;
+}
+
+.hand.small.compact-2 > * {
+  margin-left: -35px;
+}
+
+.hand.small.compact-3 > * {
+  margin-left: -40px;
 }

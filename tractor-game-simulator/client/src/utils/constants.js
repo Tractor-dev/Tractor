@@ -40,5 +40,61 @@ export const SOCKET_EVENTS = {
   REORDER_CARDS: 'reorder_cards'
 };
 
+// 花色
+export const Suits = {
+  HEARTS: 'hearts',
+  DIAMONDS: 'diamonds',
+  CLUBS: 'clubs',
+  SPADES: 'spades',
+  JOKER: 'joker'
+};
+
+// 牌面值
+export const Ranks = {
+  TWO: '2',
+  THREE: '3',
+  FOUR: '4',
+  FIVE: '5',
+  SIX: '6',
+  SEVEN: '7',
+  EIGHT: '8',
+  NINE: '9',
+  TEN: '10',
+  JACK: 'J',
+  QUEEN: 'Q',
+  KING: 'K',
+  ACE: 'A',
+  SMALL_JOKER: 'small_joker',
+  BIG_JOKER: 'big_joker'
+};
+
+// 花色排序
+export const SUIT_ORDER = {
+  [Suits.HEARTS]: 0,
+  [Suits.DIAMONDS]: 1,
+  [Suits.CLUBS]: 2,
+  [Suits.SPADES]: 3,
+  [Suits.JOKER]: 4
+};
+
+// 牌面值排序
+export const RANK_ORDER = {
+  [Ranks.TWO]: 2,
+  [Ranks.THREE]: 3,
+  [Ranks.FOUR]: 4,
+  [Ranks.FIVE]: 5,
+  [Ranks.SIX]: 6,
+  [Ranks.SEVEN]: 7,
+  [Ranks.EIGHT]: 8,
+  [Ranks.NINE]: 9,
+  [Ranks.TEN]: 10,
+  [Ranks.JACK]: 11,
+  [Ranks.QUEEN]: 12,
+  [Ranks.KING]: 13,
+  [Ranks.ACE]: 14,
+  [Ranks.SMALL_JOKER]: 100,
+  [Ranks.BIG_JOKER]: 101
+};
+
 // 服务器URL（改为5001以避免与macOS AirPlay冲突）
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5001';

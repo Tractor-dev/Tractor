@@ -14,6 +14,7 @@ const { Text } = Typography;
  * @param {Array} props.myCards - 我的手牌
  * @param {Array} props.selectedCards - 选中的牌
  * @param {Function} props.onCardClick - 点击牌的回调
+ * @param {Function} props.onReorder - 重新排序手牌的回调
  * @param {String} props.currentTurnPlayerId - 当前轮到谁出牌
  */
 export default function GameTable({
@@ -24,6 +25,7 @@ export default function GameTable({
   myCards = [],
   selectedCards = [],
   onCardClick,
+  onReorder,
   currentTurnPlayerId
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
@@ -158,6 +160,7 @@ export default function GameTable({
                 cards={myCards}
                 selectedCards={selectedCards}
                 onCardClick={onCardClick}
+                onReorder={onReorder}
               />
             </div>
           </div>

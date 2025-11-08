@@ -1,4 +1,5 @@
 import { GameEngine } from '../../services/GameEngine.js';
+import { GamePhases } from '../../utils/constants.js';
 import logger from '../../utils/logger.js';
 
 // 存储每个房间的游戏引擎
@@ -422,6 +423,66 @@ export function registerGameHandlers(io, socket, roomManager) {
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('重新开始失败:', error);
+    }
+  });
+
+  /**
+   * 调整分数
+   */
+  socket.on('update_score', ({ roomId, amount }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      player.score = Math.max(0, player.score + amount);
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房间 ${room.id} 玩家 ${player.name} 分数调整为 ${player.score}`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('调整分数失败:', error);
+    }
+  });
+
+  /**
+   * 调整等级
+   */
+  socket.on('update_level', ({ roomId, amount }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      player.level = Math.max(2, player.level + amount);
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房间 ${room.id} 玩家 ${player.name} 等级调整为 ${player.level}`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('调整等级失败:', error);
     }
   });
 }

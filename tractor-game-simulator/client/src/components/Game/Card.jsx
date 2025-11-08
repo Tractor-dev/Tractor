@@ -35,7 +35,7 @@ const RANK_DISPLAY = {
   big_joker: '大王'
 };
 
-export default function Card({ card, selected = false, onClick, disabled = false, small = false }) {
+export default function Card({ card, selected = false, onClick, disabled = false, small = false, draggable = false, onDragStart, onDragEnd, onDragOver, onDrop }) {
   const isJoker = card.suit === 'joker';
 
   const displayRank = useMemo(() => {
@@ -49,9 +49,15 @@ export default function Card({ card, selected = false, onClick, disabled = false
     <div
       className={`card ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''} ${small ? 'small' : ''}`}
       onClick={disabled ? undefined : onClick}
+      draggable={draggable && !disabled}
+      onDragStart={(e) => onDragStart && onDragStart(e, card)}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={(e) => onDrop && onDrop(e, card)}
       style={{
         color: color,
-        borderColor: selected ? '#1890ff' : '#d9d9d9'
+        borderColor: selected ? '#1890ff' : '#d9d9d9',
+        cursor: draggable && !disabled ? 'move' : 'pointer'
       }}
     >
       <div className="card-corner top-left">

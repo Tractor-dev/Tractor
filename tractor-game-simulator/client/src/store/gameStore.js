@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { sortCards } from '../utils/cardUtils.js';
 
 export const useGameStore = create((set) => ({
   // 当前房间
@@ -17,7 +18,7 @@ export const useGameStore = create((set) => ({
   // Actions
   setCurrentRoom: (room) => set({ currentRoom: room }),
   setCurrentPlayer: (player) => set({ currentPlayer: player }),
-  setMyCards: (cards) => set({ myCards: cards }),
+  setMyCards: (cards) => set({ myCards: sortCards(cards) }),
   setSelectedCards: (cards) => set({ selectedCards: cards }),
   setRoomList: (rooms) => set({ roomList: rooms }),
   setIsConnected: (status) => set({ isConnected: status }),
@@ -37,13 +38,18 @@ export const useGameStore = create((set) => ({
 
   // 添加手牌
   addCard: (card) => set((state) => ({
-    myCards: [...state.myCards, card]
+    myCards: sortCards([...state.myCards, card])
   })),
 
   // 移除手牌
   removeCards: (cardIds) => set((state) => ({
     myCards: state.myCards.filter(card => !cardIds.includes(card.id))
   })),
+
+  // 重新排序手牌（不自动排序）
+  reorderCards: (newCards) => set({
+    myCards: newCards
+  }),
 
   // 重置
   reset: () => set({
