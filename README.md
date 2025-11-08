@@ -9,7 +9,7 @@
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.x-orange)](https://socket.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](./LICENSE)
 
-[功能特性](#功能特性) • [快速开始](#快速开始) • [游戏规则](#游戏规则) • [技术栈](#技术栈) • [文档](#文档)
+[功能特性](#功能特性) • [快速开始](#快速开始) • [游戏规则](#游戏规则) • [技术栈](#技术栈) • [部署指南](./DEPLOYMENT.md) • [文档](#文档)
 
 </div>
 
@@ -207,6 +207,7 @@ Tractor/
 
 ## 文档
 
+- **[部署指南](DEPLOYMENT.md)** - 服务器部署完整教程
 - **[测试指南](TESTING_GUIDE.md)** - 详细的测试步骤和检查清单
 - **[游戏设计](docs/FINAL_GAME_DESIGN.md)** - 完整的游戏规则和设计文档
 - **[实现细节](docs/DETAILED_IMPLEMENTATION.md)** - 技术实现说明
