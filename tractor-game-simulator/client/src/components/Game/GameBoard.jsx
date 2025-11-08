@@ -45,7 +45,7 @@ export default function GameBoard() {
 
     // 收到手牌
     socket.on('card_dealt', ({ card }) => {
-      setMyCards([...myCards, card]);
+      setMyCards(prevCards => [...prevCards, card]);
     });
 
     // 玩家展示手牌
@@ -113,7 +113,7 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
     };
-  }, [socket, myCards]);
+  }, [socket, messageApi, clearSelection]);
 
   // 开始游戏
   const handleStartGame = () => {

@@ -68,7 +68,7 @@ export class DrawingPhaseManager {
     player.cards = DeckService.autoSortCards(player.cards);
 
     // 私密发送给该玩家
-    this.io.to(player.socketId).emit('card_received', {
+    this.io.to(player.socketId).emit('card_dealt', {
       card: card.toJSON(),
       totalCards: player.cards.length
     });
