@@ -1,0 +1,19 @@
+{
+  "name": "tractor-game",
+  "version": "1.0.0",
+  "description": "拖拉机纸牌游戏模拟器",
+  "scripts": {
+    "install:server": "cd tractor-game-simulator/server && npm install",
+    "install:client": "cd tractor-game-simulator/client && npm install",
+    "build:client": "cd tractor-game-simulator/client && npm run build",
+    "start": "cd tractor-game-simulator/server && node src/index.js",
+    "postinstall": "npm run install:server && npm run install:client && npm run build:client"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": ["tractor", "card-game", "multiplayer"],
+  "author": "Tractor-dev",
+  "license": "MIT"
+}

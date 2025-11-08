@@ -35,17 +35,123 @@
 
 ## 部署方案
 
-### 方案一：手动部署（推荐学习）
+### 方案一：Railway 一键部署（推荐新手）⭐
+
+最简单快速的部署方式，适合快速上线和演示。
+
+### 方案二：手动部署（推荐学习）
 
 适合小规模部署，便于理解整个流程。
 
-### 方案二：Docker部署（推荐生产）
+### 方案三：Docker部署（推荐生产）
 
 适合生产环境，易于维护和扩展。
 
-### 方案三：进程管理器部署（PM2）
+### 方案四：进程管理器部署（PM2）
 
 适合需要自动重启和日志管理的场景。
+
+---
+
+## Railway 一键部署
+
+Railway 是最简单的部署方式，Git push 即可自动部署，自带 HTTPS。
+
+### 1. 准备工作
+
+确保项目根目录有以下配置文件（已包含在项目中）：
+- `package.json` - 根目录包配置
+- `railway.json` - Railway 配置
+- `nixpacks.toml` - 构建配置
+- `Procfile` - 进程配置
+
+### 2. 部署步骤
+
+**方式 A: 从 GitHub 部署（推荐）**
+
+1. 访问 [Railway.app](https://railway.app/)
+2. 点击 "Start a New Project"
+3. 选择 "Deploy from GitHub repo"
+4. 授权并选择你的仓库 `Tractor-dev/Tractor`
+5. Railway 会自动检测并开始构建
+
+**方式 B: 使用 Railway CLI**
+
+```bash
+# 安装 Railway CLI
+npm install -g @railway/cli
+
+# 登录
+railway login
+
+# 在项目根目录初始化
+railway init
+
+# 链接到项目
+railway link
+
+# 部署
+railway up
+```
+
+### 3. 配置环境变量
+
+在 Railway 控制台设置以下环境变量：
+
+```
+PORT=5001
+CLIENT_URL=https://your-app.railway.app
+NODE_ENV=production
+```
+
+**注意**：
+- `PORT` 会由 Railway 自动提供，通常不需要手动设置
+- `CLIENT_URL` 需要设置为你的 Railway 应用 URL
+
+### 4. 查看部署
+
+Railway 会自动：
+- ✅ 安装所有依赖
+- ✅ 构建前端
+- ✅ 启动后端服务
+- ✅ 提供 HTTPS 域名
+- ✅ 提供日志查看
+
+访问 Railway 提供的域名即可使用应用！
+
+### 5. 自定义域名（可选）
+
+在 Railway 控制台：
+1. 进入项目设置
+2. 点击 "Settings" → "Domains"
+3. 添加自定义域名
+4. 配置 DNS CNAME 记录
+
+### Railway 优势
+
+- ✅ **零配置**：自动检测和构建
+- ✅ **免费额度**：$5/月（足够小型项目）
+- ✅ **自动 HTTPS**：内置 SSL 证书
+- ✅ **Git 集成**：推送代码自动部署
+- ✅ **实时日志**：方便调试
+- ✅ **环境变量管理**：安全便捷
+
+### Railway 故障排查
+
+**构建失败**：
+```bash
+# 查看构建日志
+railway logs
+
+# 检查依赖安装
+railway run npm install
+```
+
+**环境变量问题**：
+确保在 Railway 控制台正确设置了 `CLIENT_URL`
+
+**WebSocket 连接问题**：
+Railway 完全支持 WebSocket，确保前端代码中的 Socket.IO 客户端连接到正确的 URL。
 
 ---
 
