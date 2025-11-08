@@ -359,23 +359,39 @@ export default function GameBoard() {
 
       case GamePhases.BURYING:
         return (
-          <div className="phase-content">
-            <Title level={3}>埋底阶段</Title>
-            <Text>埋底玩家: {currentRoom.players.find(p => p.id === gameState.buryingPlayerId)?.name}</Text>
-            <br />
-            <br />
-            {isBuryingPlayer ? (
-              <Button
-                type="primary"
-                size="large"
-                onClick={handleBuryCards}
-                disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
-              >
-                确认埋底 (已选 {selectedCards.length}/{currentRoom.config.bottomCardsCount})
-              </Button>
-            ) : (
-              <Text>等待埋底玩家埋底...</Text>
-            )}
+          <div className="phase-content playing-phase">
+            {/* 游戏桌面 - 埋底阶段 */}
+            <GameTable
+              players={currentRoom.players}
+              currentPlayer={currentPlayer}
+              playedCards={{}}
+              shownCards={{}}
+              myCards={myCards}
+              selectedCards={selectedCards}
+              onCardClick={toggleCardSelection}
+              currentTurnPlayerId={null}
+            />
+
+            {/* 控制区域 - 右下角 */}
+            <div className="game-controls">
+              <div className="game-info">
+                <Text strong>埋底阶段</Text>
+                <br />
+                <Text>埋底玩家: {currentRoom.players.find(p => p.id === gameState.buryingPlayerId)?.name}</Text>
+              </div>
+
+              {isBuryingPlayer && (
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={handleBuryCards}
+                  disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
+                  block
+                >
+                  确认埋底 ({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+                </Button>
+              )}
+            </div>
           </div>
         );
 

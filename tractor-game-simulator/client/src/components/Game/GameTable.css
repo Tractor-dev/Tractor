@@ -126,7 +126,28 @@
   font-size: 12px;
 }
 
-/* 自己的手牌区域 */
+/* 自己的出牌区域 */
+.my-play-area {
+  margin-top: 10px;
+  min-height: 60px;
+  display: flex;
+  gap: 16px;
+}
+
+.my-played-cards,
+.my-shown-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.my-played-cards .ant-typography,
+.my-shown-cards .ant-typography {
+  color: white;
+  font-size: 12px;
+}
+
+/* 自己的手牌区域 - 偏左放置，为右下角控制区留空间 */
 .my-hand {
   margin-top: 10px;
   padding: 10px;
@@ -134,7 +155,9 @@
   border-radius: 8px;
   min-height: 100px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  /* 为右下角控制区留出空间 */
+  margin-right: 320px;
 }
 
 /* 不同位置的样式调整 */

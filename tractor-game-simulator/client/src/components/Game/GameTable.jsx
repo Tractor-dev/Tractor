@@ -132,9 +132,27 @@ export default function GameTable({
           <div className="player-area player-bottom current-player">
             <div className="player-info">
               <Text strong>{positions.bottom.name} (我)</Text>
+              <br />
+              <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
             </div>
 
-            {/* 自己的手牌 */}
+            {/* 自己的出牌区域 */}
+            <div className="my-play-area">
+              {playedCards[positions.bottom.id] && playedCards[positions.bottom.id].cards && (
+                <div className="my-played-cards">
+                  <Text type="success">我的出牌:</Text>
+                  <Hand cards={playedCards[positions.bottom.id].cards} disabled small />
+                </div>
+              )}
+              {shownCards[positions.bottom.id] && shownCards[positions.bottom.id].cards && (
+                <div className="my-shown-cards">
+                  <Text type="info">我的展示:</Text>
+                  <Hand cards={shownCards[positions.bottom.id].cards} disabled small />
+                </div>
+              )}
+            </div>
+
+            {/* 自己的手牌 - 偏左放置 */}
             <div className="my-hand">
               <Hand
                 cards={myCards}
