@@ -31,6 +31,7 @@ export default function GameBoard() {
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [adjustValue, setAdjustValue] = useState(0);
   const [shownCards, setShownCards] = useState([]); // { playerId, playerName, cards }[]
+  const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -81,8 +82,13 @@ export default function GameBoard() {
     });
 
     // 玩家出牌
-    socket.on('cards_played', ({ playerName, cards, playedCards }) => {
+    socket.on('cards_played', ({ playerId, playerName, cards }) => {
       messageApi.info(`${playerName} 出了 ${cards.length} 张牌`);
+      // 更新该玩家的出牌区域（覆盖之前的牌）
+      setPlayedCards(prev => ({
+        ...prev,
+        [playerId]: { playerName, cards }
+      }));
     });
 
     // 玩家跳过
@@ -200,10 +206,13 @@ export default function GameBoard() {
       messageApi.warning('请先选择要出的牌');
       return;
     }
+    const cardsToPlay = [...selectedCards];
     socket.emit(SOCKET_EVENTS.PLAY_CARDS, {
       roomId: currentRoom.id,
-      cardIds: selectedCards
+      cardIds: cardsToPlay
     });
+    // 立即从手牌中移除（乐观更新）
+    removeCards(cardsToPlay);
     clearSelection();
   };
 
@@ -265,6 +274,9 @@ export default function GameBoard() {
   const currentTurnPlayer = getCurrentTurnPlayer();
   const isMyTurn = currentTurnPlayer?.id === currentPlayer?.id;
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
+
+  // 在自由抢先模式下，所有人都可以出牌；在有序模式下，只有当前玩家可以出牌
+  const canPlay = gameState?.playMode === PlayModes.FREE || isMyTurn;
 
   // 渲染游戏阶段内容
   const renderPhaseContent = () => {
@@ -356,7 +368,7 @@ export default function GameBoard() {
             )}
             {gameState.buryingPlayerId && (
               <>
-                {isMyTurn ? (
+                {canPlay ? (
                   <Space>
                     <Button
                       type="primary"
@@ -371,7 +383,7 @@ export default function GameBoard() {
                     </Button>
                   </Space>
                 ) : (
-                  <Text>等待其他玩家出牌...</Text>
+                  <Text>等待 {currentTurnPlayer?.name} 出牌...</Text>
                 )}
               </>
             )}
