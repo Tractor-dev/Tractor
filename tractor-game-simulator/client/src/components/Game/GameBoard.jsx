@@ -258,7 +258,7 @@ export default function GameBoard() {
 
   // 获取当前玩家
   const getCurrentTurnPlayer = () => {
-    if (!gameState?.currentPlayerIndex) return null;
+    if (typeof gameState?.currentPlayerIndex !== 'number') return null;
     return currentRoom.players[gameState.currentPlayerIndex];
   };
 
