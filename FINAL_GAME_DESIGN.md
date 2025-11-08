@@ -68,10 +68,43 @@
   - 完全自由出牌，无牌型限制
   - 每次可出0-N张牌（0张=跳过）
   - 所有玩家都能看到出的具体牌
-- **回合机制**:
-  - 每轮由4位玩家各出一次牌
-  - 一轮结束后，自动进入下一轮
-  - 下一轮的首发玩家：**本轮第一个出牌的玩家**（自动继承）
+
+- **回合机制（重要）**:
+
+  出牌阶段分为两种模式交替进行：
+
+  **模式1: 轮次内有序出牌 (PLAYING_ORDERED)**
+  - 一个轮次 = 所有玩家各出一次牌
+  - 按照预设顺序（逆时针或自定义）依次出牌
+  - 每个玩家轮到时才能出牌
+  - 例如：玩家A → 玩家B → 玩家C → 玩家D
+
+  **模式2: 轮次间自由出牌 (PLAYING_FREE)**
+  - 当一个轮次结束后，进入自由出牌阶段
+  - **所有玩家都可以出牌**（抢先机制）
+  - **谁第一个出牌，该次出牌直接算作新一轮的首发出牌**
+  - 出牌后立即轮到下一位玩家（进入有序模式）
+
+  **完整流程示例**:
+  ```
+  轮次1（有序）: 玩家A出牌 → 玩家B出牌 → 玩家C出牌 → 玩家D出牌
+    ↓ (4人都出过，轮次1结束)
+  进入自由出牌阶段（所有人都可以出）
+    ↓
+  玩家C抢先出牌！← 这次出牌同时做三件事：
+                    1. 触发轮次2开始
+                    2. 算作轮次2中玩家C的出牌
+                    3. 直接轮到下一位
+    ↓
+  轮次2（有序）: ✓玩家C(已出) → 玩家B出牌 → 玩家A出牌 → 玩家D出牌
+    ↓ (4人都出过，轮次2结束)
+  进入自由出牌阶段
+    ↓
+  玩家A抢先出牌！← 同样直接算作轮次3的出牌
+    ↓
+  轮次3（有序）: ✓玩家A(已出) → 玩家D出牌 → ...
+  ```
+
 - **游戏继续**: 直到所有玩家都出完所有手牌
 
 #### 阶段4: 展示底牌 (REVEALING)
@@ -134,12 +167,13 @@
 ```javascript
 {
   phase: 'waiting' | 'drawing' | 'burying' | 'playing' | 'revealing' | 'finished',
+  playMode: 'ordered' | 'free', // 出牌模式：有序 | 自由抢先
   deck: Card[],               // 牌堆
   bottomCards: Card[],        // 底牌
   buryingPlayerId: string,    // 埋底玩家ID
   firstPlayerId: string,      // 首发玩家ID（房主指定）
-  currentPlayerIndex: number, // 当前出牌玩家索引
-  currentRound: number,       // 当前回合数
+  currentPlayerIndex: number, // 当前出牌玩家索引（仅在ordered模式有效）
+  currentRound: number,       // 当前轮次数（从1开始）
   roundStartPlayerIndex: number, // 本轮首发玩家索引
   playersPlayedThisRound: Set<number>, // 本轮已出牌的玩家索引
   playHistory: PlayRecord[],  // 出牌历史
@@ -270,24 +304,73 @@ export function autoSortCards(cards) {
 
 ```javascript
 class RoundManager {
-  constructor(gameState, playerCount) {
+  constructor(gameState, config, playerCount) {
     this.gameState = gameState;
+    this.config = config;
     this.playerCount = playerCount;
   }
 
   // 玩家出牌后调用
   onPlayerPlayed(playerIndex) {
-    this.gameState.playersPlayedThisRound.add(playerIndex);
+    const mode = this.gameState.playMode;
 
-    // 检查是否本轮所有人都出过牌
-    if (this.gameState.playersPlayedThisRound.size === this.playerCount) {
-      this.startNextRound();
-    } else {
-      this.moveToNextPlayer(playerIndex);
+    if (mode === 'ordered') {
+      // 有序模式：记录已出牌
+      this.gameState.playersPlayedThisRound.add(playerIndex);
+
+      // 检查本轮是否所有人都出过牌
+      if (this.gameState.playersPlayedThisRound.size === this.playerCount) {
+        // 本轮结束，进入自由出牌阶段
+        this.enterFreeMode();
+      } else {
+        // 移动到下一个玩家
+        this.moveToNextPlayer(playerIndex);
+      }
+    } else if (mode === 'free') {
+      // 自由模式：第一个出牌的人触发新一轮
+      // 该玩家成为下一轮首发
+      this.startNewRound(playerIndex);
     }
   }
 
-  // 移动到下一个玩家
+  // 进入自由出牌阶段
+  enterFreeMode() {
+    this.gameState.playMode = 'free';
+    this.gameState.currentPlayerIndex = null; // 自由模式没有"当前玩家"
+
+    // 广播：轮次结束，进入自由出牌
+    return {
+      event: 'free_play_started',
+      message: `第${this.gameState.currentRound}轮结束，所有玩家可以出牌`
+    };
+  }
+
+  // 开始新一轮（由第一个出牌的玩家触发）
+  // 注意：触发的那次出牌本身就算作该玩家在新一轮的出牌
+  startNewRound(firstPlayerIndex) {
+    this.gameState.currentRound++;
+    this.gameState.playMode = 'ordered';
+    this.gameState.roundStartPlayerIndex = firstPlayerIndex;
+    this.gameState.playersPlayedThisRound.clear();
+
+    // 该玩家的出牌已经算作本轮的出牌
+    this.gameState.playersPlayedThisRound.add(firstPlayerIndex);
+
+    // 直接移动到下一个玩家
+    this.moveToNextPlayer(firstPlayerIndex);
+
+    return {
+      event: 'round_started',
+      round: this.gameState.currentRound,
+      firstPlayerIndex,
+      firstPlayerName: this.getPlayerName(firstPlayerIndex),
+      currentPlayerIndex: this.gameState.currentPlayerIndex,
+      currentPlayerName: this.getPlayerName(this.gameState.currentPlayerIndex),
+      message: `轮次${this.gameState.currentRound}开始，${this.getPlayerName(firstPlayerIndex)}首发并已出牌，现在轮到${this.getPlayerName(this.gameState.currentPlayerIndex)}`
+    };
+  }
+
+  // 移动到下一个玩家（有序模式）
   moveToNextPlayer(currentPlayerIndex) {
     const { turnOrder, customTurnOrder } = this.config;
 
@@ -303,13 +386,19 @@ class RoundManager {
     }
   }
 
-  // 开始新一轮
-  startNextRound() {
-    this.gameState.currentRound++;
-    this.gameState.playersPlayedThisRound.clear();
+  // 验证玩家是否可以出牌
+  canPlayerPlay(playerIndex) {
+    const mode = this.gameState.playMode;
 
-    // 本轮首发玩家成为下一轮首发（自动继承）
-    this.gameState.currentPlayerIndex = this.gameState.roundStartPlayerIndex;
+    if (mode === 'free') {
+      // 自由模式：所有人都可以出牌
+      return true;
+    } else if (mode === 'ordered') {
+      // 有序模式：只有当前玩家可以出牌
+      return playerIndex === this.gameState.currentPlayerIndex;
+    }
+
+    return false;
   }
 
   // 检查游戏是否结束（所有人都出完牌）
@@ -464,9 +553,9 @@ class DrawingPhaseManager {
 | `bottom_cards_received` | `{bottomCards[]}` | 收到底牌（私密给埋底玩家） |
 | `cards_buried` | `{playerId}` | 埋底完成 |
 | `cards_played` | `{playerId, playerName, cards[], remainingCount}` | 出牌 |
-| `turn_changed` | `{currentPlayerIndex, currentPlayerName}` | 轮到下一位 |
-| `round_finished` | `{round}` | 一轮结束 |
-| `round_started` | `{round, firstPlayerIndex}` | 新一轮开始 |
+| `turn_changed` | `{currentPlayerIndex, currentPlayerName}` | 轮到下一位（有序模式） |
+| `free_play_started` | `{round, message}` | 轮次结束，进入自由出牌 |
+| `round_started` | `{round, firstPlayerIndex, firstPlayerName, currentPlayerIndex}` | 新轮次开始（有序模式） |
 | `player_finished` | `{playerId, playerName}` | 玩家打完牌 |
 
 #### 结束事件
@@ -527,25 +616,50 @@ class DrawingPhaseManager {
 ```
 
 #### 3. 游戏界面
+
+**有序出牌模式示例**:
 ```
         玩家1 (房主) 分数:0 等级:2 手牌:26张
               [出牌区: ♥3 ♥3 ♦5]
 ┌──────────────────────────────────────────────┐
 │玩家2           游戏状态                 玩家4 │
 │分数:0          阶段: 出牌阶段           分数:0 │
-│等级:2          回合: 5/15              等级:2 │
-│手牌:25张       当前: 玩家3             手牌:27张│
-│[出牌区]        底牌: 8张               [出牌区] │
-│                                              │
+│等级:2          轮次: 5                 等级:2 │
+│手牌:25张       模式: 有序出牌           手牌:27张│
+│[出牌区]        当前: → 玩家3 ←         [出牌区] │
+│                底牌: 8张                      │
 │              中央出牌区域                     │
 │                                              │
 ├──────────────────────────────────────────────┤
-│  玩家3 (你)  分数:0  等级:2  手牌:30张        │
+│  玩家3 (你)  分数:0  等级:2  手牌:30张  ← 轮到你 │
 │  ┌────────────────────────────────────────┐  │
 │  │ [♥2][♥2][♥3][♥5][♦7]...[🃏][🃏]        │  │
 │  └────────────────────────────────────────┘  │
 │  已选: 3张                                    │
 │  [出牌] [跳过] [展示] [自动排序]              │
+└──────────────────────────────────────────────┘
+```
+
+**自由出牌模式示例**:
+```
+        玩家1 (房主) 分数:0 等级:2 手牌:26张
+              [出牌区: ♥3 ♥3 ♦5]
+┌──────────────────────────────────────────────┐
+│玩家2           游戏状态                 玩家4 │
+│分数:0          阶段: 出牌阶段           分数:0 │
+│等级:2          轮次: 5 已结束          等级:2 │
+│手牌:25张       模式: 🔥自由抢先🔥      手牌:27张│
+│[出牌区]        提示: 谁先出牌谁首发     [出牌区] │
+│                底牌: 8张                      │
+│              中央出牌区域                     │
+│                                              │
+├──────────────────────────────────────────────┤
+│  玩家3 (你)  分数:0  等级:2  手牌:30张  所有人可出牌│
+│  ┌────────────────────────────────────────┐  │
+│  │ [♥2][♥2][♥3][♥5][♦7]...[🃏][🃏]        │  │
+│  └────────────────────────────────────────┘  │
+│  已选: 3张                                    │
+│  [抢先出牌!] [跳过] [展示] [自动排序]         │
 └──────────────────────────────────────────────┘
 ```
 
