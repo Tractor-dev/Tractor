@@ -11,7 +11,7 @@ const { Title } = Typography;
 
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
-  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, setCurrentPlayer } = useGameStore();
+  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer } = useGameStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
@@ -34,6 +34,7 @@ function App() {
 
     // 监听房间创建成功
     socket.on('room_created', ({ room, player }) => {
+      console.log('收到房间创建成功事件:', { room, player });
       messageApi.success('房间创建成功！');
       setCurrentRoom(room);
       setCurrentPlayer(player);
