@@ -32,8 +32,11 @@ export default function GameBoard() {
   const [levelAdjustModal, setLevelAdjustModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [adjustValue, setAdjustValue] = useState(0);
+  const [viewBottomModal, setViewBottomModal] = useState(false);
   const [shownCards, setShownCards] = useState({}); // { [playerId]: { playerName, cards } }
   const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
+  const [revealedBottomCards, setRevealedBottomCards] = useState([]); // 展示的底牌
+  const [myBottomCards, setMyBottomCards] = useState([]); // 我埋的底牌（仅埋底玩家可见）
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -88,6 +91,10 @@ export default function GameBoard() {
     // 埋底完成
     socket.on('cards_buried', ({ playerName, playerId }) => {
       messageApi.success(`${playerName} 完成埋底`);
+      // 如果是我自己埋的底，清空我的底牌缓存（已经埋了）
+      if (playerId === currentPlayer?.id) {
+        // 底牌已经保存在后端，前端不需要再显示
+      }
     });
 
     // 首发玩家设置
@@ -128,9 +135,16 @@ export default function GameBoard() {
       messageApi.info(`${playerName} 跳过了回合`);
     });
 
-    // 展示底牌
-    socket.on('bottom_cards_revealed', ({ bottomCards }) => {
+    // 展示底牌（修正事件名）
+    socket.on('bottom_revealed', ({ bottomCards }) => {
       messageApi.info(`底牌已展示: ${bottomCards.length} 张`);
+      setRevealedBottomCards(bottomCards);
+    });
+
+    // 收到我的底牌
+    socket.on('my_bottom_cards', ({ bottomCards }) => {
+      setMyBottomCards(bottomCards);
+      setViewBottomModal(true);
     });
 
     // 玩家确认
@@ -167,7 +181,8 @@ export default function GameBoard() {
       socket.off('free_play_started');
       socket.off('turn_changed');
       socket.off('turn_passed');
-      socket.off('bottom_cards_revealed');
+      socket.off('bottom_revealed');
+      socket.off('my_bottom_cards');
       socket.off('player_confirmed');
       socket.off('game_restarted');
       socket.off('score_updated');
@@ -259,6 +274,14 @@ export default function GameBoard() {
   };
 
   // 确认底牌
+
+  // 查看我的底牌（埋底玩家）
+  const handleViewMyBottomCards = () => {
+    socket.emit(SOCKET_EVENTS.VIEW_MY_BOTTOM_CARDS, {
+      roomId: currentRoom.id
+    });
+  };
+
   const handleConfirmReveal = () => {
     socket.emit(SOCKET_EVENTS.CONFIRM_REVEAL, {
       roomId: currentRoom.id
@@ -477,6 +500,12 @@ export default function GameBoard() {
                       出牌 (已选 {selectedCards.length})
                     </Button>
                     <Button size="large" onClick={handlePass} block>
+                    {/* 埋底玩家可以查看底牌 */}
+                    {currentPlayer?.id === gameState.buryingPlayerId && (
+                      <Button onClick={handleViewMyBottomCards} block>
+                        查看我的底牌
+                      </Button>
+                    )}
                       跳过
                     </Button>
                   </>
@@ -507,11 +536,11 @@ export default function GameBoard() {
         return (
           <div className="phase-content">
             <Title level={3}>展示底牌</Title>
-            <Text>底牌数量: {gameState.bottomCards?.length || 0}</Text>
+            <Text>底牌数量: {revealedBottomCards.length}</Text>
             <br />
             <br />
-            {gameState.bottomCards && gameState.bottomCards.length > 0 && (
-              <Hand cards={gameState.bottomCards} disabled small />
+            {revealedBottomCards.length > 0 && (
+              <Hand cards={revealedBottomCards} disabled small />
             )}
             <br />
             <br />
@@ -644,6 +673,28 @@ export default function GameBoard() {
           value={adjustValue}
           onChange={setAdjustValue}
         />
+      </Modal>
+
+      {/* 查看我的底牌弹窗 */}
+      <Modal
+        title="我的底牌"
+        open={viewBottomModal}
+        onOk={() => setViewBottomModal(false)}
+        onCancel={() => setViewBottomModal(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setViewBottomModal(false)}>
+            关闭
+          </Button>
+        ]}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <Text>已埋 {myBottomCards.length} 张底牌</Text>
+          <br />
+          <br />
+          {myBottomCards.length > 0 && (
+            <Hand cards={myBottomCards} disabled small />
+          )}
+        </div>
       </Modal>
     </div>
   );

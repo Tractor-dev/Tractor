@@ -345,6 +345,38 @@ export function registerGameHandlers(io, socket, roomManager) {
     }
   });
 
+
+  /**
+   * 查看我的底牌（埋底玩家）
+   */
+  socket.on('view_my_bottom_cards', ({ roomId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      // 只有埋底玩家可以查看
+      if (room.gameState.buryingPlayerId !== player.id) {
+        throw new Error('只有埋底玩家可以查看底牌');
+      }
+
+      // 返回底牌
+      socket.emit('my_bottom_cards', {
+        bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
+      });
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('查看底牌失败:', error);
+    }
+  });
+
   /**
    * 确认查看底牌
    */
