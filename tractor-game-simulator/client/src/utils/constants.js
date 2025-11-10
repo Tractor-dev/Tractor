@@ -37,6 +37,7 @@ export const SOCKET_EVENTS = {
   UPDATE_SCORE: 'update_score',
   UPDATE_LEVEL: 'update_level',
   CONFIRM_REVEAL: 'confirm_reveal',
+  VIEW_MY_BOTTOM_CARDS: 'view_my_bottom_cards',
   REORDER_CARDS: 'reorder_cards'
 };
 
