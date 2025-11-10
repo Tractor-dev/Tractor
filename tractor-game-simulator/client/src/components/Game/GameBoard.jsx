@@ -500,14 +500,14 @@ export default function GameBoard() {
                       出牌 (已选 {selectedCards.length})
                     </Button>
                     <Button size="large" onClick={handlePass} block>
+                      跳过
+                    </Button>
                     {/* 埋底玩家可以查看底牌 */}
                     {currentPlayer?.id === gameState.buryingPlayerId && (
                       <Button onClick={handleViewMyBottomCards} block>
                         查看我的底牌
                       </Button>
                     )}
-                      跳过
-                    </Button>
                   </>
                 )}
 
