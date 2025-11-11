@@ -598,11 +598,11 @@ export default function GameBoard() {
       case GamePhases.REVEALING:
         return (
           <div className="phase-content playing-phase">
-            {/* 游戏桌面 - 展示底牌 */}
+            {/* 游戏桌面 - 展示底牌，保留所有人的出牌 */}
             <GameTable
               players={currentRoom.players}
               currentPlayer={currentPlayer}
-              playedCards={{}}
+              playedCards={playedCards}
               shownCards={{}}
               myCards={myCards}
               selectedCards={selectedCards}
@@ -633,18 +633,41 @@ export default function GameBoard() {
 
       case GamePhases.FINISHED:
         return (
-          <div className="phase-content">
-            <Title level={3}>游戏结束</Title>
-            <br />
-            {isHost && (
-              <Space direction="vertical">
-                <Button onClick={() => setScoreAdjustModal(true)}>调整分数</Button>
-                <Button onClick={() => setLevelAdjustModal(true)}>调整等级</Button>
-                <Button type="primary" size="large" onClick={handleRestartGame}>
-                  重新开始
-                </Button>
-              </Space>
-            )}
+          <div className="phase-content playing-phase">
+            {/* 游戏桌面 - 游戏结束，保留所有人的出牌和底牌 */}
+            <GameTable
+              players={currentRoom.players}
+              currentPlayer={currentPlayer}
+              playedCards={playedCards}
+              shownCards={{}}
+              myCards={myCards}
+              selectedCards={selectedCards}
+              onCardClick={toggleCardSelection}
+              onReorder={reorderCards}
+              currentTurnPlayerId={null}
+              trumpSuit={trumpSuit}
+              trumpRank={trumpRank}
+              isHost={isHost}
+              onSetTrump={() => setTrumpModal(true)}
+              revealedBottomCards={revealedBottomCards}
+            />
+
+            {/* 控制区域 - 右下角 */}
+            <div className="game-controls">
+              <div className="game-info">
+                <Text strong>游戏结束</Text>
+              </div>
+
+              {isHost && (
+                <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
+                  <Button onClick={() => setScoreAdjustModal(true)} block>调整分数</Button>
+                  <Button onClick={() => setLevelAdjustModal(true)} block>调整等级</Button>
+                  <Button type="primary" size="large" onClick={handleRestartGame} block>
+                    重新开始
+                  </Button>
+                </Space>
+              )}
+            </div>
           </div>
         );
 

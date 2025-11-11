@@ -2,6 +2,7 @@ import { GamePhases, PlayModes } from '../utils/constants.js';
 import { DrawingPhaseManager } from './DrawingPhaseManager.js';
 import { RoundManager } from './RoundManager.js';
 import { DeckService } from './DeckService.js';
+import { Card } from '../models/Card.js';
 import logger from '../utils/logger.js';
 
 export class GameEngine {
@@ -213,9 +214,13 @@ export class GameEngine {
 
     const lastPlay = this.room.gameState.playHistory[lastPlayIndex];
 
-    // 将牌返回给玩家
+    // 将牌返回给玩家 - 需要从JSON重新创建Card实例
     lastPlay.cards.forEach(cardData => {
-      player.addCard(cardData);
+      // 从id解析出copyIndex: "suit-rank-copyIndex"
+      const parts = cardData.id.split('-');
+      const copyIndex = parseInt(parts[2]) || 0;
+      const card = new Card(cardData.suit, cardData.rank, copyIndex);
+      player.addCard(card);
     });
 
     // 自动排序
