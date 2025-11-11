@@ -1,4 +1,15 @@
 import { useState, useEffect } from 'react';
+
+    // 撤回出牌
+    socket.on('play_undone', ({ playerId, playerName, cards }) => {
+      messageApi.info(`${playerName} 撤回了出牌`);
+      // 清除该玩家的已出牌显示
+      setPlayedCards(prev => {
+        const updated = { ...prev };
+        delete updated[playerId];
+        return updated;
+      });
+    });
 import { Button, Space, Typography, Modal, Select, InputNumber, message } from 'antd';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
@@ -181,6 +192,7 @@ export default function GameBoard() {
       socket.off('free_play_started');
       socket.off('turn_changed');
       socket.off('turn_passed');
+      socket.off('play_undone');
       socket.off('bottom_revealed');
       socket.off('my_bottom_cards');
       socket.off('player_confirmed');
@@ -188,6 +200,14 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
     };
+
+  // 撤回出牌
+  const handleUndoPlay = () => {
+    socket.emit(SOCKET_EVENTS.UNDO_PLAY, {
+      roomId: currentRoom.id
+    });
+  };
+
   }, [socket, messageApi, clearSelection, addCard, removeCards]);
 
   // 开始游戏
@@ -500,14 +520,17 @@ export default function GameBoard() {
                       出牌 (已选 {selectedCards.length})
                     </Button>
                     <Button size="large" onClick={handlePass} block>
+                      跳过
+                    </Button>
+                    <Button size="large" onClick={handleUndoPlay} block>
+                      撤回出牌
+                    </Button>
                     {/* 埋底玩家可以查看底牌 */}
                     {currentPlayer?.id === gameState.buryingPlayerId && (
                       <Button onClick={handleViewMyBottomCards} block>
                         查看我的底牌
                       </Button>
                     )}
-                      跳过
-                    </Button>
                   </>
                 )}
 
@@ -518,6 +541,7 @@ export default function GameBoard() {
                   <Button onClick={() => handleQuickAdjustScore(10)}>+10分</Button>
                 </Space.Compact>
                 <Space.Compact style={{ width: '100%' }}>
+                  <Button onClick={() => handleQuickAdjustLevel(-1)}>-1级</Button>
                   <Button onClick={() => handleQuickAdjustLevel(1)}>+1级</Button>
                 </Space.Compact>
 

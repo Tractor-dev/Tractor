@@ -377,6 +377,48 @@ export function registerGameHandlers(io, socket, roomManager) {
     }
   });
 
+
+  /**
+   * 撤回出牌
+   */
+  socket.on('undo_play', ({ roomId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) {
+        throw new Error('游戏未开始');
+      }
+
+      const result = gameEngine.undoLastPlay(player.id);
+
+      // 广播撤回
+      io.to(room.id).emit('play_undone', {
+        playerId: player.id,
+        playerName: player.name,
+        cards: result.cards,
+        remainingCount: result.remainingCount
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('撤回出牌失败:', error);
+    }
+  });
+
   /**
    * 确认查看底牌
    */
