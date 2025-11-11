@@ -41,6 +41,9 @@ export default function GameBoard() {
   const [trumpSuit, setTrumpSuit] = useState(null); // 主牌花色
   const [trumpRank, setTrumpRank] = useState(null); // 主牌点数
   const [trumpModal, setTrumpModal] = useState(false); // 设置主牌弹窗
+  const [roomConfigModal, setRoomConfigModal] = useState(false); // 房间设置弹窗
+  const [newBottomCardsCount, setNewBottomCardsCount] = useState(8); // 新的底牌数量
+  const [newDealInterval, setNewDealInterval] = useState(500); // 新的发牌间隔
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -183,6 +186,13 @@ export default function GameBoard() {
       }
     });
 
+    // 房间配置更新
+    socket.on('config_updated', ({ config }) => {
+      messageApi.success('房间设置已更新，将在下一局游戏生效');
+      setNewBottomCardsCount(config.bottomCardsCount);
+      setNewDealInterval(config.dealInterval);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -201,6 +211,7 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
       socket.off('trump_updated');
+      socket.off('config_updated');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards]);
 
@@ -211,6 +222,14 @@ export default function GameBoard() {
       setTrumpRank(gameState.trumpRank);
     }
   }, [gameState]);
+
+  // 同步房间配置
+  useEffect(() => {
+    if (currentRoom?.config) {
+      setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
+      setNewDealInterval(currentRoom.config.dealInterval);
+    }
+  }, [currentRoom]);
 
   // 开始游戏
   const handleStartGame = () => {
@@ -393,6 +412,26 @@ export default function GameBoard() {
     setTrumpModal(false);
   };
 
+  // 更新房间配置
+  const handleUpdateRoomConfig = () => {
+    if (newBottomCardsCount < 1 || newBottomCardsCount > 20) {
+      messageApi.warning('底牌数量必须在1-20之间');
+      return;
+    }
+    if (newDealInterval < 10 || newDealInterval > 5000) {
+      messageApi.warning('发牌间隔必须在10-5000毫秒之间');
+      return;
+    }
+    socket.emit(SOCKET_EVENTS.UPDATE_CONFIG, {
+      roomId: currentRoom.id,
+      config: {
+        bottomCardsCount: newBottomCardsCount,
+        dealInterval: newDealInterval
+      }
+    });
+    setRoomConfigModal(false);
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
   // 渲染游戏阶段内容
@@ -404,12 +443,21 @@ export default function GameBoard() {
             <Title level={3}>等待开始</Title>
             <Text>当前玩家: {currentRoom.playerCount} / {currentRoom.maxPlayers}</Text>
             <br />
+            <Text type="secondary">底牌数量: {currentRoom.config.bottomCardsCount} | 发牌间隔: {currentRoom.config.dealInterval}ms</Text>
             <br />
-            {isHost && currentRoom.playerCount >= 2 && (
-              <Button type="primary" size="large" onClick={handleStartGame}>
-                开始游戏
-              </Button>
-            )}
+            <br />
+            <Space>
+              {isHost && currentRoom.playerCount >= 2 && (
+                <Button type="primary" size="large" onClick={handleStartGame}>
+                  开始游戏
+                </Button>
+              )}
+              {isHost && (
+                <Button size="large" onClick={() => setRoomConfigModal(true)}>
+                  房间设置
+                </Button>
+              )}
+            </Space>
           </div>
         );
 
@@ -827,6 +875,42 @@ export default function GameBoard() {
               </Button>
             ))}
           </Space>
+        </div>
+      </Modal>
+
+      {/* 房间设置弹窗 */}
+      <Modal
+        title="房间设置"
+        open={roomConfigModal}
+        onOk={handleUpdateRoomConfig}
+        onCancel={() => setRoomConfigModal(false)}
+        okText="保存"
+        cancelText="取消"
+      >
+        <div>
+          <Text strong>底牌数量:</Text>
+          <br />
+          <InputNumber
+            style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
+            min={1}
+            max={20}
+            value={newBottomCardsCount}
+            onChange={setNewBottomCardsCount}
+          />
+          <br />
+          <Text strong>发牌间隔（毫秒）:</Text>
+          <br />
+          <InputNumber
+            style={{ width: '100%', marginTop: 8 }}
+            min={10}
+            max={5000}
+            step={100}
+            value={newDealInterval}
+            onChange={setNewDealInterval}
+          />
+          <br />
+          <br />
+          <Text type="secondary">设置将在下一局游戏开始时生效</Text>
         </div>
       </Modal>
     </div>
