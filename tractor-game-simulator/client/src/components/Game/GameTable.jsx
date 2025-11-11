@@ -1,4 +1,4 @@
-import { Typography } from 'antd';
+import { Typography, Button } from 'antd';
 import Hand from './Hand';
 import './GameTable.css';
 
@@ -16,6 +16,11 @@ const { Text } = Typography;
  * @param {Function} props.onCardClick - 点击牌的回调
  * @param {Function} props.onReorder - 重新排序手牌的回调
  * @param {String} props.currentTurnPlayerId - 当前轮到谁出牌
+ * @param {String} props.trumpSuit - 主牌花色
+ * @param {String} props.trumpRank - 主牌点数
+ * @param {Boolean} props.isHost - 是否是房主
+ * @param {Function} props.onSetTrump - 设置主牌的回调
+ * @param {Array} props.revealedBottomCards - 揭示的底牌
  */
 export default function GameTable({
   players,
@@ -26,7 +31,12 @@ export default function GameTable({
   selectedCards = [],
   onCardClick,
   onReorder,
-  currentTurnPlayerId
+  currentTurnPlayerId,
+  trumpSuit = null,
+  trumpRank = null,
+  isHost = false,
+  onSetTrump,
+  revealedBottomCards = null
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
@@ -57,6 +67,22 @@ export default function GameTable({
   };
 
   const positions = getPlayerPositions();
+
+  // 获取花色符号
+  const getSuitSymbol = (suit) => {
+    const symbols = {
+      hearts: '♥',
+      diamonds: '♦',
+      clubs: '♣',
+      spades: '♠'
+    };
+    return symbols[suit] || '';
+  };
+
+  // 获取花色颜色
+  const getSuitColor = (suit) => {
+    return (suit === 'hearts' || suit === 'diamonds') ? 'red' : 'black';
+  };
 
   // 渲染单个玩家区域
   const renderPlayerArea = (player, position) => {
@@ -116,7 +142,38 @@ export default function GameTable({
         {/* 中央桌面 */}
         <div className="table-center">
           <div className="center-content">
-            {/* 可以放置公共信息，如底牌数量等 */}
+            {/* 底牌展示（优先显示） */}
+            {revealedBottomCards && revealedBottomCards.length > 0 ? (
+              <div style={{ textAlign: 'center' }}>
+                <Text strong style={{ fontSize: '18px', color: 'white', display: 'block', marginBottom: '12px' }}>
+                  底牌：
+                </Text>
+                <Hand cards={revealedBottomCards} disabled small />
+              </div>
+            ) : (
+              /* 主牌显示 */
+              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Text strong style={{ fontSize: '16px' }}>主牌：</Text>
+                {trumpSuit && trumpRank ? (
+                  <Text
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      color: getSuitColor(trumpSuit)
+                    }}
+                  >
+                    {getSuitSymbol(trumpSuit)} {trumpRank}
+                  </Text>
+                ) : (
+                  <Text type="secondary">未设置</Text>
+                )}
+                {isHost && (
+                  <Button size="small" onClick={onSetTrump}>
+                    {trumpSuit && trumpRank ? '修改' : '设置'}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

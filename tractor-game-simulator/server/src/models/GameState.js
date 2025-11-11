@@ -16,6 +16,8 @@ export class GameState {
     this.drawingIndex = 0;
     this.startTime = null;
     this.endTime = null;
+    this.trumpSuit = null; // 主牌花色
+    this.trumpRank = null; // 主牌点数
   }
 
   reset() {
@@ -33,6 +35,8 @@ export class GameState {
     this.drawingIndex = 0;
     this.startTime = null;
     this.endTime = null;
+    this.trumpSuit = null;
+    this.trumpRank = null;
   }
 
   toJSON() {
@@ -50,7 +54,9 @@ export class GameState {
       drawingProgress: this.drawingIndex,
       totalCards: this.deck.length,
       startTime: this.startTime,
-      endTime: this.endTime
+      endTime: this.endTime,
+      trumpSuit: this.trumpSuit,
+      trumpRank: this.trumpRank
     };
   }
 }

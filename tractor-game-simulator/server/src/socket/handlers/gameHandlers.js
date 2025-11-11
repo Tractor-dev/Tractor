@@ -191,6 +191,43 @@ export function registerGameHandlers(io, socket, roomManager) {
   });
 
   /**
+   * 设置主牌（房主）
+   */
+  socket.on('set_trump', ({ roomId, suit, rank }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以设置主牌');
+      }
+
+      // 设置主牌
+      room.gameState.trumpSuit = suit;
+      room.gameState.trumpRank = rank;
+
+      // 广播主牌更新
+      io.to(room.id).emit('trump_updated', {
+        trumpSuit: suit,
+        trumpRank: rank
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房间 ${room.id} 主牌已设置: ${suit} ${rank}`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('设置主牌失败:', error);
+    }
+  });
+
+  /**
    * 出牌
    */
   socket.on('play_cards', ({ roomId, cardIds }) => {
