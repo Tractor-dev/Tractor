@@ -181,6 +181,13 @@ export default function GameBoard() {
         delete updated[playerId];
         return updated;
       });
+
+      // 如果是自己撤回，将牌添加回手牌
+      if (playerId === currentPlayer?.id) {
+        cards.forEach(cardData => {
+          addCard(cardData);
+        });
+      }
     });
 
     // 主牌更新
