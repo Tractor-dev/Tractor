@@ -90,22 +90,10 @@ export class GameEngine {
 
     logger.info(`房间 ${this.room.id} 埋底完成`);
 
-    // 进入出牌阶段，自动设置埋底玩家为首发玩家
+    // 进入出牌阶段 - 自由出牌模式，任何玩家都可以随时出牌
     this.room.gameState.phase = GamePhases.PLAYING;
-    this.room.gameState.playMode = PlayModes.ORDERED;
 
-    // 自动设置首发玩家为埋底玩家
-    const playerIndex = this.room.getPlayerIndex(playerId);
-    this.room.gameState.firstPlayerId = playerId;
-    this.room.gameState.currentPlayerIndex = playerIndex;
-    this.room.gameState.roundStartPlayerIndex = playerIndex;
-    this.room.gameState.currentRound = 1;
-    this.room.gameState.playersPlayedThisRound.clear();
-
-    // 创建回合管理器
-    this.roundManager = new RoundManager(this.room);
-
-    logger.info(`房间 ${this.room.id} 首发玩家（埋底玩家）: ${player.name}`);
+    logger.info(`房间 ${this.room.id} 进入自由出牌阶段`);
 
     return true;
   }
@@ -142,7 +130,7 @@ export class GameEngine {
   }
 
   /**
-   * 出牌
+   * 出牌 - 自由出牌模式，任意玩家可随时出牌
    */
   playCards(playerId, cardIds) {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
@@ -150,15 +138,9 @@ export class GameEngine {
     }
 
     const player = this.room.findPlayerById(playerId);
-    const playerIndex = this.room.getPlayerIndex(playerId);
 
     if (!player) {
       throw new Error('玩家不存在');
-    }
-
-    // 验证是否轮到该玩家
-    if (!this.roundManager.canPlayerPlay(playerIndex)) {
-      throw new Error('还没轮到你出牌');
     }
 
     // 验证牌是否在手中
@@ -175,28 +157,31 @@ export class GameEngine {
       playerId,
       playerName: player.name,
       cards: validCards.map(c => c.toJSON()),
-      timestamp: new Date(),
-      round: this.room.gameState.currentRound
+      timestamp: new Date()
     });
 
-    // 处理回合逻辑
-    const roundResult = this.roundManager.onPlayerPlayed(playerIndex);
+    logger.info(`房间 ${this.room.id} 玩家 ${player.name} 出牌 ${cardIds.length} 张`);
 
-    // 检查游戏是否结束
-    if (this.roundManager.isGameFinished()) {
+    // 检查游戏是否结束（所有玩家手牌为0）
+    const allPlayersFinished = this.room.players.every(p => p.cards.length === 0);
+    if (allPlayersFinished) {
       this.finishGame();
-      return { ...roundResult, gameFinished: true };
+      return {
+        playedCards: validCards.map(c => c.toJSON()),
+        remainingCount: player.cards.length,
+        gameFinished: true
+      };
     }
 
     return {
-      ...roundResult,
       playedCards: validCards.map(c => c.toJSON()),
-      remainingCount: player.cards.length
+      remainingCount: player.cards.length,
+      gameFinished: false
     };
   }
 
   /**
-   * 撤回上次出牌
+   * 撤回上次出牌 - 将上次自己打的牌收回手中
    */
   undoLastPlay(playerId) {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
@@ -213,27 +198,20 @@ export class GameEngine {
       throw new Error('没有可撤回的出牌记录');
     }
 
-    // 获取最后一次出牌记录
-    const lastPlay = this.room.gameState.playHistory[this.room.gameState.playHistory.length - 1];
-    
-    // 验证是否是该玩家的出牌
-    if (lastPlay.playerId !== playerId) {
-      throw new Error('只能撤回自己的出牌');
+    // 找到该玩家最后一次出牌记录
+    let lastPlayIndex = -1;
+    for (let i = this.room.gameState.playHistory.length - 1; i >= 0; i--) {
+      if (this.room.gameState.playHistory[i].playerId === playerId) {
+        lastPlayIndex = i;
+        break;
+      }
     }
 
-    // 验证是否在同一轮内
-    if (lastPlay.round !== this.room.gameState.currentRound) {
-      throw new Error('只能撤回当前轮次的出牌');
+    if (lastPlayIndex === -1) {
+      throw new Error('没有找到你的出牌记录');
     }
 
-    // 验证下一个玩家还没有出牌（通过检查当前玩家索引）
-    const playerIndex = this.room.getPlayerIndex(playerId);
-    const nextPlayerIndex = (playerIndex + 1) % this.room.players.length;
-    
-    // 如果当前轮到的不是下一个玩家，说明下一个玩家可能已经出牌了
-    if (this.room.gameState.currentPlayerIndex !== nextPlayerIndex) {
-      throw new Error('下一个玩家已经出牌，无法撤回');
-    }
+    const lastPlay = this.room.gameState.playHistory[lastPlayIndex];
 
     // 将牌返回给玩家
     lastPlay.cards.forEach(cardData => {
@@ -241,15 +219,10 @@ export class GameEngine {
     });
 
     // 自动排序
-    
     player.cards = DeckService.autoSortCards(player.cards);
 
     // 移除出牌记录
-    this.room.gameState.playHistory.pop();
-
-    // 恢复回合状态
-    this.room.gameState.currentPlayerIndex = playerIndex;
-    this.room.gameState.playersPlayedThisRound.delete(playerIndex);
+    this.room.gameState.playHistory.splice(lastPlayIndex, 1);
 
     logger.info(`房间 ${this.room.id} 玩家 ${player.name} 撤回了出牌`);
 

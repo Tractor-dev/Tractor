@@ -17,6 +17,7 @@ export default function GameBoard() {
     selectedCards,
     toggleCardSelection,
     clearSelection,
+    setSelectedCards,
     setMyCards,
     addCard,
     removeCards,
@@ -241,17 +242,20 @@ export default function GameBoard() {
     clearSelection();
   };
 
-  // 一键展示所有手牌
-  const handleShowAllCards = () => {
+  // 一键选中所有手牌
+  const handleSelectAllCards = () => {
     if (myCards.length === 0) {
-      messageApi.warning('没有手牌可展示');
+      messageApi.warning('没有手牌可选择');
       return;
     }
     const allCardIds = myCards.map(card => card.id);
-    socket.emit(SOCKET_EVENTS.SHOW_CARDS, {
-      roomId: currentRoom.id,
-      cardIds: allCardIds
-    });
+    // 如果已经全选，则取消全选
+    if (selectedCards.length === myCards.length) {
+      clearSelection();
+    } else {
+      // 选中所有牌
+      setSelectedCards(allCardIds);
+    }
   };
 
   // 设置埋底玩家
@@ -400,18 +404,7 @@ export default function GameBoard() {
     setTrumpModal(false);
   };
 
-  // 获取当前玩家
-  const getCurrentTurnPlayer = () => {
-    if (typeof gameState?.currentPlayerIndex !== 'number') return null;
-    return currentRoom.players[gameState.currentPlayerIndex];
-  };
-
-  const currentTurnPlayer = getCurrentTurnPlayer();
-  const isMyTurn = currentTurnPlayer?.id === currentPlayer?.id;
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
-
-  // 在自由抢先模式下，所有人都可以出牌；在有序模式下，只有当前玩家可以出牌
-  const canPlay = gameState?.playMode === PlayModes.FREE || isMyTurn;
 
   // 渲染游戏阶段内容
   const renderPhaseContent = () => {
@@ -468,11 +461,11 @@ export default function GameBoard() {
                   展示选中的牌 ({selectedCards.length})
                 </Button>
                 <Button
-                  onClick={handleShowAllCards}
+                  onClick={handleSelectAllCards}
                   disabled={myCards.length === 0}
                   block
                 >
-                  一键展示所有手牌
+                  一键选中所有牌
                 </Button>
                 {isHost && (
                   <Button
@@ -544,7 +537,7 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
-              currentTurnPlayerId={currentTurnPlayer?.id}
+              currentTurnPlayerId={null}
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
@@ -554,21 +547,13 @@ export default function GameBoard() {
             {/* 辅助信息和操作区域 - 右下角 */}
             <div className="game-controls">
               <div className="game-info">
-                <Text strong>出牌模式: {gameState.playMode === PlayModes.ORDERED ? '有序出牌' : '自由抢先'}</Text>
+                <Text strong>自由出牌阶段</Text>
                 <br />
-                {currentTurnPlayer && (
-                  <Text>当前玩家: {currentTurnPlayer.name}</Text>
-                )}
+                <Text type="secondary">任何玩家都可以随时出牌</Text>
               </div>
 
               <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
-                {phase === GamePhases.PLAYING && !gameState.buryingPlayerId && isHost && (
-                  <Button type="primary" onClick={() => setFirstPlayerModal(true)} block>
-                    设置首发玩家
-                  </Button>
-                )}
-
-                {gameState.buryingPlayerId && canPlay && (
+                {gameState.buryingPlayerId && (
                   <>
                     <Button
                       type="primary"
@@ -594,9 +579,9 @@ export default function GameBoard() {
                   </>
                 )}
 
-                {/* 一键展示所有手牌按钮 - 任何阶段都可用 */}
-                <Button onClick={handleShowAllCards} disabled={myCards.length === 0} block>
-                  一键展示所有手牌
+                {/* 一键选中所有牌按钮 - 任何阶段都可用 */}
+                <Button onClick={handleSelectAllCards} disabled={myCards.length === 0} block>
+                  一键选中所有牌
                 </Button>
 
                 {/* 快捷操作按钮 */}
