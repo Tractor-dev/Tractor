@@ -257,33 +257,6 @@ export function registerGameHandlers(io, socket, roomManager) {
         remainingCount: result.remainingCount
       });
 
-      // 根据回合结果广播不同事件
-      if (result.type === 'turn_changed') {
-        const currentPlayer = room.findPlayerByIndex(result.currentPlayerIndex);
-        io.to(room.id).emit('turn_changed', {
-          currentPlayerIndex: result.currentPlayerIndex,
-          currentPlayerId: currentPlayer.id,
-          currentPlayerName: currentPlayer.name
-        });
-      } else if (result.type === 'free_play_started') {
-        io.to(room.id).emit('free_play_started', {
-          round: result.round,
-          message: result.message
-        });
-      } else if (result.type === 'round_started') {
-        io.to(room.id).emit('round_started', {
-          round: result.round,
-          firstPlayerIndex: result.firstPlayerIndex,
-          firstPlayerId: result.firstPlayerId,
-          firstPlayerName: result.firstPlayerName,
-          firstPlayerCards: result.playedCards, // 包含首位玩家的出牌
-          currentPlayerIndex: result.currentPlayerIndex,
-          currentPlayerId: result.currentPlayerId,
-          currentPlayerName: result.currentPlayerName,
-          message: result.message
-        });
-      }
-
       // 检查是否有玩家打完牌
       if (result.remainingCount === 0) {
         io.to(room.id).emit('player_finished', {
@@ -300,7 +273,7 @@ export function registerGameHandlers(io, socket, roomManager) {
 
         io.to(room.id).emit('phase_changed', {
           phase: 'revealing',
-          message: '游戏结束，查看底牌'
+          message: '所有玩家已出完牌，查看底牌'
         });
       }
 
@@ -344,30 +317,15 @@ export function registerGameHandlers(io, socket, roomManager) {
         playerName: player.name
       });
 
-      // 根据回合结果广播不同事件
-      if (result.type === 'turn_changed') {
-        const currentPlayer = room.findPlayerByIndex(result.currentPlayerIndex);
-        io.to(room.id).emit('turn_changed', {
-          currentPlayerIndex: result.currentPlayerIndex,
-          currentPlayerId: currentPlayer.id,
-          currentPlayerName: currentPlayer.name
+      // 游戏结束检查
+      if (result.gameFinished) {
+        io.to(room.id).emit('bottom_revealed', {
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
         });
-      } else if (result.type === 'free_play_started') {
-        io.to(room.id).emit('free_play_started', {
-          round: result.round,
-          message: result.message
-        });
-      } else if (result.type === 'round_started') {
-        io.to(room.id).emit('round_started', {
-          round: result.round,
-          firstPlayerIndex: result.firstPlayerIndex,
-          firstPlayerId: result.firstPlayerId,
-          firstPlayerName: result.firstPlayerName,
-          firstPlayerCards: result.playedCards || [], // 跳过时没有牌
-          currentPlayerIndex: result.currentPlayerIndex,
-          currentPlayerId: result.currentPlayerId,
-          currentPlayerName: result.currentPlayerName,
-          message: result.message
+
+        io.to(room.id).emit('phase_changed', {
+          phase: 'revealing',
+          message: '所有玩家已出完牌，查看底牌'
         });
       }
 
