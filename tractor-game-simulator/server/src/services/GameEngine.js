@@ -196,6 +196,73 @@ export class GameEngine {
   }
 
   /**
+   * 撤回上次出牌
+   */
+  undoLastPlay(playerId) {
+    if (this.room.gameState.phase !== GamePhases.PLAYING) {
+      throw new Error('当前不是出牌阶段');
+    }
+
+    const player = this.room.findPlayerById(playerId);
+    if (!player) {
+      throw new Error('玩家不存在');
+    }
+
+    // 检查是否有出牌记录
+    if (this.room.gameState.playHistory.length === 0) {
+      throw new Error('没有可撤回的出牌记录');
+    }
+
+    // 获取最后一次出牌记录
+    const lastPlay = this.room.gameState.playHistory[this.room.gameState.playHistory.length - 1];
+    
+    // 验证是否是该玩家的出牌
+    if (lastPlay.playerId !== playerId) {
+      throw new Error('只能撤回自己的出牌');
+    }
+
+    // 验证是否在同一轮内
+    if (lastPlay.round !== this.room.gameState.currentRound) {
+      throw new Error('只能撤回当前轮次的出牌');
+    }
+
+    // 验证下一个玩家还没有出牌（通过检查当前玩家索引）
+    const playerIndex = this.room.getPlayerIndex(playerId);
+    const nextPlayerIndex = (playerIndex + 1) % this.room.players.length;
+    
+    // 如果当前轮到的不是下一个玩家，说明下一个玩家可能已经出牌了
+    if (this.room.gameState.currentPlayerIndex !== nextPlayerIndex) {
+      throw new Error('下一个玩家已经出牌，无法撤回');
+    }
+
+    // 将牌返回给玩家
+    lastPlay.cards.forEach(cardData => {
+      player.addCard(cardData);
+    });
+
+    // 自动排序
+    
+    player.cards = DeckService.autoSortCards(player.cards);
+
+    // 移除出牌记录
+    this.room.gameState.playHistory.pop();
+
+    // 恢复回合状态
+    this.room.gameState.currentPlayerIndex = playerIndex;
+    this.room.gameState.playersPlayedThisRound.delete(playerIndex);
+
+    logger.info(`房间 ${this.room.id} 玩家 ${player.name} 撤回了出牌`);
+
+    return {
+      playerId,
+      playerName: player.name,
+      cards: lastPlay.cards,
+      remainingCount: player.cards.length
+    };
+  }
+
+
+  /**
    * 结束游戏
    */
   finishGame() {

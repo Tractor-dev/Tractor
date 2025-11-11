@@ -34,6 +34,7 @@ export const SOCKET_EVENTS = {
   BURY_CARDS: 'bury_cards',
   PLAY_CARDS: 'play_cards',
   PASS_TURN: 'pass_turn',
+  UNDO_PLAY: 'undo_play',
   UPDATE_SCORE: 'update_score',
   UPDATE_LEVEL: 'update_level',
   CONFIRM_REVEAL: 'confirm_reveal',
