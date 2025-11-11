@@ -241,6 +241,19 @@ export default function GameBoard() {
     clearSelection();
   };
 
+  // 一键展示所有手牌
+  const handleShowAllCards = () => {
+    if (myCards.length === 0) {
+      messageApi.warning('没有手牌可展示');
+      return;
+    }
+    const allCardIds = myCards.map(card => card.id);
+    socket.emit(SOCKET_EVENTS.SHOW_CARDS, {
+      roomId: currentRoom.id,
+      cardIds: allCardIds
+    });
+  };
+
   // 设置埋底玩家
   const handleSetBuryingPlayer = () => {
     if (!selectedBuryingPlayer) {
@@ -454,6 +467,13 @@ export default function GameBoard() {
                 >
                   展示选中的牌 ({selectedCards.length})
                 </Button>
+                <Button
+                  onClick={handleShowAllCards}
+                  disabled={myCards.length === 0}
+                  block
+                >
+                  一键展示所有手牌
+                </Button>
                 {isHost && (
                   <Button
                     type="primary"
@@ -573,6 +593,11 @@ export default function GameBoard() {
                     )}
                   </>
                 )}
+
+                {/* 一键展示所有手牌按钮 - 任何阶段都可用 */}
+                <Button onClick={handleShowAllCards} disabled={myCards.length === 0} block>
+                  一键展示所有手牌
+                </Button>
 
                 {/* 快捷操作按钮 */}
                 <Space.Compact style={{ width: '100%' }}>
