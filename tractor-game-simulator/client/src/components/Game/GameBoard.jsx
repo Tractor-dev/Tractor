@@ -623,19 +623,37 @@ export default function GameBoard() {
 
       case GamePhases.REVEALING:
         return (
-          <div className="phase-content">
-            <Title level={3}>展示底牌</Title>
-            <Text>底牌数量: {revealedBottomCards.length}</Text>
-            <br />
-            <br />
-            {revealedBottomCards.length > 0 && (
-              <Hand cards={revealedBottomCards} disabled small />
-            )}
-            <br />
-            <br />
-            <Button type="primary" size="large" onClick={handleConfirmReveal}>
-              确认
-            </Button>
+          <div className="phase-content playing-phase">
+            {/* 游戏桌面 - 展示底牌 */}
+            <GameTable
+              players={currentRoom.players}
+              currentPlayer={currentPlayer}
+              playedCards={{}}
+              shownCards={{}}
+              myCards={myCards}
+              selectedCards={selectedCards}
+              onCardClick={toggleCardSelection}
+              onReorder={reorderCards}
+              currentTurnPlayerId={null}
+              trumpSuit={trumpSuit}
+              trumpRank={trumpRank}
+              isHost={isHost}
+              onSetTrump={() => setTrumpModal(true)}
+              revealedBottomCards={revealedBottomCards}
+            />
+
+            {/* 控制区域 - 右下角 */}
+            <div className="game-controls">
+              <div className="game-info">
+                <Text strong>游戏结束 - 底牌展示</Text>
+                <br />
+                <Text>底牌数量: {revealedBottomCards.length}</Text>
+              </div>
+
+              <Button type="primary" size="large" onClick={handleConfirmReveal} block>
+                确认
+              </Button>
+            </div>
           </div>
         );
 
