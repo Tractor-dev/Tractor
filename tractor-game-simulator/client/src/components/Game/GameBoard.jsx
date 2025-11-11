@@ -108,12 +108,17 @@ export default function GameBoard() {
 
     // 玩家出牌
     socket.on('cards_played', ({ playerId, playerName, cards }) => {
+      console.log('收到 cards_played 事件:', { playerId, playerName, cardsCount: cards.length });
       messageApi.info(`${playerName} 出了 ${cards.length} 张牌`);
       // 更新该玩家的出牌区域（覆盖之前的牌）
-      setPlayedCards(prev => ({
-        ...prev,
-        [playerId]: { playerName, cards }
-      }));
+      setPlayedCards(prev => {
+        const updated = {
+          ...prev,
+          [playerId]: { playerName, cards }
+        };
+        console.log('更新后的 playedCards:', Object.keys(updated));
+        return updated;
+      });
     });
 
     // 玩家跳过
@@ -138,12 +143,6 @@ export default function GameBoard() {
       messageApi.info(`${playerName} 已确认`);
     });
 
-    // 游戏重新开始
-    socket.on('game_restarted', () => {
-      messageApi.success('游戏重新开始！');
-      clearSelection();
-    });
-
     // 分数更新
     socket.on('score_updated', ({ playerId, newScore }) => {
       messageApi.success('分数已更新');
@@ -156,16 +155,19 @@ export default function GameBoard() {
 
     // 撤回出牌
     socket.on('play_undone', ({ playerId, playerName, cards }) => {
+      console.log('收到 play_undone 事件:', { playerId, playerName, cardsCount: cards.length });
       messageApi.info(`${playerName} 撤回了出牌`);
       // 清除该玩家的已出牌显示
       setPlayedCards(prev => {
         const updated = { ...prev };
         delete updated[playerId];
+        console.log('撤回后的 playedCards:', Object.keys(updated));
         return updated;
       });
 
       // 如果是自己撤回，将牌添加回手牌
       if (playerId === currentPlayer?.id) {
+        console.log('将牌添加回手牌:', cards.length, '张');
         cards.forEach(cardData => {
           addCard(cardData);
         });
@@ -293,6 +295,7 @@ export default function GameBoard() {
       return;
     }
     const cardsToPlay = [...selectedCards];
+    console.log('发送 PLAY_CARDS 事件:', { cardIds: cardsToPlay });
     socket.emit(SOCKET_EVENTS.PLAY_CARDS, {
       roomId: currentRoom.id,
       cardIds: cardsToPlay
