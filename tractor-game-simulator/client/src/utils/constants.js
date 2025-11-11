@@ -27,6 +27,7 @@ export const SOCKET_EVENTS = {
   START_GAME: 'start_game',
   SET_BURYING_PLAYER: 'set_burying_player',
   SET_FIRST_PLAYER: 'set_first_player',
+  SET_TRUMP: 'set_trump',
   RESTART_GAME: 'restart_game',
 
   // 玩家操作

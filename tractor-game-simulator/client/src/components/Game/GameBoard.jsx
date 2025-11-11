@@ -37,6 +37,9 @@ export default function GameBoard() {
   const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
   const [revealedBottomCards, setRevealedBottomCards] = useState([]); // 展示的底牌
   const [myBottomCards, setMyBottomCards] = useState([]); // 我埋的底牌（仅埋底玩家可见）
+  const [trumpSuit, setTrumpSuit] = useState(null); // 主牌花色
+  const [trumpRank, setTrumpRank] = useState(null); // 主牌点数
+  const [trumpModal, setTrumpModal] = useState(false); // 设置主牌弹窗
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -179,6 +182,15 @@ export default function GameBoard() {
       });
     });
 
+    // 主牌更新
+    socket.on('trump_updated', ({ trumpSuit, trumpRank }) => {
+      setTrumpSuit(trumpSuit);
+      setTrumpRank(trumpRank);
+      if (trumpSuit && trumpRank) {
+        messageApi.info(`主牌已设置: ${trumpSuit} ${trumpRank}`);
+      }
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -199,8 +211,17 @@ export default function GameBoard() {
       socket.off('game_restarted');
       socket.off('score_updated');
       socket.off('level_updated');
+      socket.off('trump_updated');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards]);
+
+  // 同步主牌状态
+  useEffect(() => {
+    if (gameState) {
+      setTrumpSuit(gameState.trumpSuit);
+      setTrumpRank(gameState.trumpRank);
+    }
+  }, [gameState]);
 
   // 开始游戏
   const handleStartGame = () => {
@@ -356,6 +377,16 @@ export default function GameBoard() {
     });
   };
 
+  // 设置主牌
+  const handleSetTrump = (suit, rank) => {
+    socket.emit(SOCKET_EVENTS.SET_TRUMP, {
+      roomId: currentRoom.id,
+      suit,
+      rank
+    });
+    setTrumpModal(false);
+  };
+
   // 获取当前玩家
   const getCurrentTurnPlayer = () => {
     if (typeof gameState?.currentPlayerIndex !== 'number') return null;
@@ -401,6 +432,10 @@ export default function GameBoard() {
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
               currentTurnPlayerId={null}
+              trumpSuit={trumpSuit}
+              trumpRank={trumpRank}
+              isHost={isHost}
+              onSetTrump={() => setTrumpModal(true)}
             />
 
             {/* 控制区域 - 右下角 */}
@@ -447,6 +482,10 @@ export default function GameBoard() {
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
               currentTurnPlayerId={null}
+              trumpSuit={trumpSuit}
+              trumpRank={trumpRank}
+              isHost={isHost}
+              onSetTrump={() => setTrumpModal(true)}
             />
 
             {/* 控制区域 - 右下角 */}
@@ -486,6 +525,10 @@ export default function GameBoard() {
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
               currentTurnPlayerId={currentTurnPlayer?.id}
+              trumpSuit={trumpSuit}
+              trumpRank={trumpRank}
+              isHost={isHost}
+              onSetTrump={() => setTrumpModal(true)}
             />
 
             {/* 辅助信息和操作区域 - 右下角 */}
@@ -715,6 +758,35 @@ export default function GameBoard() {
           {myBottomCards.length > 0 && (
             <Hand cards={myBottomCards} disabled small />
           )}
+        </div>
+      </Modal>
+
+      {/* 设置主牌弹窗 */}
+      <Modal
+        title="设置主牌"
+        open={trumpModal}
+        onCancel={() => setTrumpModal(false)}
+        footer={null}
+      >
+        <div>
+          <Text strong>花色:</Text>
+          <br />
+          <Space wrap style={{ marginTop: 8, marginBottom: 16 }}>
+            <Button onClick={() => handleSetTrump('hearts', trumpRank || '2')}>♥ 红桃</Button>
+            <Button onClick={() => handleSetTrump('diamonds', trumpRank || '2')}>♦ 方块</Button>
+            <Button onClick={() => handleSetTrump('clubs', trumpRank || '2')}>♣ 梅花</Button>
+            <Button onClick={() => handleSetTrump('spades', trumpRank || '2')}>♠ 黑桃</Button>
+          </Space>
+          <br />
+          <Text strong>点数:</Text>
+          <br />
+          <Space wrap style={{ marginTop: 8 }}>
+            {['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'].map(rank => (
+              <Button key={rank} onClick={() => handleSetTrump(trumpSuit || 'hearts', rank)}>
+                {rank}
+              </Button>
+            ))}
+          </Space>
         </div>
       </Modal>
     </div>
