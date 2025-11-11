@@ -1,15 +1,4 @@
 import { useState, useEffect } from 'react';
-
-    // 撤回出牌
-    socket.on('play_undone', ({ playerId, playerName, cards }) => {
-      messageApi.info(`${playerName} 撤回了出牌`);
-      // 清除该玩家的已出牌显示
-      setPlayedCards(prev => {
-        const updated = { ...prev };
-        delete updated[playerId];
-        return updated;
-      });
-    });
 import { Button, Space, Typography, Modal, Select, InputNumber, message } from 'antd';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
@@ -179,6 +168,17 @@ export default function GameBoard() {
       messageApi.success('等级已更新');
     });
 
+    // 撤回出牌
+    socket.on('play_undone', ({ playerId, playerName, cards }) => {
+      messageApi.info(`${playerName} 撤回了出牌`);
+      // 清除该玩家的已出牌显示
+      setPlayedCards(prev => {
+        const updated = { ...prev };
+        delete updated[playerId];
+        return updated;
+      });
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -200,14 +200,6 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
     };
-
-  // 撤回出牌
-  const handleUndoPlay = () => {
-    socket.emit(SOCKET_EVENTS.UNDO_PLAY, {
-      roomId: currentRoom.id
-    });
-  };
-
   }, [socket, messageApi, clearSelection, addCard, removeCards]);
 
   // 开始游戏
@@ -293,7 +285,12 @@ export default function GameBoard() {
     });
   };
 
-  // 确认底牌
+  // 撤回出牌
+  const handleUndoPlay = () => {
+    socket.emit(SOCKET_EVENTS.UNDO_PLAY, {
+      roomId: currentRoom.id
+    });
+  };
 
   // 查看我的底牌（埋底玩家）
   const handleViewMyBottomCards = () => {
