@@ -543,28 +543,35 @@ export default function GameBoard() {
   const renderPhaseContent = () => {
     switch (phase) {
       case GamePhases.WAITING:
+        if (!currentRoom) {
+          return <div className="phase-content"><Text>等待加入房间...</Text></div>;
+        }
         return (
           <div className="phase-content">
             <Title level={3}>等待开始</Title>
             <Text>当前玩家: {currentRoom.playerCount} / {currentRoom.maxPlayers}</Text>
             <br />
-            <Text type="secondary">底牌数量: {currentRoom.config.bottomCardsCount} | 发牌间隔: {currentRoom.config.dealInterval}ms</Text>
+            <Text type="secondary">底牌数量: {currentRoom.config?.bottomCardsCount || 8} | 发牌间隔: {currentRoom.config?.dealInterval || 500}ms</Text>
             <br />
             <br />
-            <Space direction="vertical" style={{ alignItems: 'center', width: '100%' }}>
-              <Space>
-                {isHost && currentRoom.playerCount >= 2 && (
-                  <Button type="primary" size="large" onClick={handleStartGame}>
-                    开始游戏
-                  </Button>
-                )}
-                {isHost && (
+
+            <Space direction="vertical" size="middle" style={{ width: '100%', alignItems: 'center' }}>
+              {/* 房主操作按钮 */}
+              {isHost && (
+                <Space size="middle">
+                  {currentRoom.playerCount >= 2 && (
+                    <Button type="primary" size="large" onClick={handleStartGame}>
+                      开始游戏
+                    </Button>
+                  )}
                   <Button size="large" onClick={() => setRoomConfigModal(true)}>
                     房间设置
                   </Button>
-                )}
-              </Space>
-              <Button onClick={handleOpenRenameModal} style={{ marginTop: 8 }}>
+                </Space>
+              )}
+
+              {/* 所有玩家可用按钮 */}
+              <Button onClick={handleOpenRenameModal}>
                 修改昵称
               </Button>
             </Space>
