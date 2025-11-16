@@ -184,8 +184,15 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
         const gameEngines = getGameEngines();
         gameEngines.delete(room.id);
         roomManager.deleteRoom(room.id);
+        logger.info(`玩家 ${player.name} 离开房间: ${room.id}，房间已删除`);
+        return; // 房间已删除，不需要再广播
       }
     }
+
+    // 广播房间状态更新（在房间未被删除的情况下）
+    io.to(room.id).emit('room_updated', {
+      room: room.toJSON()
+    });
 
     logger.info(`玩家 ${player.name} 离开房间: ${room.id}`);
   } catch (error) {
