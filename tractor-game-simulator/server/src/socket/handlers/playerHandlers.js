@@ -165,4 +165,55 @@ export function registerPlayerHandlers(io, socket, roomManager) {
       logger.error('重新排序失败:', error);
     }
   });
+
+  /**
+   * 更新玩家昵称
+   */
+  socket.on('update_player_name', ({ roomId, newName }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      if (!newName || typeof newName !== 'string') {
+        throw new Error('昵称不能为空');
+      }
+
+      const trimmedName = newName.trim();
+      if (trimmedName.length === 0) {
+        throw new Error('昵称不能为空');
+      }
+
+      if (trimmedName.length > 20) {
+        throw new Error('昵称长度不能超过20个字符');
+      }
+
+      const oldName = player.name;
+      player.name = trimmedName;
+
+      // 广播昵称更新
+      io.to(room.id).emit('player_name_updated', {
+        playerId: player.id,
+        oldName: oldName,
+        newName: player.name
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`玩家 ${oldName} 修改昵称为: ${player.name}`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('更新昵称失败:', error);
+    }
+  });
 }
