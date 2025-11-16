@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Space, Typography, Modal, Select, InputNumber, message } from 'antd';
+import { Button, Space, Typography, Modal, Select, InputNumber, Input, message } from 'antd';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
