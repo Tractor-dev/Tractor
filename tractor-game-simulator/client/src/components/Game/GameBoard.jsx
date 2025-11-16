@@ -44,6 +44,8 @@ export default function GameBoard() {
   const [roomConfigModal, setRoomConfigModal] = useState(false); // 房间设置弹窗
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8); // 新的底牌数量
   const [newDealInterval, setNewDealInterval] = useState(500); // 新的发牌间隔
+  const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
+  const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -193,6 +195,15 @@ export default function GameBoard() {
       setNewDealInterval(config.dealInterval);
     });
 
+    // 玩家昵称更新
+    socket.on('player_name_updated', ({ playerId, oldName, newName }) => {
+      if (playerId === currentPlayer?.id) {
+        messageApi.success(`昵称已修改为: ${newName}`);
+      } else {
+        messageApi.info(`${oldName} 修改昵称为: ${newName}`);
+      }
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -212,8 +223,9 @@ export default function GameBoard() {
       socket.off('level_updated');
       socket.off('trump_updated');
       socket.off('config_updated');
+      socket.off('player_name_updated');
     };
-  }, [socket, messageApi, clearSelection, addCard, removeCards]);
+  }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
 
   // 同步主牌状态
   useEffect(() => {
@@ -432,6 +444,31 @@ export default function GameBoard() {
     setRoomConfigModal(false);
   };
 
+  // 修改玩家昵称
+  const handleUpdatePlayerName = () => {
+    const trimmedName = newPlayerName.trim();
+    if (!trimmedName) {
+      messageApi.warning('昵称不能为空');
+      return;
+    }
+    if (trimmedName.length > 20) {
+      messageApi.warning('昵称长度不能超过20个字符');
+      return;
+    }
+    socket.emit(SOCKET_EVENTS.UPDATE_PLAYER_NAME, {
+      roomId: currentRoom.id,
+      newName: trimmedName
+    });
+    setRenameModal(false);
+    setNewPlayerName('');
+  };
+
+  // 打开修改昵称对话框
+  const handleOpenRenameModal = () => {
+    setNewPlayerName(currentPlayer?.name || '');
+    setRenameModal(true);
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
   // 渲染游戏阶段内容
@@ -446,17 +483,22 @@ export default function GameBoard() {
             <Text type="secondary">底牌数量: {currentRoom.config.bottomCardsCount} | 发牌间隔: {currentRoom.config.dealInterval}ms</Text>
             <br />
             <br />
-            <Space>
-              {isHost && currentRoom.playerCount >= 2 && (
-                <Button type="primary" size="large" onClick={handleStartGame}>
-                  开始游戏
-                </Button>
-              )}
-              {isHost && (
-                <Button size="large" onClick={() => setRoomConfigModal(true)}>
-                  房间设置
-                </Button>
-              )}
+            <Space direction="vertical" style={{ alignItems: 'center' }}>
+              <Space>
+                {isHost && currentRoom.playerCount >= 2 && (
+                  <Button type="primary" size="large" onClick={handleStartGame}>
+                    开始游戏
+                  </Button>
+                )}
+                {isHost && (
+                  <Button size="large" onClick={() => setRoomConfigModal(true)}>
+                    房间设置
+                  </Button>
+                )}
+              </Space>
+              <Button onClick={handleOpenRenameModal}>
+                修改昵称
+              </Button>
             </Space>
           </div>
         );
@@ -513,6 +555,12 @@ export default function GameBoard() {
                     指定埋底玩家
                   </Button>
                 )}
+                <Button
+                  onClick={handleOpenRenameModal}
+                  block
+                >
+                  修改昵称
+                </Button>
               </Space>
             </div>
           </div>
@@ -546,17 +594,25 @@ export default function GameBoard() {
                 <Text>埋底玩家: {currentRoom.players.find(p => p.id === gameState.buryingPlayerId)?.name}</Text>
               </div>
 
-              {isBuryingPlayer && (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {isBuryingPlayer && (
+                  <Button
+                    type="primary"
+                    size="large"
+                    onClick={handleBuryCards}
+                    disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
+                    block
+                  >
+                    确认埋底 ({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+                  </Button>
+                )}
                 <Button
-                  type="primary"
-                  size="large"
-                  onClick={handleBuryCards}
-                  disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
+                  onClick={handleOpenRenameModal}
                   block
                 >
-                  确认埋底 ({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+                  修改昵称
                 </Button>
-              )}
+              </Space>
             </div>
           </div>
         );
@@ -638,6 +694,11 @@ export default function GameBoard() {
                     重新开始
                   </Button>
                 )}
+
+                {/* 修改昵称按钮 */}
+                <Button onClick={handleOpenRenameModal} block>
+                  修改昵称
+                </Button>
               </Space>
             </div>
           </div>
@@ -672,9 +733,14 @@ export default function GameBoard() {
                 <Text>底牌数量: {revealedBottomCards.length}</Text>
               </div>
 
-              <Button type="primary" size="large" onClick={handleConfirmReveal} block>
-                确认
-              </Button>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button type="primary" size="large" onClick={handleConfirmReveal} block>
+                  确认
+                </Button>
+                <Button onClick={handleOpenRenameModal} block>
+                  修改昵称
+                </Button>
+              </Space>
             </div>
           </div>
         );
@@ -706,15 +772,20 @@ export default function GameBoard() {
                 <Text strong>游戏结束</Text>
               </div>
 
-              {isHost && (
-                <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
-                  <Button onClick={() => setScoreAdjustModal(true)} block>调整分数</Button>
-                  <Button onClick={() => setLevelAdjustModal(true)} block>调整等级</Button>
-                  <Button type="primary" size="large" onClick={handleRestartGame} block>
-                    重新开始
-                  </Button>
-                </Space>
-              )}
+              <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
+                {isHost && (
+                  <>
+                    <Button onClick={() => setScoreAdjustModal(true)} block>调整分数</Button>
+                    <Button onClick={() => setLevelAdjustModal(true)} block>调整等级</Button>
+                    <Button type="primary" size="large" onClick={handleRestartGame} block>
+                      重新开始
+                    </Button>
+                  </>
+                )}
+                <Button onClick={handleOpenRenameModal} block>
+                  修改昵称
+                </Button>
+              </Space>
             </div>
           </div>
         );
@@ -911,6 +982,32 @@ export default function GameBoard() {
           <br />
           <br />
           <Text type="secondary">设置将在下一局游戏开始时生效</Text>
+        </div>
+      </Modal>
+
+      {/* 修改昵称弹窗 */}
+      <Modal
+        title="修改昵称"
+        open={renameModal}
+        onOk={handleUpdatePlayerName}
+        onCancel={() => {
+          setRenameModal(false);
+          setNewPlayerName('');
+        }}
+        okText="保存"
+        cancelText="取消"
+      >
+        <div>
+          <Text strong>新昵称:</Text>
+          <br />
+          <Input
+            style={{ width: '100%', marginTop: 8 }}
+            placeholder="请输入新昵称（最多20字符）"
+            maxLength={20}
+            value={newPlayerName}
+            onChange={(e) => setNewPlayerName(e.target.value)}
+            onPressEnter={handleUpdatePlayerName}
+          />
         </div>
       </Modal>
     </div>
