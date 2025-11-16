@@ -26,7 +26,8 @@ export const Suits = {
   DIAMONDS: 'diamonds',
   CLUBS: 'clubs',
   SPADES: 'spades',
-  JOKER: 'joker'
+  JOKER: 'joker',
+  NO_TRUMP: 'no_trump' // 无主
 };
 
 // 牌面值
