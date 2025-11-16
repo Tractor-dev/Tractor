@@ -21,7 +21,8 @@ export default function GameBoard() {
     setMyCards,
     addCard,
     removeCards,
-    reorderCards
+    reorderCards,
+    setTrumpInfo
   } = useGameStore();
 
   const [messageApi, contextHolder] = message.useMessage();
@@ -193,6 +194,8 @@ export default function GameBoard() {
     socket.on('trump_updated', ({ trumpSuit, trumpRank }) => {
       setTrumpSuit(trumpSuit);
       setTrumpRank(trumpRank);
+      // 更新store中的主牌信息，自动重排手牌
+      setTrumpInfo(trumpSuit, trumpRank);
       if (trumpSuit && trumpRank) {
         messageApi.info(`主牌已设置: ${trumpSuit} ${trumpRank}`);
       }
@@ -1000,6 +1003,7 @@ export default function GameBoard() {
             <Button onClick={() => handleSetTrump('diamonds', trumpRank || '2')}>♦ 方块</Button>
             <Button onClick={() => handleSetTrump('clubs', trumpRank || '2')}>♣ 梅花</Button>
             <Button onClick={() => handleSetTrump('spades', trumpRank || '2')}>♠ 黑桃</Button>
+            <Button onClick={() => handleSetTrump('no_trump', trumpRank || '2')}>无主</Button>
           </Space>
           <br />
           <Text strong>点数:</Text>
@@ -1144,6 +1148,26 @@ export default function GameBoard() {
             }}
             rows={3}
           />
+
+          {/* Emoji 选择器 */}
+          <div style={{ marginTop: 8, marginBottom: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>常用表情：</Text>
+            <div style={{ marginTop: 4 }}>
+              <Space wrap>
+                {['😀', '😃', '😄', '😁', '😊', '😂', '🤣', '😍', '🥰', '😘', '😎', '🤔', '😮', '😢', '😭', '😡', '👍', '👎', '👏', '🙏', '💪', '🎉', '🎊', '❤️', '💯', '🔥', '✨', '⭐', '🌟', '💎'].map((emoji, idx) => (
+                  <Button
+                    key={idx}
+                    size="small"
+                    onClick={() => setChatMessage(prev => prev + emoji)}
+                    style={{ padding: '0 8px', minWidth: 32 }}
+                  >
+                    {emoji}
+                  </Button>
+                ))}
+              </Space>
+            </div>
+          </div>
+
           <div style={{ marginTop: 8, textAlign: 'right' }}>
             <Button type="primary" onClick={() => handleSendChatMessage()}>
               发送
