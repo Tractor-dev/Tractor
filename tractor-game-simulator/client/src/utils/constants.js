@@ -41,7 +41,8 @@ export const SOCKET_EVENTS = {
   UPDATE_PLAYER_NAME: 'update_player_name',
   CONFIRM_REVEAL: 'confirm_reveal',
   VIEW_MY_BOTTOM_CARDS: 'view_my_bottom_cards',
-  REORDER_CARDS: 'reorder_cards'
+  REORDER_CARDS: 'reorder_cards',
+  SEND_CHAT_MESSAGE: 'send_chat_message'
 };
 
 // 花色
