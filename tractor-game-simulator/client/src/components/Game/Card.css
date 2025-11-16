@@ -26,11 +26,10 @@
 }
 
 .card.selected {
-  transform: translateY(-120px);
+  transform: translateY(-37px);
   border-color: #1890ff;
   border-width: 3px;
   box-shadow: 0 6px 12px rgba(24, 144, 255, 0.4);
-  z-index: 20;
 }
 
 .card.disabled {

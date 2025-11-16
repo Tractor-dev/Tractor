@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Space, Typography, Modal, Select, InputNumber, Input, message } from 'antd';
+import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag } from 'antd';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
@@ -46,6 +46,16 @@ export default function GameBoard() {
   const [newDealInterval, setNewDealInterval] = useState(500); // 新的发牌间隔
   const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
   const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称
+  const [chatModal, setChatModal] = useState(false); // 聊天弹窗
+  const [chatMessage, setChatMessage] = useState(''); // 当前输入的聊天消息
+  const [chatHistory, setChatHistory] = useState([]); // 聊天历史
+  const [quickPhrases, setQuickPhrases] = useState(() => {
+    // 从localStorage加载快捷短语
+    const saved = localStorage.getItem('tractorQuickPhrases');
+    return saved ? JSON.parse(saved) : ['快点出牌！', '好牌！', '加油！'];
+  });
+  const [quickPhraseModal, setQuickPhraseModal] = useState(false); // 快捷短语管理弹窗
+  const [newQuickPhrase, setNewQuickPhrase] = useState(''); // 新的快捷短语输入
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -204,6 +214,12 @@ export default function GameBoard() {
       }
     });
 
+    // 接收聊天消息
+    socket.on('chat_message_received', ({ playerName, message, timestamp }) => {
+      setChatHistory(prev => [...prev, { playerName, message, timestamp }]);
+      messageApi.info(`${playerName}: ${message}`);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -224,6 +240,7 @@ export default function GameBoard() {
       socket.off('trump_updated');
       socket.off('config_updated');
       socket.off('player_name_updated');
+      socket.off('chat_message_received');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
 
@@ -469,6 +486,54 @@ export default function GameBoard() {
     setRenameModal(true);
   };
 
+  // 发送聊天消息
+  const handleSendChatMessage = (msg) => {
+    const messageToSend = msg || chatMessage.trim();
+    if (!messageToSend) {
+      messageApi.warning('消息不能为空');
+      return;
+    }
+    if (messageToSend.length > 200) {
+      messageApi.warning('消息长度不能超过200个字符');
+      return;
+    }
+    socket.emit(SOCKET_EVENTS.SEND_CHAT_MESSAGE, {
+      roomId: currentRoom.id,
+      message: messageToSend
+    });
+    setChatMessage('');
+  };
+
+  // 添加快捷短语
+  const handleAddQuickPhrase = () => {
+    const trimmed = newQuickPhrase.trim();
+    if (!trimmed) {
+      messageApi.warning('快捷短语不能为空');
+      return;
+    }
+    if (trimmed.length > 50) {
+      messageApi.warning('快捷短语长度不能超过50个字符');
+      return;
+    }
+    if (quickPhrases.includes(trimmed)) {
+      messageApi.warning('该快捷短语已存在');
+      return;
+    }
+    const newPhrases = [...quickPhrases, trimmed];
+    setQuickPhrases(newPhrases);
+    localStorage.setItem('tractorQuickPhrases', JSON.stringify(newPhrases));
+    setNewQuickPhrase('');
+    messageApi.success('快捷短语已添加');
+  };
+
+  // 删除快捷短语
+  const handleDeleteQuickPhrase = (phrase) => {
+    const newPhrases = quickPhrases.filter(p => p !== phrase);
+    setQuickPhrases(newPhrases);
+    localStorage.setItem('tractorQuickPhrases', JSON.stringify(newPhrases));
+    messageApi.success('快捷短语已删除');
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
   // 渲染游戏阶段内容
@@ -483,7 +548,7 @@ export default function GameBoard() {
             <Text type="secondary">底牌数量: {currentRoom.config.bottomCardsCount} | 发牌间隔: {currentRoom.config.dealInterval}ms</Text>
             <br />
             <br />
-            <Space direction="vertical" style={{ alignItems: 'center' }}>
+            <Space direction="vertical" style={{ alignItems: 'center', width: '100%' }}>
               <Space>
                 {isHost && currentRoom.playerCount >= 2 && (
                   <Button type="primary" size="large" onClick={handleStartGame}>
@@ -496,7 +561,7 @@ export default function GameBoard() {
                   </Button>
                 )}
               </Space>
-              <Button onClick={handleOpenRenameModal}>
+              <Button onClick={handleOpenRenameModal} style={{ marginTop: 8 }}>
                 修改昵称
               </Button>
             </Space>
@@ -657,8 +722,8 @@ export default function GameBoard() {
                     >
                       出牌 (已选 {selectedCards.length})
                     </Button>
-                    <Button size="large" onClick={handlePass} block>
-                      跳过
+                    <Button size="large" onClick={() => setChatModal(true)} block>
+                      聊天
                     </Button>
                     <Button size="large" onClick={handleUndoPlay} block>
                       撤回出牌
@@ -1008,6 +1073,132 @@ export default function GameBoard() {
             onChange={(e) => setNewPlayerName(e.target.value)}
             onPressEnter={handleUpdatePlayerName}
           />
+        </div>
+      </Modal>
+
+      {/* 聊天弹窗 */}
+      <Modal
+        title="聊天"
+        open={chatModal}
+        onCancel={() => setChatModal(false)}
+        footer={null}
+        width={500}
+      >
+        <div>
+          {/* 聊天历史 */}
+          <div style={{
+            maxHeight: '200px',
+            overflowY: 'auto',
+            marginBottom: 12,
+            border: '1px solid #d9d9d9',
+            borderRadius: 4,
+            padding: 8
+          }}>
+            {chatHistory.length === 0 ? (
+              <Text type="secondary">暂无聊天记录</Text>
+            ) : (
+              chatHistory.map((chat, idx) => (
+                <div key={idx} style={{ marginBottom: 8 }}>
+                  <Text strong>{chat.playerName}: </Text>
+                  <Text>{chat.message}</Text>
+                </div>
+              ))
+            )}
+          </div>
+
+          <Divider style={{ margin: '12px 0' }}>快捷短语</Divider>
+
+          {/* 快捷短语按钮 */}
+          <Space wrap style={{ marginBottom: 12 }}>
+            {quickPhrases.map((phrase, idx) => (
+              <Button
+                key={idx}
+                onClick={() => handleSendChatMessage(phrase)}
+                size="small"
+              >
+                {phrase}
+              </Button>
+            ))}
+            <Button
+              size="small"
+              type="dashed"
+              onClick={() => setQuickPhraseModal(true)}
+            >
+              管理快捷短语
+            </Button>
+          </Space>
+
+          <Divider style={{ margin: '12px 0' }}>发送消息</Divider>
+
+          {/* 消息输入 */}
+          <Input.TextArea
+            placeholder="输入消息（最多200字符，支持emoji）"
+            maxLength={200}
+            value={chatMessage}
+            onChange={(e) => setChatMessage(e.target.value)}
+            onPressEnter={(e) => {
+              if (!e.shiftKey) {
+                e.preventDefault();
+                handleSendChatMessage();
+              }
+            }}
+            rows={3}
+          />
+          <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <Button type="primary" onClick={() => handleSendChatMessage()}>
+              发送
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 快捷短语管理弹窗 */}
+      <Modal
+        title="管理快捷短语"
+        open={quickPhraseModal}
+        onCancel={() => {
+          setQuickPhraseModal(false);
+          setNewQuickPhrase('');
+        }}
+        footer={null}
+      >
+        <div>
+          {/* 现有快捷短语 */}
+          <div style={{ marginBottom: 12 }}>
+            <Text strong>现有快捷短语:</Text>
+            <div style={{ marginTop: 8 }}>
+              {quickPhrases.length === 0 ? (
+                <Text type="secondary">暂无快捷短语</Text>
+              ) : (
+                quickPhrases.map((phrase, idx) => (
+                  <Tag
+                    key={idx}
+                    closable
+                    onClose={() => handleDeleteQuickPhrase(phrase)}
+                    style={{ marginBottom: 8 }}
+                  >
+                    {phrase}
+                  </Tag>
+                ))
+              )}
+            </div>
+          </div>
+
+          <Divider style={{ margin: '12px 0' }}>添加新短语</Divider>
+
+          {/* 添加新快捷短语 */}
+          <Input
+            placeholder="输入新的快捷短语（最多50字符）"
+            maxLength={50}
+            value={newQuickPhrase}
+            onChange={(e) => setNewQuickPhrase(e.target.value)}
+            onPressEnter={handleAddQuickPhrase}
+          />
+          <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <Button type="primary" onClick={handleAddQuickPhrase}>
+              添加
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

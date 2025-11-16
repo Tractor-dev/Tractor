@@ -216,4 +216,47 @@ export function registerPlayerHandlers(io, socket, roomManager) {
       logger.error('更新昵称失败:', error);
     }
   });
+
+  /**
+   * 发送聊天消息
+   */
+  socket.on('send_chat_message', ({ roomId, message }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      if (!message || typeof message !== 'string') {
+        throw new Error('消息不能为空');
+      }
+
+      const trimmedMessage = message.trim();
+      if (trimmedMessage.length === 0) {
+        throw new Error('消息不能为空');
+      }
+
+      if (trimmedMessage.length > 200) {
+        throw new Error('消息长度不能超过200个字符');
+      }
+
+      // 广播聊天消息
+      io.to(room.id).emit('chat_message_received', {
+        playerName: player.name,
+        message: trimmedMessage,
+        timestamp: Date.now()
+      });
+
+      logger.info(`玩家 ${player.name} 发送聊天消息: ${trimmedMessage}`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('发送聊天消息失败:', error);
+    }
+  });
 }
