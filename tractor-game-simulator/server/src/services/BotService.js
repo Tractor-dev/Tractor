@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../utils/logger.js';
+import { BotTypes } from '../utils/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,18 +95,29 @@ class CardConverter {
  * Bot服务 - 管理和调用Python bot
  */
 export class BotService {
-  constructor(botScriptPath = null) {
-    // 检查环境变量，决定使用哪种bot
-    const useSimpleBot = process.env.USE_SIMPLE_BOT === 'true' || process.env.USE_SIMPLE_BOT === '1';
+  constructor(botType = null) {
+    // 优先使用传入的 botType 参数，其次检查环境变量
+    let selectedBotType = botType;
 
-    if (useSimpleBot) {
+    if (!selectedBotType) {
+      const useSimpleBot = process.env.USE_SIMPLE_BOT === 'true' || process.env.USE_SIMPLE_BOT === '1';
+      selectedBotType = useSimpleBot ? BotTypes.SIMPLE : BotTypes.WHO_DESIGNED;
+    }
+
+    this.botType = selectedBotType;
+
+    if (selectedBotType === BotTypes.SIMPLE) {
       // 使用简化版bot（不依赖torch）
       this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
       logger.info('使用简化版Bot（不依赖任何Python包）');
-    } else {
-      // 使用WhoDesigned bot（已移除torch依赖）
-      this.botScriptPath = botScriptPath || path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
+    } else if (selectedBotType === BotTypes.WHO_DESIGNED) {
+      // 使用WhoDesigned bot
+      this.botScriptPath = path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
       logger.info('使用WhoDesigned Bot');
+    } else {
+      // 默认使用简化版bot
+      this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
+      logger.warn(`未知的bot类型: ${selectedBotType}，使用简化版Bot`);
     }
 
     this.converter = CardConverter;
@@ -235,9 +247,10 @@ export class BotService {
    */
   async _callPythonBot(input) {
     return new Promise((resolve, reject) => {
-      const pythonProcess = spawn('python3', [
-        path.join(this.botScriptPath, '__main__.py')
-      ]);
+      logger.info(`调用Bot脚本: ${this.botScriptPath}`);
+      logger.info(`Bot输入: ${JSON.stringify(input)}`);
+
+      const pythonProcess = spawn('python3', [this.botScriptPath]);
 
       let output = '';
       let errorOutput = '';
@@ -248,30 +261,43 @@ export class BotService {
 
       // 收集输出
       pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
+        const dataStr = data.toString();
+        logger.info(`Bot stdout: ${dataStr}`);
+        output += dataStr;
       });
 
       pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+        const dataStr = data.toString();
+        logger.warn(`Bot stderr: ${dataStr}`);
+        errorOutput += dataStr;
       });
 
       // 处理完成
       pythonProcess.on('close', (code) => {
+        logger.info(`Bot进程退出，代码: ${code}`);
+
         if (code !== 0) {
-          reject(new Error(`Bot进程退出，代码: ${code}, 错误: ${errorOutput}`));
+          const errorMsg = `Bot进程退出，代码: ${code}, 错误: ${errorOutput}`;
+          logger.error(errorMsg);
+          reject(new Error(errorMsg));
           return;
         }
 
         try {
+          logger.info(`Bot原始输出: ${output}`);
           const result = JSON.parse(output);
+          logger.info(`Bot解析后结果: ${JSON.stringify(result)}`);
           resolve(result);
         } catch (error) {
-          reject(new Error(`解析bot输出失败: ${error.message}, 输出: ${output}`));
+          const errorMsg = `解析bot输出失败: ${error.message}, 输出: ${output}`;
+          logger.error(errorMsg);
+          reject(new Error(errorMsg));
         }
       });
 
       // 超时处理
       setTimeout(() => {
+        logger.error('Bot响应超时，强制结束进程');
         pythonProcess.kill();
         reject(new Error('Bot响应超时'));
       }, 30000); // 30秒超时

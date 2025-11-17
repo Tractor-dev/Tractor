@@ -75,7 +75,10 @@ def main():
     try:
         # 读取输入
         input_data = sys.stdin.read()
+        print(f"[simple_bot] 接收到输入: {input_data}", file=sys.stderr)
+
         game_state = json.loads(input_data)
+        print(f"[simple_bot] 解析后的游戏状态: {json.dumps(game_state)}", file=sys.stderr)
 
         # 提取游戏状态
         player_id = game_state.get('id', 0)
@@ -84,8 +87,12 @@ def main():
         major = game_state.get('major', [])
         played = game_state.get('played', [[], [], [], []])
 
+        print(f"[simple_bot] player_id={player_id}, deck_size={len(deck)}, history_size={len(history)}", file=sys.stderr)
+        print(f"[simple_bot] deck={deck}", file=sys.stderr)
+
         # 如果没有手牌，返回空动作
         if not deck:
+            print(f"[simple_bot] 没有手牌，返回空动作", file=sys.stderr)
             response = {
                 'player': player_id,
                 'action': []
@@ -95,6 +102,7 @@ def main():
 
         # 使用智能策略（可以改为 get_random_action 使用随机策略）
         action = get_smart_action(deck, history, played)
+        print(f"[simple_bot] 决策完成，选择的牌: {action}", file=sys.stderr)
 
         # 构建响应
         response = {
@@ -103,16 +111,22 @@ def main():
         }
 
         # 输出JSON响应
+        print(f"[simple_bot] 输出响应: {json.dumps(response)}", file=sys.stderr)
         print(json.dumps(response))
 
     except Exception as e:
-        # 错误处理：返回空动作
-        print(json.dumps({
+        # 错误处理：返回空动作（输出到stdout以便正确解析）
+        print(f"Error in simple_bot: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+
+        # 即使出错，也要输出有效的JSON到stdout
+        response = {
             'player': 0,
             'action': []
-        }), file=sys.stderr)
-        print(f"Error: {str(e)}", file=sys.stderr)
-        sys.exit(1)
+        }
+        print(json.dumps(response))
+        sys.exit(0)  # 正常退出，因为已经输出了有效的响应
 
 
 if __name__ == '__main__':

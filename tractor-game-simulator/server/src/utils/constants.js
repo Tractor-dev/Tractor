@@ -77,6 +77,12 @@ export const RANK_ORDER = {
   [Ranks.BIG_JOKER]: 101
 };
 
+// Bot类型
+export const BotTypes = {
+  SIMPLE: 'simple',
+  WHO_DESIGNED: 'who_designed'
+};
+
 // 默认配置
 export const DEFAULT_CONFIG = {
   bottomCardsCount: 8,
@@ -85,7 +91,8 @@ export const DEFAULT_CONFIG = {
   turnOrder: TurnOrders.COUNTER_CLOCKWISE,
   customTurnOrder: [0, 1, 2, 3],
   minPlayers: 2,
-  maxPlayers: 4
+  maxPlayers: 4,
+  botType: BotTypes.SIMPLE  // 默认使用简单bot
 };
 
 // 默认玩家属性

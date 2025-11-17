@@ -6,9 +6,22 @@
 
 ## Bot类型
 
-项目支持两种类型的bot：
+项目支持两种类型的bot，**房主可以在游戏开始前选择使用哪种bot**：
 
-### 1. WhoDesigned Bot（默认，推荐）
+### 1. 简化版Bot（默认）
+- **位置**: `simple-bot/simple_bot.py`
+- **依赖**: 仅需Python 3
+- **策略**: 基于规则的简单策略
+  - 开局时出最小的1-2张牌
+  - 跟牌时出相同数量的牌
+  - 随机选择具体出哪些牌
+- **优点**:
+  - 无额外依赖
+  - 启动快速
+  - 适合快速测试
+- **用途**: 默认选项，适合日常游戏和测试
+
+### 2. WhoDesigned Bot（推荐，需部署时配置）
 - **仓库**: https://github.com/Roushelfy/WhoDesigned
 - **依赖**: 仅需Python 3（已移除torch依赖）
 - **策略**: 基于强化学习训练的策略（不需要运行时推理）
@@ -16,16 +29,8 @@
   - 部署快速
   - 无需额外Python包
   - 智能决策
-  - 适合生产环境
-
-### 2. 简化版Bot（备选）
-- **位置**: `simple-bot/simple_bot.py`
-- **依赖**: 仅需Python 3
-- **策略**: 基于规则的简单策略
-  - 开局时出最小的1-2张牌
-  - 跟牌时出相同数量的牌
-  - 随机选择具体出哪些牌
-- **用途**: 作为备用方案或开发测试
+  - 适合高质量游戏体验
+- **用途**: 提供更智能的游戏对手
 
 ## 安装步骤
 
@@ -77,11 +82,41 @@ Railway部署已自动配置了bot支持：
 USE_SIMPLE_BOT=true
 ```
 
-默认情况下使用WhoDesigned bot（推荐）。
+**注意**: 这个环境变量只在未显式设置房间bot类型时生效。房主可以通过`set_bot_type`事件为每个房间单独选择bot类型。
 
 ## 使用方法
 
-### 1. 房主添加bot
+### 1. 房主设置Bot类型（新功能）
+
+房主可以在游戏开始前选择使用哪种类型的bot：
+
+```javascript
+socket.emit('set_bot_type', {
+  roomId: '房间ID',
+  botType: 'simple' // 或 'who_designed'
+});
+```
+
+**Bot类型常量:**
+- `'simple'`: 简单Bot（基于规则）
+- `'who_designed'`: WhoDesigned Bot（基于强化学习）
+
+**服务器响应:**
+```javascript
+// Bot类型更新成功
+socket.on('bot_type_updated', (data) => {
+  console.log(data.botType);      // 'simple' 或 'who_designed'
+  console.log(data.botTypeName);  // '简单Bot' 或 'WhoDesigned Bot'
+});
+```
+
+**注意事项:**
+- 只有房主可以设置Bot类型
+- 只能在游戏等待阶段（waiting）修改
+- 修改后会清除现有的bot服务实例，新创建时使用新的bot类型
+- 默认使用简单Bot（`simple`）
+
+### 2. 房主添加bot
 
 在游戏房间等待界面，房主可以通过以下Socket.IO事件添加bot：
 
@@ -92,7 +127,7 @@ socket.emit('add_bot', {
 });
 ```
 
-### 2. 房主移除bot
+### 3. 房主移除bot
 
 ```javascript
 socket.emit('remove_bot', {
@@ -101,7 +136,7 @@ socket.emit('remove_bot', {
 });
 ```
 
-### 3. Bot自动出牌
+### 4. Bot自动出牌
 
 - 游戏开始后，设置首发玩家时，如果有bot，会自动开始出牌
 - Bot会按照一定时间间隔（1.5秒思考 + 2秒轮次间隔）自动出牌

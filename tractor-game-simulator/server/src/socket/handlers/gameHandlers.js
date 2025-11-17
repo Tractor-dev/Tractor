@@ -23,42 +23,59 @@ export function getBotServices() {
  * 触发所有bot自动出牌（自由出牌模式）
  */
 async function triggerAllBotsPlay(io, room, gameEngine) {
+  logger.info(`=== 开始触发Bot出牌流程 ===`);
+  logger.info(`房间ID: ${room.id}, 游戏阶段: ${room.gameState.phase}`);
+
   // 检查游戏状态
   if (room.gameState.phase !== GamePhases.PLAYING) {
+    logger.warn(`游戏阶段不是PLAYING，当前阶段: ${room.gameState.phase}，跳过bot出牌`);
     return;
   }
 
   // 找出所有还有手牌的bot
   const botsWithCards = room.players.filter(p => p.isBot && p.cards.length > 0);
 
+  logger.info(`找到 ${botsWithCards.length} 个有手牌的bot`);
+  botsWithCards.forEach(bot => {
+    logger.info(`  - Bot ${bot.name} (ID: ${bot.id}): ${bot.cards.length} 张牌`);
+  });
+
   if (botsWithCards.length === 0) {
+    logger.info('没有bot有手牌，结束出牌流程');
     return;
   }
 
   // 获取或创建bot服务
   let botService = botServices.get(room.id);
   if (!botService) {
-    botService = new BotService();
+    logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
+    botService = new BotService(room.config.botType);
     botServices.set(room.id, botService);
   }
 
   // 依次让每个bot出一次牌
   for (const bot of botsWithCards) {
+    logger.info(`\n--- 轮到Bot ${bot.name} 出牌 ---`);
+
     // 再次检查游戏是否已结束
     if (room.gameState.phase !== GamePhases.PLAYING) {
+      logger.warn('游戏已不在PLAYING阶段，停止bot出牌');
       break;
     }
 
     try {
       logger.info(`触发Bot ${bot.name} 自动出牌`);
+      logger.info(`Bot ${bot.name} 当前手牌数: ${bot.cards.length}`);
 
       // 延迟一小段时间，模拟思考过程
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // 获取bot在玩家列表中的索引
       const botIndex = room.getPlayerIndex(bot.id);
+      logger.info(`Bot ${bot.name} 索引: ${botIndex}`);
 
       // 调用bot获取决策
+      logger.info(`开始调用BotService.getBotAction...`);
       const cardIds = await botService.getBotAction(
         room.gameState,
         bot.cards,
@@ -66,10 +83,12 @@ async function triggerAllBotsPlay(io, room, gameEngine) {
         room
       );
 
-      logger.info(`Bot ${bot.name} 决策出牌: ${cardIds.length} 张`);
+      logger.info(`Bot ${bot.name} 决策完成，选择出牌: ${cardIds.length} 张，卡牌IDs: ${JSON.stringify(cardIds)}`);
 
       // 执行出牌
+      logger.info(`执行Bot ${bot.name} 出牌操作...`);
       const result = gameEngine.playCards(bot.id, cardIds);
+      logger.info(`Bot ${bot.name} 出牌成功，剩余 ${result.remainingCount} 张牌`);
 
       // 广播bot出牌
       io.to(room.id).emit('cards_played', {
@@ -81,6 +100,7 @@ async function triggerAllBotsPlay(io, room, gameEngine) {
 
       // 检查是否有玩家打完牌
       if (result.remainingCount === 0) {
+        logger.info(`Bot ${bot.name} 已打完所有牌`);
         io.to(room.id).emit('player_finished', {
           playerId: bot.id,
           playerName: bot.name
@@ -89,6 +109,7 @@ async function triggerAllBotsPlay(io, room, gameEngine) {
 
       // 游戏结束
       if (result.gameFinished) {
+        logger.info('游戏结束，揭示底牌');
         io.to(room.id).emit('bottom_revealed', {
           bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
         });
@@ -106,13 +127,16 @@ async function triggerAllBotsPlay(io, room, gameEngine) {
 
       // 如果游戏结束，停止循环
       if (result.gameFinished) {
+        logger.info('游戏已结束，停止bot出牌循环');
         break;
       }
 
     } catch (error) {
       logger.error(`Bot ${bot.name} 出牌失败:`, error);
+      logger.error('错误堆栈:', error.stack);
       // Bot出牌失败，跳过这个bot
       try {
+        logger.info(`Bot ${bot.name} 出牌失败，尝试跳过...`);
         const result = gameEngine.playCards(bot.id, []);
         io.to(room.id).emit('turn_passed', {
           playerId: bot.id,
@@ -121,21 +145,29 @@ async function triggerAllBotsPlay(io, room, gameEngine) {
         io.to(room.id).emit('room_updated', {
           room: room.toJSON()
         });
+        logger.info(`Bot ${bot.name} 跳过成功`);
       } catch (skipError) {
         logger.error(`Bot ${bot.name} 跳过也失败:`, skipError);
+        logger.error('跳过错误堆栈:', skipError.stack);
       }
     }
   }
 
   // 如果还有bot有牌，继续下一轮
   const stillHasCards = room.players.some(p => p.isBot && p.cards.length > 0);
+  logger.info(`\n检查是否需要继续下一轮: stillHasCards=${stillHasCards}, phase=${room.gameState.phase}`);
+
   if (stillHasCards && room.gameState.phase === GamePhases.PLAYING) {
+    logger.info('还有bot有牌，2秒后继续下一轮出牌');
     // 延迟后继续让bot出牌
     setTimeout(() => {
       triggerAllBotsPlay(io, room, gameEngine).catch(err => {
         logger.error('触发bot继续出牌失败:', err);
+        logger.error('错误堆栈:', err.stack);
       });
     }, 2000);
+  } else {
+    logger.info('=== Bot出牌流程结束 ===');
   }
 }
 
