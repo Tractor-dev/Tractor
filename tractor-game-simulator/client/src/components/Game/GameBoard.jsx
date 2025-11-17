@@ -876,6 +876,7 @@ export default function GameBoard() {
                 selectedRule={selectedRule}
                 onSelectRule={() => setRuleSelectorModal(true)}
                 renderControls={renderControlButtons()}
+                isWaitingForReady={isWaitingForReady}
               />
             </div>
           );
@@ -957,6 +958,7 @@ export default function GameBoard() {
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
+              isWaitingForReady={false}
             />
           </div>
         );
@@ -982,6 +984,7 @@ export default function GameBoard() {
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
+              isWaitingForReady={false}
             />
           </div>
         );
@@ -1007,6 +1010,7 @@ export default function GameBoard() {
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
+              isWaitingForReady={false}
             />
           </div>
         );
@@ -1033,6 +1037,7 @@ export default function GameBoard() {
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
+              isWaitingForReady={false}
             />
           </div>
         );
@@ -1059,6 +1064,7 @@ export default function GameBoard() {
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
+              isWaitingForReady={false}
             />
           </div>
         );
