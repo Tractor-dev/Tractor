@@ -1,9 +1,10 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x"]
+nixPkgs = ["nodejs-18_x", "python39"]
 
 [phases.install]
 cmds = [
-  "cd tractor-game-simulator/server && npm install --production"
+  "cd tractor-game-simulator/server && npm install --production",
+  "git clone https://github.com/Roushelfy/WhoDesigned.git || echo 'Bot repo already exists'"
 ]
 
 [phases.build]

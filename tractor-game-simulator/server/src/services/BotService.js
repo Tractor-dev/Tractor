@@ -95,8 +95,19 @@ class CardConverter {
  */
 export class BotService {
   constructor(botScriptPath = null) {
-    // bot脚本路径，默认为相对于项目根目录的WhoDesigned
-    this.botScriptPath = botScriptPath || path.resolve(__dirname, '../../../../WhoDesigned');
+    // 检查环境变量，决定使用哪种bot
+    const useSimpleBot = process.env.USE_SIMPLE_BOT === 'true' || process.env.USE_SIMPLE_BOT === '1';
+
+    if (useSimpleBot) {
+      // 使用简化版bot（不依赖torch）
+      this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
+      logger.info('使用简化版Bot（不依赖任何Python包）');
+    } else {
+      // 使用WhoDesigned bot（已移除torch依赖）
+      this.botScriptPath = botScriptPath || path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
+      logger.info('使用WhoDesigned Bot');
+    }
+
     this.converter = CardConverter;
   }
 

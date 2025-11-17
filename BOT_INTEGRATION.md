@@ -2,15 +2,36 @@
 
 ## 概述
 
-本项目已集成AI bot功能，允许房主在游戏房间中添加bot玩家。Bot使用Python实现，基于强化学习模型。
+本项目已集成AI bot功能，允许房主在游戏房间中添加bot玩家。Bot使用Python实现。
 
-## Bot仓库
+## Bot类型
 
-Bot代码位于: https://github.com/Roushelfy/WhoDesigned
+项目支持两种类型的bot：
+
+### 1. WhoDesigned Bot（默认，推荐）
+- **仓库**: https://github.com/Roushelfy/WhoDesigned
+- **依赖**: 仅需Python 3（已移除torch依赖）
+- **策略**: 基于强化学习训练的策略（不需要运行时推理）
+- **优点**:
+  - 部署快速
+  - 无需额外Python包
+  - 智能决策
+  - 适合生产环境
+
+### 2. 简化版Bot（备选）
+- **位置**: `simple-bot/simple_bot.py`
+- **依赖**: 仅需Python 3
+- **策略**: 基于规则的简单策略
+  - 开局时出最小的1-2张牌
+  - 跟牌时出相同数量的牌
+  - 随机选择具体出哪些牌
+- **用途**: 作为备用方案或开发测试
 
 ## 安装步骤
 
-### 1. 克隆bot仓库
+### 本地开发环境
+
+#### 1. 克隆bot仓库
 
 在项目根目录下克隆bot仓库：
 
@@ -19,28 +40,44 @@ cd /path/to/Tractor
 git clone https://github.com/Roushelfy/WhoDesigned.git
 ```
 
-### 2. 安装Python依赖
+#### 2. 确认Python 3已安装
 
-进入bot目录并安装依赖：
+确保系统已安装Python 3：
 
 ```bash
-cd WhoDesigned
-pip3 install -r requirements.txt  # 如果有requirements.txt
+python3 --version
 ```
 
-### 3. 确保bot模型文件存在
+WhoDesigned bot已移除torch依赖，不需要安装任何额外的Python包。
 
-确保bot的模型文件（checkpoint/tractor_model.pt）存在于WhoDesigned目录中。
+### Railway部署
 
-### 4. 配置bot路径（可选）
+Railway部署已自动配置了bot支持：
 
-默认情况下，BotService会在项目根目录的`WhoDesigned`文件夹中查找bot代码。
+1. **自动安装Python 3.9**
+   - 在nixpacks.toml中已配置Python环境
 
-如果需要自定义路径，可以在`tractor-game-simulator/server/src/services/BotService.js`中修改：
+2. **自动克隆bot仓库**
+   - 部署时会自动从GitHub克隆WhoDesigned仓库
 
-```javascript
-this.botScriptPath = botScriptPath || path.resolve(__dirname, '../../../../WhoDesigned');
+3. **零额外依赖**
+   - WhoDesigned bot不需要安装任何Python包
+   - 部署速度快，资源占用小
+
+✅ **开箱即用**：Railway部署时会自动配置好bot功能，无需任何额外配置。
+
+## 配置选项
+
+### 切换到简化版Bot（可选）
+
+如果需要使用简化版bot而不是WhoDesigned bot，可以设置环境变量：
+
+```bash
+# .env文件或Railway环境变量
+USE_SIMPLE_BOT=true
 ```
+
+默认情况下使用WhoDesigned bot（推荐）。
 
 ## 使用方法
 
