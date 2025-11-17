@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
@@ -19,6 +19,9 @@ function App() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [newBottomCardsCount, setNewBottomCardsCount] = useState(8);
+  const [newDealInterval, setNewDealInterval] = useState(500);
 
   useEffect(() => {
     // 连接Socket
@@ -89,6 +92,11 @@ function App() {
       messageApi.info(`Bot ${playerName} 已离开房间`);
     });
 
+    // 配置更新
+    socket.on('config_updated', ({ config }) => {
+      messageApi.success('房间设置已更新，将在下一局游戏生效');
+    });
+
     return () => {
       socketService.disconnect();
     };
@@ -152,12 +160,40 @@ function App() {
     });
   };
 
+  const handleUpdateConfig = () => {
+    if (newBottomCardsCount < 1 || newBottomCardsCount > 20) {
+      messageApi.warning('底牌数量必须在1-20之间');
+      return;
+    }
+    if (newDealInterval < 10 || newDealInterval > 5000) {
+      messageApi.warning('发牌间隔必须在10-5000毫秒之间');
+      return;
+    }
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.UPDATE_CONFIG, {
+      roomId: currentRoom.id,
+      config: {
+        bottomCardsCount: newBottomCardsCount,
+        dealInterval: newDealInterval
+      }
+    });
+    setShowConfigModal(false);
+  };
+
   // 初始加载房间列表
   useEffect(() => {
     if (isConnected && !currentRoom) {
       handleRefreshRooms();
     }
   }, [isConnected, currentRoom]);
+
+  // 同步房间配置
+  useEffect(() => {
+    if (currentRoom?.config) {
+      setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
+      setNewDealInterval(currentRoom.config.dealInterval);
+    }
+  }, [currentRoom]);
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
@@ -248,6 +284,12 @@ function App() {
                   >
                     添加Bot
                   </Button>
+                  <Button
+                    size="large"
+                    onClick={() => setShowConfigModal(true)}
+                  >
+                    修改设置
+                  </Button>
                 </>
               )}
               <Button type="default" onClick={handleLeaveRoom}>
@@ -256,6 +298,42 @@ function App() {
             </Space>
           </div>
         </Content>
+
+        {/* 房间设置弹窗 */}
+        <Modal
+          title="房间设置"
+          open={showConfigModal}
+          onOk={handleUpdateConfig}
+          onCancel={() => setShowConfigModal(false)}
+          okText="保存"
+          cancelText="取消"
+        >
+          <div>
+            <Typography.Text strong>底牌数量:</Typography.Text>
+            <br />
+            <InputNumber
+              style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
+              min={1}
+              max={20}
+              value={newBottomCardsCount}
+              onChange={setNewBottomCardsCount}
+            />
+            <br />
+            <Typography.Text strong>发牌间隔（毫秒）:</Typography.Text>
+            <br />
+            <InputNumber
+              style={{ width: '100%', marginTop: 8 }}
+              min={10}
+              max={5000}
+              step={100}
+              value={newDealInterval}
+              onChange={setNewDealInterval}
+            />
+            <br />
+            <br />
+            <Typography.Text type="secondary">设置将在下一局游戏开始时生效</Typography.Text>
+          </div>
+        </Modal>
       </Layout>
     );
   }
