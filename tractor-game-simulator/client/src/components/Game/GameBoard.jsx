@@ -236,6 +236,16 @@ export default function GameBoard() {
       messageApi.info(`Bot ${playerName} 已离开房间`);
     });
 
+    // 玩家准备状态更新
+    socket.on('player_ready_status', ({ playerName, isReady }) => {
+      messageApi.info(`${playerName} ${isReady ? '已准备' : '取消准备'}`);
+    });
+
+    // 所有玩家准备完毕
+    socket.on('all_players_ready', ({ message }) => {
+      messageApi.success(message);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -259,6 +269,8 @@ export default function GameBoard() {
       socket.off('chat_message_received');
       socket.off('bot_added');
       socket.off('bot_removed');
+      socket.off('player_ready_status');
+      socket.off('all_players_ready');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
 
@@ -281,6 +293,11 @@ export default function GameBoard() {
   // 开始游戏
   const handleStartGame = () => {
     socket.emit(SOCKET_EVENTS.START_GAME, { roomId: currentRoom.id });
+  };
+
+  // 玩家准备
+  const handlePlayerReady = () => {
+    socket.emit('player_ready', { roomId: currentRoom.id });
   };
 
   // 展示手牌
@@ -584,6 +601,61 @@ export default function GameBoard() {
         if (!currentRoom) {
           return <div className="phase-content"><Text>等待加入房间...</Text></div>;
         }
+
+        const isWaitingForReady = gameState?.isWaitingForReady || false;
+
+        // 如果在准备等待阶段
+        if (isWaitingForReady) {
+          return (
+            <div className="phase-content">
+              <Title level={3}>等待玩家准备</Title>
+              <Text type="secondary">所有玩家准备后开始发牌</Text>
+              <br />
+              <br />
+
+              {/* 玩家准备状态列表 */}
+              <div style={{ width: '80%', maxWidth: '600px', margin: '0 auto 24px' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {currentRoom.players.map((player, index) => (
+                    <div
+                      key={player.id}
+                      style={{
+                        padding: '12px',
+                        background: '#f5f5f5',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div>
+                        {index + 1}. {player.isBot && '🤖 '}{player.name}
+                        {player.id === currentPlayer?.id && ' (你)'}
+                      </div>
+                      <Tag color={player.isReady ? 'green' : 'default'}>
+                        {player.isReady ? '✓ 已准备' : '等待中'}
+                      </Tag>
+                    </div>
+                  ))}
+                </Space>
+              </div>
+
+              {/* 准备按钮 - 仅真人玩家显示 */}
+              {!currentPlayer?.isBot && (
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={handlePlayerReady}
+                  disabled={currentPlayer?.isReady}
+                >
+                  {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
+                </Button>
+              )}
+            </div>
+          );
+        }
+
+        // 正常的房间等待界面
         return (
           <div className="phase-content">
             <Title level={3}>等待开始</Title>

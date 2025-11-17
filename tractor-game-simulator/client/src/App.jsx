@@ -200,13 +200,6 @@ function App() {
     setShowConfigModal(false);
   };
 
-  const handlePlayerReady = () => {
-    const socket = socketService.socket;
-    socket.emit('player_ready', {
-      roomId: currentRoom.id
-    });
-  };
-
   // 初始加载房间列表
   useEffect(() => {
     if (isConnected && !currentRoom) {
@@ -224,9 +217,10 @@ function App() {
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
-    // 如果游戏已开始，显示游戏界面
+    // 如果游戏已开始（不在WAITING阶段）或正在等待准备，显示游戏界面
     const gamePhase = currentRoom.gameState?.phase || GamePhases.WAITING;
-    if (gamePhase !== GamePhases.WAITING) {
+    const isWaitingForReady = currentRoom.gameState?.isWaitingForReady || false;
+    if (gamePhase !== GamePhases.WAITING || isWaitingForReady) {
       return <GameBoard />;
     }
 
@@ -255,19 +249,12 @@ function App() {
             <div style={{ marginBottom: '24px' }}>
               <Title level={4}>玩家列表:</Title>
               {currentRoom.players.map((player, index) => (
-                <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    {index + 1}. {player.isBot && '🤖 '}{player.name}
-                    {player.socketId === currentRoom.hostId && ' (房主)'}
-                    {player.id === currentPlayer?.id && ' (你)'}
-                    {player.isBot && ' (Bot)'}
-                    {' - '} 分数: {player.score} - 等级: {player.level}
-                  </div>
-                  {currentRoom.gameState?.isWaitingForReady && (
-                    <Tag color={player.isReady ? 'green' : 'default'}>
-                      {player.isReady ? '✓ 已准备' : '等待中'}
-                    </Tag>
-                  )}
+                <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px' }}>
+                  {index + 1}. {player.isBot && '🤖 '}{player.name}
+                  {player.socketId === currentRoom.hostId && ' (房主)'}
+                  {player.id === currentPlayer?.id && ' (你)'}
+                  {player.isBot && ' (Bot)'}
+                  {' - '} 分数: {player.score} - 等级: {player.level}
                 </div>
               ))}
             </div>
@@ -298,20 +285,7 @@ function App() {
             )}
 
             <Space>
-              {/* 准备模式：所有真人玩家显示准备按钮 */}
-              {currentRoom.gameState?.isWaitingForReady && !currentPlayer?.isBot && (
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={handlePlayerReady}
-                  disabled={currentPlayer?.isReady}
-                >
-                  {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
-                </Button>
-              )}
-
-              {/* 非准备模式：房主显示游戏控制按钮 */}
-              {!currentRoom.gameState?.isWaitingForReady && currentPlayer?.socketId === currentRoom.hostId && (
+              {currentPlayer?.socketId === currentRoom.hostId && (
                 <>
                   <Button
                     type="primary"
