@@ -181,6 +181,51 @@ export default function GameTable({
                   )}
                 </div>
 
+                {/* 玩家准备状态（仅在等待准备阶段显示） */}
+                {players && players.length > 0 && players.some(p => p.isReady !== undefined) && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    minWidth: '250px',
+                    maxWidth: '400px'
+                  }}>
+                    <Text strong style={{ fontSize: '16px', color: 'white', textAlign: 'center' }}>
+                      玩家准备状态
+                    </Text>
+                    {players.map((player) => (
+                      <div
+                        key={player.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '6px 12px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        <Text style={{ fontSize: '14px', color: 'white' }}>
+                          {player.isBot && '🤖 '}{player.name}
+                          {player.id === currentPlayer?.id && ' (你)'}
+                        </Text>
+                        <Text
+                          strong
+                          style={{
+                            fontSize: '14px',
+                            color: player.isReady ? '#52c41a' : '#d9d9d9'
+                          }}
+                        >
+                          {player.isReady ? '✓ 已准备' : '未准备'}
+                        </Text>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* 规则显示 */}
                 <div style={{
                   display: 'flex',
@@ -231,7 +276,7 @@ export default function GameTable({
       {positions.bottom && (
         <div className="position-bottom">
           <div className="player-area player-bottom current-player">
-            {/* 上半部分：玩家信息和控制按钮 */}
+            {/* 上半部分：玩家信息、出牌区、控制按钮 */}
             <div className="bottom-player-header">
               <div className="player-info">
                 <Text strong>{positions.bottom.name} (我)</Text>
@@ -239,7 +284,23 @@ export default function GameTable({
                 <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
               </div>
 
-              {/* 控制按钮区域 - 紧挨着玩家信息 */}
+              {/* 我的出牌/展示区域 - 在控制按钮左边 */}
+              <div className="my-play-area-inline">
+                {playedCards[positions.bottom.id] && playedCards[positions.bottom.id].cards && playedCards[positions.bottom.id].cards.length > 0 && (
+                  <div className="my-played-cards-inline">
+                    <Text type="success" style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的出牌:</Text>
+                    <Hand cards={playedCards[positions.bottom.id].cards} disabled />
+                  </div>
+                )}
+                {shownCards[positions.bottom.id] && shownCards[positions.bottom.id].cards && shownCards[positions.bottom.id].cards.length > 0 && (
+                  <div className="my-shown-cards-inline">
+                    <Text type="info" style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
+                    <Hand cards={shownCards[positions.bottom.id].cards} disabled />
+                  </div>
+                )}
+              </div>
+
+              {/* 控制按钮区域 - 在出牌区右边 */}
               {renderControls && (
                 <div className="inline-controls">
                   {renderControls}
@@ -247,23 +308,7 @@ export default function GameTable({
               )}
             </div>
 
-            {/* 自己的出牌区域 */}
-            <div className="my-play-area">
-              {playedCards[positions.bottom.id] && playedCards[positions.bottom.id].cards && (
-                <div className="my-played-cards">
-                  <Text type="success">我的出牌:</Text>
-                  <Hand cards={playedCards[positions.bottom.id].cards} disabled small />
-                </div>
-              )}
-              {shownCards[positions.bottom.id] && shownCards[positions.bottom.id].cards && (
-                <div className="my-shown-cards">
-                  <Text type="info">我的展示:</Text>
-                  <Hand cards={shownCards[positions.bottom.id].cards} disabled small />
-                </div>
-              )}
-            </div>
-
-            {/* 自己的手牌 - 偏左放置 */}
+            {/* 自己的手牌 */}
             <div className="my-hand">
               <Hand
                 cards={myCards}
