@@ -177,14 +177,15 @@
   align-items: flex-start;
 }
 
-/* 内联控制区域 - 出牌区右边 */
+/* 内联控制区域 - 出牌区右边，靠右对齐 */
 .inline-controls {
-  flex: 1;
+  flex: 0 1 auto;
   max-width: 650px;
   background: rgba(255, 255, 255, 0.15);
   padding: 12px;
   border-radius: 8px;
   backdrop-filter: blur(10px);
+  margin-left: auto;
 }
 
 /* 自己的手牌区域 - 居中显示 */
