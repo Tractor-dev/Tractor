@@ -607,50 +607,85 @@ export default function GameBoard() {
         // 如果在准备等待阶段
         if (isWaitingForReady) {
           return (
-            <div className="phase-content">
-              <Title level={3}>等待玩家准备</Title>
-              <Text type="secondary">所有玩家准备后开始发牌</Text>
-              <br />
-              <br />
+            <div className="phase-content playing-phase">
+              {/* 游戏桌面 */}
+              <GameTable
+                players={currentRoom.players}
+                currentPlayer={currentPlayer}
+                playedCards={{}}
+                shownCards={{}}
+                myCards={[]}
+                selectedCards={[]}
+                onCardClick={() => {}}
+                onReorder={() => {}}
+                currentTurnPlayerId={null}
+                trumpSuit={trumpSuit}
+                trumpRank={trumpRank}
+                isHost={isHost}
+                onSetTrump={() => setTrumpModal(true)}
+                selectedRule={selectedRule}
+                onSelectRule={() => setRuleSelectorModal(true)}
+              />
 
-              {/* 玩家准备状态列表 */}
-              <div style={{ width: '80%', maxWidth: '600px', margin: '0 auto 24px' }}>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {currentRoom.players.map((player, index) => (
-                    <div
-                      key={player.id}
-                      style={{
-                        padding: '12px',
-                        background: '#f5f5f5',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <div>
-                        {index + 1}. {player.isBot && '🤖 '}{player.name}
-                        {player.id === currentPlayer?.id && ' (你)'}
+              {/* 控制区域 - 右下角 */}
+              <div className="game-controls">
+                <div className="game-info">
+                  <Text strong>等待玩家准备</Text>
+                  <br />
+                  <Text type="secondary">所有玩家准备后开始发牌</Text>
+                  <br />
+                  <br />
+                  {/* 玩家准备状态 */}
+                  <div style={{ marginBottom: '8px' }}>
+                    {currentRoom.players.map((player, index) => (
+                      <div
+                        key={player.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '4px',
+                          padding: '4px 8px',
+                          background: '#f5f5f5',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        <Text style={{ fontSize: '12px' }}>
+                          {player.isBot && '🤖 '}{player.name}
+                          {player.id === currentPlayer?.id && ' (你)'}
+                        </Text>
+                        <Tag
+                          color={player.isReady ? 'green' : 'default'}
+                          style={{ margin: 0, fontSize: '11px' }}
+                        >
+                          {player.isReady ? '✓' : '...'}
+                        </Tag>
                       </div>
-                      <Tag color={player.isReady ? 'green' : 'default'}>
-                        {player.isReady ? '✓ 已准备' : '等待中'}
-                      </Tag>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {/* 准备按钮 - 仅真人玩家显示 */}
+                  {!currentPlayer?.isBot && (
+                    <Button
+                      type="primary"
+                      size="large"
+                      onClick={handlePlayerReady}
+                      disabled={currentPlayer?.isReady}
+                      block
+                    >
+                      {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleOpenRenameModal}
+                    block
+                  >
+                    修改昵称
+                  </Button>
                 </Space>
               </div>
-
-              {/* 准备按钮 - 仅真人玩家显示 */}
-              {!currentPlayer?.isBot && (
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={handlePlayerReady}
-                  disabled={currentPlayer?.isReady}
-                >
-                  {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
-                </Button>
-              )}
             </div>
           );
         }
