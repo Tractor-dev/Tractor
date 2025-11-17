@@ -246,6 +246,12 @@ export default function GameBoard() {
       messageApi.success(message);
     });
 
+    // 规则选择
+    socket.on('rule_selected', ({ playerName, rule }) => {
+      setSelectedRule(rule);
+      messageApi.info(`${playerName} 选择了规则: ${rule.name}`);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -271,14 +277,18 @@ export default function GameBoard() {
       socket.off('bot_removed');
       socket.off('player_ready_status');
       socket.off('all_players_ready');
+      socket.off('rule_selected');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
 
-  // 同步主牌状态
+  // 同步主牌状态和规则
   useEffect(() => {
     if (gameState) {
       setTrumpSuit(gameState.trumpSuit);
       setTrumpRank(gameState.trumpRank);
+      if (gameState.selectedRule) {
+        setSelectedRule(gameState.selectedRule);
+      }
     }
   }, [gameState]);
 
@@ -523,8 +533,12 @@ export default function GameBoard() {
 
   // 处理规则选择
   const handleRuleSelected = (rule) => {
-    setSelectedRule(rule);
-    messageApi.success(`已设置规则: ${rule.name}`);
+    // 发送规则选择事件到服务器
+    socket.emit(SOCKET_EVENTS.SELECT_RULE, {
+      roomId: currentRoom.id,
+      rule: rule
+    });
+    setRuleSelectorModal(false);
   };
 
   // 发送聊天消息
@@ -594,6 +608,161 @@ export default function GameBoard() {
 
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
+  // 渲染控制按钮区域（分两行显示）
+  const renderControlButtons = () => {
+    switch (phase) {
+      case GamePhases.WAITING:
+        if (!currentRoom) return null;
+
+        const isWaitingForReady = gameState?.isWaitingForReady || false;
+
+        if (isWaitingForReady) {
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* 第一行 */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {!currentPlayer?.isBot && (
+                  <Button
+                    type="primary"
+                    onClick={handlePlayerReady}
+                    disabled={currentPlayer?.isReady}
+                  >
+                    {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
+                  </Button>
+                )}
+                <Button onClick={handleOpenRenameModal}>修改昵称</Button>
+              </div>
+            </div>
+          );
+        }
+        return null;
+
+      case GamePhases.DRAWING:
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* 第一行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Button
+                onClick={handleShowCards}
+                disabled={selectedCards.length === 0}
+              >
+                展示选中的牌 ({selectedCards.length})
+              </Button>
+              <Button
+                onClick={handleSelectAllCards}
+                disabled={myCards.length === 0}
+              >
+                一键选中所有牌
+              </Button>
+            </div>
+            {/* 第二行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {isHost && (
+                <Button
+                  type="primary"
+                  onClick={() => setBuryingPlayerModal(true)}
+                >
+                  指定埋底玩家
+                </Button>
+              )}
+              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
+            </div>
+          </div>
+        );
+
+      case GamePhases.BURYING:
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* 第一行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {isBuryingPlayer && (
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={handleBuryCards}
+                  disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
+                >
+                  确认埋底 ({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+                </Button>
+              )}
+              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
+            </div>
+          </div>
+        );
+
+      case GamePhases.PLAYING:
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* 第一行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {gameState.buryingPlayerId && (
+                <>
+                  <Button
+                    type="primary"
+                    onClick={handlePlayCards}
+                    disabled={selectedCards.length === 0}
+                  >
+                    出牌 ({selectedCards.length})
+                  </Button>
+                  <Button onClick={() => setChatModal(true)}>聊天</Button>
+                  <Button onClick={handleUndoPlay}>撤回出牌</Button>
+                  {currentPlayer?.id === gameState.buryingPlayerId && (
+                    <Button onClick={handleViewMyBottomCards}>查看我的底牌</Button>
+                  )}
+                </>
+              )}
+            </div>
+            {/* 第二行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Button onClick={handleSelectAllCards} disabled={myCards.length === 0}>
+                一键选中所有牌
+              </Button>
+              <Button onClick={() => handleQuickAdjustScore(-5)}>-5分</Button>
+              <Button onClick={() => handleQuickAdjustScore(5)}>+5分</Button>
+              <Button onClick={() => handleQuickAdjustScore(10)}>+10分</Button>
+              <Button onClick={() => handleQuickAdjustLevel(-1)}>-1级</Button>
+              <Button onClick={() => handleQuickAdjustLevel(1)}>+1级</Button>
+              {isHost && (
+                <Button danger onClick={handleRestartGame}>重新开始</Button>
+              )}
+              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
+            </div>
+          </div>
+        );
+
+      case GamePhases.REVEALING:
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* 第一行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Button type="primary" size="large" onClick={handleConfirmReveal}>确认</Button>
+              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
+            </div>
+          </div>
+        );
+
+      case GamePhases.FINISHED:
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* 第一行 */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {isHost && (
+                <>
+                  <Button onClick={() => setScoreAdjustModal(true)}>调整分数</Button>
+                  <Button onClick={() => setLevelAdjustModal(true)}>调整等级</Button>
+                  <Button type="primary" size="large" onClick={handleRestartGame}>重新开始</Button>
+                </>
+              )}
+              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   // 渲染游戏阶段内容
   const renderPhaseContent = () => {
     switch (phase) {
@@ -625,67 +794,8 @@ export default function GameBoard() {
                 onSetTrump={() => setTrumpModal(true)}
                 selectedRule={selectedRule}
                 onSelectRule={() => setRuleSelectorModal(true)}
+                renderControls={renderControlButtons()}
               />
-
-              {/* 控制区域 - 右下角 */}
-              <div className="game-controls">
-                <div className="game-info">
-                  <Text strong>等待玩家准备</Text>
-                  <br />
-                  <Text type="secondary">所有玩家准备后开始发牌</Text>
-                  <br />
-                  <br />
-                  {/* 玩家准备状态 */}
-                  <div style={{ marginBottom: '8px' }}>
-                    {currentRoom.players.map((player, index) => (
-                      <div
-                        key={player.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '4px',
-                          padding: '4px 8px',
-                          background: '#f5f5f5',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        <Text style={{ fontSize: '12px' }}>
-                          {player.isBot && '🤖 '}{player.name}
-                          {player.id === currentPlayer?.id && ' (你)'}
-                        </Text>
-                        <Tag
-                          color={player.isReady ? 'green' : 'default'}
-                          style={{ margin: 0, fontSize: '11px' }}
-                        >
-                          {player.isReady ? '✓' : '...'}
-                        </Tag>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {/* 准备按钮 - 仅真人玩家显示 */}
-                  {!currentPlayer?.isBot && (
-                    <Button
-                      type="primary"
-                      size="large"
-                      onClick={handlePlayerReady}
-                      disabled={currentPlayer?.isReady}
-                      block
-                    >
-                      {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
-                    </Button>
-                  )}
-                  <Button
-                    onClick={handleOpenRenameModal}
-                    block
-                  >
-                    修改昵称
-                  </Button>
-                </Space>
-              </div>
             </div>
           );
         }
@@ -765,48 +875,8 @@ export default function GameBoard() {
               onSetTrump={() => setTrumpModal(true)}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
+              renderControls={renderControlButtons()}
             />
-
-            {/* 控制区域 - 右下角 */}
-            <div className="game-controls">
-              <div className="game-info">
-                <Text strong>摸牌阶段</Text>
-                <br />
-                <Text>已发牌数: {myCards.length}</Text>
-              </div>
-
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Button
-                  onClick={handleShowCards}
-                  disabled={selectedCards.length === 0}
-                  block
-                >
-                  展示选中的牌 ({selectedCards.length})
-                </Button>
-                <Button
-                  onClick={handleSelectAllCards}
-                  disabled={myCards.length === 0}
-                  block
-                >
-                  一键选中所有牌
-                </Button>
-                {isHost && (
-                  <Button
-                    type="primary"
-                    onClick={() => setBuryingPlayerModal(true)}
-                    block
-                  >
-                    指定埋底玩家
-                  </Button>
-                )}
-                <Button
-                  onClick={handleOpenRenameModal}
-                  block
-                >
-                  修改昵称
-                </Button>
-              </Space>
-            </div>
           </div>
         );
 
@@ -830,36 +900,8 @@ export default function GameBoard() {
               onSetTrump={() => setTrumpModal(true)}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
+              renderControls={renderControlButtons()}
             />
-
-            {/* 控制区域 - 右下角 */}
-            <div className="game-controls">
-              <div className="game-info">
-                <Text strong>埋底阶段</Text>
-                <br />
-                <Text>埋底玩家: {currentRoom.players.find(p => p.id === gameState.buryingPlayerId)?.name}</Text>
-              </div>
-
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {isBuryingPlayer && (
-                  <Button
-                    type="primary"
-                    size="large"
-                    onClick={handleBuryCards}
-                    disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
-                    block
-                  >
-                    确认埋底 ({selectedCards.length}/{currentRoom.config.bottomCardsCount})
-                  </Button>
-                )}
-                <Button
-                  onClick={handleOpenRenameModal}
-                  block
-                >
-                  修改昵称
-                </Button>
-              </Space>
-            </div>
           </div>
         );
 
@@ -883,72 +925,8 @@ export default function GameBoard() {
               onSetTrump={() => setTrumpModal(true)}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
+              renderControls={renderControlButtons()}
             />
-
-            {/* 辅助信息和操作区域 - 右下角 */}
-            <div className="game-controls">
-              <div className="game-info">
-                <Text strong>自由出牌阶段</Text>
-                <br />
-                <Text type="secondary">任何玩家都可以随时出牌</Text>
-              </div>
-
-              <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
-                {gameState.buryingPlayerId && (
-                  <>
-                    <Button
-                      type="primary"
-                      size="large"
-                      onClick={handlePlayCards}
-                      disabled={selectedCards.length === 0}
-                      block
-                    >
-                      出牌 (已选 {selectedCards.length})
-                    </Button>
-                    <Button size="large" onClick={() => setChatModal(true)} block>
-                      聊天
-                    </Button>
-                    <Button size="large" onClick={handleUndoPlay} block>
-                      撤回出牌
-                    </Button>
-                    {/* 埋底玩家可以查看底牌 */}
-                    {currentPlayer?.id === gameState.buryingPlayerId && (
-                      <Button onClick={handleViewMyBottomCards} block>
-                        查看我的底牌
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {/* 一键选中所有牌按钮 - 任何阶段都可用 */}
-                <Button onClick={handleSelectAllCards} disabled={myCards.length === 0} block>
-                  一键选中所有牌
-                </Button>
-
-                {/* 快捷操作按钮 */}
-                <Space.Compact style={{ width: '100%' }}>
-                  <Button onClick={() => handleQuickAdjustScore(-5)}>-5分</Button>
-                  <Button onClick={() => handleQuickAdjustScore(5)}>+5分</Button>
-                  <Button onClick={() => handleQuickAdjustScore(10)}>+10分</Button>
-                </Space.Compact>
-                <Space.Compact style={{ width: '100%' }}>
-                  <Button onClick={() => handleQuickAdjustLevel(-1)}>-1级</Button>
-                  <Button onClick={() => handleQuickAdjustLevel(1)}>+1级</Button>
-                </Space.Compact>
-
-                {/* 房主可以随时重新开始 */}
-                {isHost && (
-                  <Button danger onClick={handleRestartGame} block>
-                    重新开始
-                  </Button>
-                )}
-
-                {/* 修改昵称按钮 */}
-                <Button onClick={handleOpenRenameModal} block>
-                  修改昵称
-                </Button>
-              </Space>
-            </div>
           </div>
         );
 
@@ -973,25 +951,8 @@ export default function GameBoard() {
               revealedBottomCards={revealedBottomCards}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
+              renderControls={renderControlButtons()}
             />
-
-            {/* 控制区域 - 右下角 */}
-            <div className="game-controls">
-              <div className="game-info">
-                <Text strong>游戏结束 - 底牌展示</Text>
-                <br />
-                <Text>底牌数量: {revealedBottomCards.length}</Text>
-              </div>
-
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Button type="primary" size="large" onClick={handleConfirmReveal} block>
-                  确认
-                </Button>
-                <Button onClick={handleOpenRenameModal} block>
-                  修改昵称
-                </Button>
-              </Space>
-            </div>
           </div>
         );
 
@@ -1016,29 +977,8 @@ export default function GameBoard() {
               revealedBottomCards={revealedBottomCards}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
+              renderControls={renderControlButtons()}
             />
-
-            {/* 控制区域 - 右下角 */}
-            <div className="game-controls">
-              <div className="game-info">
-                <Text strong>游戏结束</Text>
-              </div>
-
-              <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }}>
-                {isHost && (
-                  <>
-                    <Button onClick={() => setScoreAdjustModal(true)} block>调整分数</Button>
-                    <Button onClick={() => setLevelAdjustModal(true)} block>调整等级</Button>
-                    <Button type="primary" size="large" onClick={handleRestartGame} block>
-                      重新开始
-                    </Button>
-                  </>
-                )}
-                <Button onClick={handleOpenRenameModal} block>
-                  修改昵称
-                </Button>
-              </Space>
-            </div>
           </div>
         );
 

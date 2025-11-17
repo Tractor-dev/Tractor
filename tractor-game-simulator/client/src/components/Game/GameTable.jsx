@@ -23,6 +23,7 @@ const { Text } = Typography;
  * @param {Array} props.revealedBottomCards - 揭示的底牌
  * @param {Object} props.selectedRule - 选中的规则 { name, content }
  * @param {Function} props.onSelectRule - 选择规则的回调
+ * @param {ReactNode} props.renderControls - 渲染控制区域的函数或组件
  */
 export default function GameTable({
   players,
@@ -40,7 +41,8 @@ export default function GameTable({
   onSetTrump,
   revealedBottomCards = null,
   selectedRule = null,
-  onSelectRule
+  onSelectRule,
+  renderControls = null
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
@@ -229,10 +231,20 @@ export default function GameTable({
       {positions.bottom && (
         <div className="position-bottom">
           <div className="player-area player-bottom current-player">
-            <div className="player-info">
-              <Text strong>{positions.bottom.name} (我)</Text>
-              <br />
-              <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
+            {/* 上半部分：玩家信息和控制按钮 */}
+            <div className="bottom-player-header">
+              <div className="player-info">
+                <Text strong>{positions.bottom.name} (我)</Text>
+                <br />
+                <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
+              </div>
+
+              {/* 控制按钮区域 - 紧挨着玩家信息 */}
+              {renderControls && (
+                <div className="inline-controls">
+                  {renderControls}
+                </div>
+              )}
             </div>
 
             {/* 自己的出牌区域 */}

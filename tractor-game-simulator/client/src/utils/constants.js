@@ -44,7 +44,8 @@ export const SOCKET_EVENTS = {
   CONFIRM_REVEAL: 'confirm_reveal',
   VIEW_MY_BOTTOM_CARDS: 'view_my_bottom_cards',
   REORDER_CARDS: 'reorder_cards',
-  SEND_CHAT_MESSAGE: 'send_chat_message'
+  SEND_CHAT_MESSAGE: 'send_chat_message',
+  SELECT_RULE: 'select_rule'
 };
 
 // 花色
