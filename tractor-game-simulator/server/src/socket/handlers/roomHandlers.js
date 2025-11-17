@@ -1,6 +1,6 @@
 import { Player } from '../../models/Player.js';
 import logger from '../../utils/logger.js';
-import { getGameEngines } from './gameHandlers.js';
+import { getGameEngines, getBotServices } from './gameHandlers.js';
 
 export function registerRoomHandlers(io, socket, roomManager) {
 
@@ -119,6 +119,104 @@ export function registerRoomHandlers(io, socket, roomManager) {
   });
 
   /**
+   * 添加bot（房主）
+   */
+  socket.on('add_bot', ({ roomId, botName }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以添加bot');
+      }
+
+      if (room.players.length >= room.config.maxPlayers) {
+        throw new Error('房间已满');
+      }
+
+      if (room.gameState.phase !== 'waiting') {
+        throw new Error('游戏进行中无法添加bot');
+      }
+
+      // 创建bot玩家（使用特殊的socketId标识）
+      const botSocketId = `bot_${Date.now()}_${Math.random()}`;
+      const bot = new Player(
+        botSocketId,
+        botName || `Bot${room.players.length + 1}`,
+        room.players.length,
+        true  // isBot = true
+      );
+
+      room.addPlayer(bot);
+
+      // 广播bot加入
+      io.to(room.id).emit('bot_added', {
+        player: bot.toJSON()
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`Bot ${bot.name} 加入房间: ${room.id}`);
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('添加bot失败:', error);
+    }
+  });
+
+  /**
+   * 移除bot（房主）
+   */
+  socket.on('remove_bot', ({ roomId, playerId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以移除bot');
+      }
+
+      const player = room.findPlayerById(playerId);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      if (!player.isBot) {
+        throw new Error('该玩家不是bot');
+      }
+
+      if (room.gameState.phase !== 'waiting') {
+        throw new Error('游戏进行中无法移除bot');
+      }
+
+      // 移除bot
+      room.removePlayer(player.id);
+
+      // 广播bot离开
+      io.to(room.id).emit('bot_removed', {
+        playerId: player.id,
+        playerName: player.name
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`Bot ${player.name} 离开房间: ${room.id}`);
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('移除bot失败:', error);
+    }
+  });
+
+  /**
    * 断线处理
    */
   socket.on('disconnect', () => {
@@ -180,9 +278,11 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
         });
         logger.info(`房间 ${room.id} 房主转移给: ${room.players[0].name}`);
       } else {
-        // 房间被删除时也清理游戏引擎
+        // 房间被删除时也清理游戏引擎和bot服务
         const gameEngines = getGameEngines();
+        const botServices = getBotServices();
         gameEngines.delete(room.id);
+        botServices.delete(room.id);
         roomManager.deleteRoom(room.id);
         logger.info(`玩家 ${player.name} 离开房间: ${room.id}，房间已删除`);
         return; // 房间已删除，不需要再广播
