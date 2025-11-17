@@ -226,6 +226,16 @@ export default function GameBoard() {
       messageApi.info(`${playerName}: ${message}`);
     });
 
+    // Bot添加
+    socket.on('bot_added', ({ player }) => {
+      messageApi.success(`Bot ${player.name} 已加入房间`);
+    });
+
+    // Bot移除
+    socket.on('bot_removed', ({ playerName }) => {
+      messageApi.info(`Bot ${playerName} 已离开房间`);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -247,6 +257,8 @@ export default function GameBoard() {
       socket.off('config_updated');
       socket.off('player_name_updated');
       socket.off('chat_message_received');
+      socket.off('bot_added');
+      socket.off('bot_removed');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
 
@@ -546,6 +558,23 @@ export default function GameBoard() {
     messageApi.success('快捷短语已删除');
   };
 
+  // 添加Bot
+  const handleAddBot = () => {
+    const botCount = currentRoom.players.filter(p => p.isBot).length;
+    socket.emit(SOCKET_EVENTS.ADD_BOT, {
+      roomId: currentRoom.id,
+      botName: `AI Bot ${botCount + 1}`
+    });
+  };
+
+  // 移除Bot
+  const handleRemoveBot = (playerId) => {
+    socket.emit(SOCKET_EVENTS.REMOVE_BOT, {
+      roomId: currentRoom.id,
+      playerId
+    });
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
   // 渲染游戏阶段内容
@@ -576,7 +605,29 @@ export default function GameBoard() {
                   <Button size="large" onClick={() => setRoomConfigModal(true)}>
                     房间设置
                   </Button>
+                  <Button size="large" onClick={handleAddBot} disabled={currentRoom.playerCount >= currentRoom.maxPlayers}>
+                    添加Bot
+                  </Button>
                 </Space>
+              )}
+
+              {/* Bot列表 */}
+              {isHost && currentRoom.players.some(p => p.isBot) && (
+                <div style={{ width: '80%', maxWidth: '600px' }}>
+                  <Divider>房间内的Bot</Divider>
+                  <Space wrap>
+                    {currentRoom.players.filter(p => p.isBot).map(bot => (
+                      <Tag
+                        key={bot.id}
+                        closable
+                        onClose={() => handleRemoveBot(bot.id)}
+                        color="blue"
+                      >
+                        🤖 {bot.name}
+                      </Tag>
+                    ))}
+                  </Space>
+                </div>
               )}
 
               {/* 所有玩家可用按钮 */}
