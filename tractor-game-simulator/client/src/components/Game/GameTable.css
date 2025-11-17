@@ -147,18 +147,42 @@
   font-size: 12px;
 }
 
-/* 自己的手牌区域 - 居中显示，为右下角控制区留空间 */
+/* 底部玩家区域的头部（玩家信息 + 控制按钮） */
+.bottom-player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.bottom-player-header .player-info {
+  flex: 0 0 auto;
+  text-align: left;
+  margin-bottom: 0;
+}
+
+/* 内联控制区域 - 玩家信息旁边 */
+.inline-controls {
+  flex: 1;
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+/* 自己的手牌区域 - 居中显示 */
 .my-hand {
   margin-top: 10px;
   padding: 10px 20px;
-  margin-left: 20px; /* 最小左边距，避免截断 */
+  margin-left: 20px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   min-height: 120px;
   display: flex;
-  justify-content: center; /* 居中显示手牌 */
-  /* 为右下角控制区留出空间 */
-  margin-right: 20px; /* 减小右边距，控制区会自动浮动在上面 */
+  justify-content: center;
+  margin-right: 20px;
   width: auto;
 }
 

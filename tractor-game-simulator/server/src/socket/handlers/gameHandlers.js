@@ -747,4 +747,42 @@ export function registerGameHandlers(io, socket, roomManager) {
       logger.error('调整等级失败:', error);
     }
   });
+
+  /**
+   * 选择规则
+   */
+  socket.on('select_rule', ({ roomId, rule }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      // 设置房间的选中规则（覆盖之前的规则）
+      room.gameState.selectedRule = rule;
+
+      // 广播规则选择给所有玩家
+      io.to(room.id).emit('rule_selected', {
+        playerId: player.id,
+        playerName: player.name,
+        rule: rule
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房间 ${room.id} 玩家 ${player.name} 选择规则: ${rule.name}`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('选择规则失败:', error);
+    }
+  });
 }

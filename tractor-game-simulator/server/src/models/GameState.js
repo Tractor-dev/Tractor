@@ -19,6 +19,7 @@ export class GameState {
     this.trumpSuit = null; // 主牌花色
     this.trumpRank = null; // 主牌点数
     this.isWaitingForReady = false; // 是否在等待玩家准备
+    this.selectedRule = null; // 选中的规则 { name, content }
   }
 
   reset() {
@@ -39,6 +40,7 @@ export class GameState {
     this.trumpSuit = null;
     this.trumpRank = null;
     this.isWaitingForReady = false;
+    this.selectedRule = null;
   }
 
   toJSON() {
@@ -59,7 +61,8 @@ export class GameState {
       endTime: this.endTime,
       trumpSuit: this.trumpSuit,
       trumpRank: this.trumpRank,
-      isWaitingForReady: this.isWaitingForReady
+      isWaitingForReady: this.isWaitingForReady,
+      selectedRule: this.selectedRule
     };
   }
 }
