@@ -1,6 +1,7 @@
 import { Player } from '../../models/Player.js';
 import logger from '../../utils/logger.js';
 import { getGameEngines, getBotServices } from './gameHandlers.js';
+import { BotTypes } from '../../utils/constants.js';
 
 export function registerRoomHandlers(io, socket, roomManager) {
 
@@ -115,6 +116,54 @@ export function registerRoomHandlers(io, socket, roomManager) {
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('更新配置失败:', error);
+    }
+  });
+
+  /**
+   * 设置Bot类型（房主）
+   */
+  socket.on('set_bot_type', ({ roomId, botType }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以设置Bot类型');
+      }
+
+      if (room.gameState.phase !== 'waiting') {
+        throw new Error('游戏进行中无法更改Bot类型');
+      }
+
+      // 验证botType是否有效
+      if (botType !== BotTypes.SIMPLE && botType !== BotTypes.WHO_DESIGNED) {
+        throw new Error(`无效的Bot类型: ${botType}`);
+      }
+
+      // 更新配置
+      room.updateConfig({ botType });
+
+      // 清除现有的bot服务（下次需要时会用新的bot类型重新创建）
+      const botServices = getBotServices();
+      botServices.delete(room.id);
+
+      // 广播Bot类型更新
+      io.to(room.id).emit('bot_type_updated', {
+        botType: botType,
+        botTypeName: botType === BotTypes.SIMPLE ? '简单Bot' : 'WhoDesigned Bot'
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`房间 ${room.id} Bot类型已设置为: ${botType}`);
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('设置Bot类型失败:', error);
     }
   });
 

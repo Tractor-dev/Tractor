@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../utils/logger.js';
+import { BotTypes } from '../utils/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,18 +95,29 @@ class CardConverter {
  * Bot服务 - 管理和调用Python bot
  */
 export class BotService {
-  constructor(botScriptPath = null) {
-    // 检查环境变量，决定使用哪种bot
-    const useSimpleBot = process.env.USE_SIMPLE_BOT === 'true' || process.env.USE_SIMPLE_BOT === '1';
+  constructor(botType = null) {
+    // 优先使用传入的 botType 参数，其次检查环境变量
+    let selectedBotType = botType;
 
-    if (useSimpleBot) {
+    if (!selectedBotType) {
+      const useSimpleBot = process.env.USE_SIMPLE_BOT === 'true' || process.env.USE_SIMPLE_BOT === '1';
+      selectedBotType = useSimpleBot ? BotTypes.SIMPLE : BotTypes.WHO_DESIGNED;
+    }
+
+    this.botType = selectedBotType;
+
+    if (selectedBotType === BotTypes.SIMPLE) {
       // 使用简化版bot（不依赖torch）
       this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
       logger.info('使用简化版Bot（不依赖任何Python包）');
-    } else {
-      // 使用WhoDesigned bot（已移除torch依赖）
-      this.botScriptPath = botScriptPath || path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
+    } else if (selectedBotType === BotTypes.WHO_DESIGNED) {
+      // 使用WhoDesigned bot
+      this.botScriptPath = path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
       logger.info('使用WhoDesigned Bot');
+    } else {
+      // 默认使用简化版bot
+      this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
+      logger.warn(`未知的bot类型: ${selectedBotType}，使用简化版Bot`);
     }
 
     this.converter = CardConverter;

@@ -48,8 +48,8 @@ async function triggerAllBotsPlay(io, room, gameEngine) {
   // 获取或创建bot服务
   let botService = botServices.get(room.id);
   if (!botService) {
-    logger.info('创建新的BotService实例');
-    botService = new BotService();
+    logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
+    botService = new BotService(room.config.botType);
     botServices.set(room.id, botService);
   }
 
