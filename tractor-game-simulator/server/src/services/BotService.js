@@ -235,9 +235,10 @@ export class BotService {
    */
   async _callPythonBot(input) {
     return new Promise((resolve, reject) => {
-      const pythonProcess = spawn('python3', [
-        path.join(this.botScriptPath, '__main__.py')
-      ]);
+      logger.info(`调用Bot脚本: ${this.botScriptPath}`);
+      logger.info(`Bot输入: ${JSON.stringify(input)}`);
+
+      const pythonProcess = spawn('python3', [this.botScriptPath]);
 
       let output = '';
       let errorOutput = '';
@@ -248,30 +249,43 @@ export class BotService {
 
       // 收集输出
       pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
+        const dataStr = data.toString();
+        logger.info(`Bot stdout: ${dataStr}`);
+        output += dataStr;
       });
 
       pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+        const dataStr = data.toString();
+        logger.warn(`Bot stderr: ${dataStr}`);
+        errorOutput += dataStr;
       });
 
       // 处理完成
       pythonProcess.on('close', (code) => {
+        logger.info(`Bot进程退出，代码: ${code}`);
+
         if (code !== 0) {
-          reject(new Error(`Bot进程退出，代码: ${code}, 错误: ${errorOutput}`));
+          const errorMsg = `Bot进程退出，代码: ${code}, 错误: ${errorOutput}`;
+          logger.error(errorMsg);
+          reject(new Error(errorMsg));
           return;
         }
 
         try {
+          logger.info(`Bot原始输出: ${output}`);
           const result = JSON.parse(output);
+          logger.info(`Bot解析后结果: ${JSON.stringify(result)}`);
           resolve(result);
         } catch (error) {
-          reject(new Error(`解析bot输出失败: ${error.message}, 输出: ${output}`));
+          const errorMsg = `解析bot输出失败: ${error.message}, 输出: ${output}`;
+          logger.error(errorMsg);
+          reject(new Error(errorMsg));
         }
       });
 
       // 超时处理
       setTimeout(() => {
+        logger.error('Bot响应超时，强制结束进程');
         pythonProcess.kill();
         reject(new Error('Bot响应超时'));
       }, 30000); // 30秒超时
