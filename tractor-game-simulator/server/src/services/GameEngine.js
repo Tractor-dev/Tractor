@@ -44,7 +44,7 @@ export class GameEngine {
   }
 
   /**
-   * 玩家准备
+   * 玩家准备/取消准备
    */
   playerReady(playerId) {
     if (!this.room.gameState.isWaitingForReady) {
@@ -60,8 +60,9 @@ export class GameEngine {
       throw new Error('Bot无需准备');
     }
 
-    player.isReady = true;
-    logger.info(`房间 ${this.room.id} 玩家 ${player.name} 已准备`);
+    // 切换准备状态
+    player.isReady = !player.isReady;
+    logger.info(`房间 ${this.room.id} 玩家 ${player.name} ${player.isReady ? '已准备' : '取消准备'}`);
 
     // 检查是否所有真人玩家都准备好了
     const humanPlayers = this.room.players.filter(p => !p.isBot);

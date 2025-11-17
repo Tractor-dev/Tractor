@@ -147,12 +147,12 @@
   font-size: 12px;
 }
 
-/* 底部玩家区域的头部（玩家信息 + 控制按钮） */
+/* 底部玩家区域的头部（玩家信息 + 出牌区 + 控制按钮） */
 .bottom-player-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
-  gap: 20px;
+  gap: 16px;
   margin-bottom: 10px;
 }
 
@@ -162,10 +162,25 @@
   margin-bottom: 0;
 }
 
-/* 内联控制区域 - 玩家信息旁边 */
+/* 内联出牌区域 - 玩家信息和控制按钮之间 */
+.my-play-area-inline {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.my-played-cards-inline,
+.my-shown-cards-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* 内联控制区域 - 出牌区右边 */
 .inline-controls {
   flex: 1;
-  max-width: 600px;
+  max-width: 650px;
   background: rgba(255, 255, 255, 0.15);
   padding: 12px;
   border-radius: 8px;

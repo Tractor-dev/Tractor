@@ -608,8 +608,10 @@ export default function GameBoard() {
 
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
-  // 渲染控制按钮区域（分两行显示）
+  // 渲染控制按钮区域（每行最多4个按钮）
   const renderControlButtons = () => {
+    const buttonStyle = { width: '100px', fontSize: '13px' };
+
     switch (phase) {
       case GamePhases.WAITING:
         if (!currentRoom) return null;
@@ -617,144 +619,223 @@ export default function GameBoard() {
         const isWaitingForReady = gameState?.isWaitingForReady || false;
 
         if (isWaitingForReady) {
+          const buttons = [];
+
+          if (!currentPlayer?.isBot) {
+            buttons.push(
+              <Button
+                key="ready"
+                type="primary"
+                onClick={handlePlayerReady}
+                style={buttonStyle}
+              >
+                {currentPlayer?.isReady ? '取消准备' : '准备'}
+              </Button>
+            );
+          }
+
+          buttons.push(
+            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+              修改昵称
+            </Button>
+          );
+
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* 第一行 */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {!currentPlayer?.isBot && (
-                  <Button
-                    type="primary"
-                    onClick={handlePlayerReady}
-                    disabled={currentPlayer?.isReady}
-                  >
-                    {currentPlayer?.isReady ? '✓ 已准备' : '准备'}
-                  </Button>
-                )}
-                <Button onClick={handleOpenRenameModal}>修改昵称</Button>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+              {buttons}
             </div>
           );
         }
         return null;
 
       case GamePhases.DRAWING:
+        const drawingButtons = [
+          <Button
+            key="show"
+            onClick={handleShowCards}
+            disabled={selectedCards.length === 0}
+            style={buttonStyle}
+          >
+            展示牌({selectedCards.length})
+          </Button>,
+          <Button
+            key="selectAll"
+            onClick={handleSelectAllCards}
+            disabled={myCards.length === 0}
+            style={buttonStyle}
+          >
+            全选
+          </Button>
+        ];
+
+        if (isHost) {
+          drawingButtons.push(
+            <Button
+              key="setBurying"
+              type="primary"
+              onClick={() => setBuryingPlayerModal(true)}
+              style={buttonStyle}
+            >
+              指定埋底
+            </Button>
+          );
+        }
+
+        drawingButtons.push(
+          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+            改昵称
+          </Button>
+        );
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 第一行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button
-                onClick={handleShowCards}
-                disabled={selectedCards.length === 0}
-              >
-                展示选中的牌 ({selectedCards.length})
-              </Button>
-              <Button
-                onClick={handleSelectAllCards}
-                disabled={myCards.length === 0}
-              >
-                一键选中所有牌
-              </Button>
-            </div>
-            {/* 第二行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {isHost && (
-                <Button
-                  type="primary"
-                  onClick={() => setBuryingPlayerModal(true)}
-                >
-                  指定埋底玩家
-                </Button>
-              )}
-              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            {drawingButtons}
           </div>
         );
 
       case GamePhases.BURYING:
+        const buryingButtons = [];
+
+        if (isBuryingPlayer) {
+          buryingButtons.push(
+            <Button
+              key="bury"
+              type="primary"
+              onClick={handleBuryCards}
+              disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
+              style={{ ...buttonStyle, width: '150px' }}
+            >
+              埋底({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+            </Button>
+          );
+        }
+
+        buryingButtons.push(
+          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+            改昵称
+          </Button>
+        );
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 第一行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {isBuryingPlayer && (
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={handleBuryCards}
-                  disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
-                >
-                  确认埋底 ({selectedCards.length}/{currentRoom.config.bottomCardsCount})
-                </Button>
-              )}
-              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            {buryingButtons}
           </div>
         );
 
       case GamePhases.PLAYING:
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 第一行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {gameState.buryingPlayerId && (
-                <>
-                  <Button
-                    type="primary"
-                    onClick={handlePlayCards}
-                    disabled={selectedCards.length === 0}
-                  >
-                    出牌 ({selectedCards.length})
-                  </Button>
-                  <Button onClick={() => setChatModal(true)}>聊天</Button>
-                  <Button onClick={handleUndoPlay}>撤回出牌</Button>
-                  {currentPlayer?.id === gameState.buryingPlayerId && (
-                    <Button onClick={handleViewMyBottomCards}>查看我的底牌</Button>
-                  )}
-                </>
-              )}
-            </div>
-            {/* 第二行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button onClick={handleSelectAllCards} disabled={myCards.length === 0}>
-                一键选中所有牌
+        const playingButtons = [];
+
+        if (gameState.buryingPlayerId) {
+          playingButtons.push(
+            <Button
+              key="play"
+              type="primary"
+              onClick={handlePlayCards}
+              disabled={selectedCards.length === 0}
+              style={buttonStyle}
+            >
+              出牌({selectedCards.length})
+            </Button>,
+            <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
+              聊天
+            </Button>,
+            <Button key="undo" onClick={handleUndoPlay} style={buttonStyle}>
+              撤回
+            </Button>
+          );
+
+          if (currentPlayer?.id === gameState.buryingPlayerId) {
+            playingButtons.push(
+              <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
+                看底牌
               </Button>
-              <Button onClick={() => handleQuickAdjustScore(-5)}>-5分</Button>
-              <Button onClick={() => handleQuickAdjustScore(5)}>+5分</Button>
-              <Button onClick={() => handleQuickAdjustScore(10)}>+10分</Button>
-              <Button onClick={() => handleQuickAdjustLevel(-1)}>-1级</Button>
-              <Button onClick={() => handleQuickAdjustLevel(1)}>+1级</Button>
-              {isHost && (
-                <Button danger onClick={handleRestartGame}>重新开始</Button>
-              )}
-              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
-            </div>
+            );
+          }
+
+          playingButtons.push(
+            <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
+              全选
+            </Button>,
+            <Button key="score-5" onClick={() => handleQuickAdjustScore(-5)} style={buttonStyle}>
+              -5分
+            </Button>,
+            <Button key="score+5" onClick={() => handleQuickAdjustScore(5)} style={buttonStyle}>
+              +5分
+            </Button>,
+            <Button key="score+10" onClick={() => handleQuickAdjustScore(10)} style={buttonStyle}>
+              +10分
+            </Button>,
+            <Button key="level-1" onClick={() => handleQuickAdjustLevel(-1)} style={buttonStyle}>
+              -1级
+            </Button>,
+            <Button key="level+1" onClick={() => handleQuickAdjustLevel(1)} style={buttonStyle}>
+              +1级
+            </Button>
+          );
+
+          if (isHost) {
+            playingButtons.push(
+              <Button key="restart" danger onClick={handleRestartGame} style={buttonStyle}>
+                重新开始
+              </Button>
+            );
+          }
+
+          playingButtons.push(
+            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+              改昵称
+            </Button>
+          );
+        }
+
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            {playingButtons}
           </div>
         );
 
       case GamePhases.REVEALING:
+        const revealingButtons = [
+          <Button key="confirm" type="primary" onClick={handleConfirmReveal} style={buttonStyle}>
+            确认
+          </Button>,
+          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+            改昵称
+          </Button>
+        ];
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 第一行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button type="primary" size="large" onClick={handleConfirmReveal}>确认</Button>
-              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            {revealingButtons}
           </div>
         );
 
       case GamePhases.FINISHED:
+        const finishedButtons = [];
+
+        if (isHost) {
+          finishedButtons.push(
+            <Button key="adjustScore" onClick={() => setScoreAdjustModal(true)} style={buttonStyle}>
+              调整分数
+            </Button>,
+            <Button key="adjustLevel" onClick={() => setLevelAdjustModal(true)} style={buttonStyle}>
+              调整等级
+            </Button>,
+            <Button key="restart" type="primary" onClick={handleRestartGame} style={buttonStyle}>
+              重新开始
+            </Button>
+          );
+        }
+
+        finishedButtons.push(
+          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+            改昵称
+          </Button>
+        );
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 第一行 */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {isHost && (
-                <>
-                  <Button onClick={() => setScoreAdjustModal(true)}>调整分数</Button>
-                  <Button onClick={() => setLevelAdjustModal(true)}>调整等级</Button>
-                  <Button type="primary" size="large" onClick={handleRestartGame}>重新开始</Button>
-                </>
-              )}
-              <Button onClick={handleOpenRenameModal}>修改昵称</Button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            {finishedButtons}
           </div>
         );
 
