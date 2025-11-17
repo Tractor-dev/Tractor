@@ -21,6 +21,8 @@ const { Text } = Typography;
  * @param {Boolean} props.isHost - 是否是房主
  * @param {Function} props.onSetTrump - 设置主牌的回调
  * @param {Array} props.revealedBottomCards - 揭示的底牌
+ * @param {Object} props.selectedRule - 选中的规则 { name, content }
+ * @param {Function} props.onSelectRule - 选择规则的回调
  */
 export default function GameTable({
   players,
@@ -36,7 +38,9 @@ export default function GameTable({
   trumpRank = null,
   isHost = false,
   onSetTrump,
-  revealedBottomCards = null
+  revealedBottomCards = null,
+  selectedRule = null,
+  onSelectRule
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
@@ -151,27 +155,63 @@ export default function GameTable({
                 <Hand cards={revealedBottomCards} disabled small />
               </div>
             ) : (
-              /* 主牌显示 */
-              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <Text strong style={{ fontSize: '16px' }}>主牌：</Text>
-                {trumpSuit && trumpRank ? (
-                  <Text
-                    style={{
-                      fontSize: '24px',
-                      fontWeight: 'bold',
-                      color: getSuitColor(trumpSuit)
-                    }}
-                  >
-                    {getSuitSymbol(trumpSuit)} {trumpRank}
-                  </Text>
-                ) : (
-                  <Text type="secondary">未设置</Text>
-                )}
-                {isHost && (
-                  <Button size="small" onClick={onSetTrump}>
-                    {trumpSuit && trumpRank ? '修改' : '设置'}
-                  </Button>
-                )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+                {/* 主牌显示 */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <Text strong style={{ fontSize: '16px' }}>主牌：</Text>
+                  {trumpSuit && trumpRank ? (
+                    <Text
+                      style={{
+                        fontSize: '24px',
+                        fontWeight: 'bold',
+                        color: getSuitColor(trumpSuit)
+                      }}
+                    >
+                      {getSuitSymbol(trumpSuit)} {trumpRank}
+                    </Text>
+                  ) : (
+                    <Text type="secondary">未设置</Text>
+                  )}
+                  {isHost && (
+                    <Button size="small" onClick={onSetTrump}>
+                      {trumpSuit && trumpRank ? '修改' : '设置'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* 规则显示 */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  minWidth: '250px',
+                  maxWidth: '400px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Text strong style={{ fontSize: '16px', color: 'white' }}>规则：</Text>
+                    <Button size="small" onClick={onSelectRule}>
+                      {selectedRule ? '更换' : '选择'}规则
+                    </Button>
+                  </div>
+                  {selectedRule ? (
+                    <div style={{ textAlign: 'center', width: '100%' }}>
+                      <Text strong style={{ fontSize: '18px', color: '#ffd700', display: 'block', marginBottom: '6px' }}>
+                        {selectedRule.name}
+                      </Text>
+                      <Text style={{ fontSize: '14px', color: '#ffffff', lineHeight: '1.5' }}>
+                        {selectedRule.content}
+                      </Text>
+                    </div>
+                  ) : (
+                    <Text type="secondary" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                      未选择规则
+                    </Text>
+                  )}
+                </div>
               </div>
             )}
           </div>

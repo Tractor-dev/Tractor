@@ -1,0 +1,12 @@
+.ant-list-item {
+  transition: background-color 0.2s;
+}
+
+.ant-list-item:hover {
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.ant-modal-body {
+  padding: 24px;
+}
