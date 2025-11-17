@@ -22,6 +22,8 @@ export const SOCKET_EVENTS = {
   LEAVE_ROOM: 'leave_room',
   GET_ROOM_LIST: 'get_room_list',
   UPDATE_CONFIG: 'update_config',
+  ADD_BOT: 'add_bot',
+  REMOVE_BOT: 'remove_bot',
 
   // 游戏控制
   START_GAME: 'start_game',
