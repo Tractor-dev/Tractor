@@ -24,6 +24,7 @@ const { Text } = Typography;
  * @param {Object} props.selectedRule - 选中的规则 { name, content }
  * @param {Function} props.onSelectRule - 选择规则的回调
  * @param {ReactNode} props.renderControls - 渲染控制区域的函数或组件
+ * @param {Boolean} props.isWaitingForReady - 是否在等待玩家准备阶段
  */
 export default function GameTable({
   players,
@@ -42,7 +43,8 @@ export default function GameTable({
   revealedBottomCards = null,
   selectedRule = null,
   onSelectRule,
-  renderControls = null
+  renderControls = null,
+  isWaitingForReady = false
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
@@ -101,7 +103,20 @@ export default function GameTable({
     return (
       <div className={`player-area player-${position} ${isCurrentTurn ? 'current-turn' : ''}`}>
         <div className="player-info">
-          <Text strong>{player.name}</Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <Text strong>{player.name}</Text>
+            {isWaitingForReady && player.isReady !== undefined && (
+              <Text
+                strong
+                style={{
+                  fontSize: '12px',
+                  color: player.isReady ? '#52c41a' : '#d9d9d9'
+                }}
+              >
+                {player.isReady ? '✓' : '○'}
+              </Text>
+            )}
+          </div>
           {isCurrentTurn && <Text type="warning"> (出牌中)</Text>}
           <br />
           <Text type="secondary">手牌: {player.cardsCount || 0}</Text>
@@ -181,51 +196,6 @@ export default function GameTable({
                   )}
                 </div>
 
-                {/* 玩家准备状态（仅在等待准备阶段显示） */}
-                {players && players.length > 0 && players.some(p => p.isReady !== undefined) && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    padding: '12px 20px',
-                    borderRadius: '8px',
-                    minWidth: '250px',
-                    maxWidth: '400px'
-                  }}>
-                    <Text strong style={{ fontSize: '16px', color: 'white', textAlign: 'center' }}>
-                      玩家准备状态
-                    </Text>
-                    {players.map((player) => (
-                      <div
-                        key={player.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '6px 12px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        <Text style={{ fontSize: '14px', color: 'white' }}>
-                          {player.isBot && '🤖 '}{player.name}
-                          {player.id === currentPlayer?.id && ' (你)'}
-                        </Text>
-                        <Text
-                          strong
-                          style={{
-                            fontSize: '14px',
-                            color: player.isReady ? '#52c41a' : '#d9d9d9'
-                          }}
-                        >
-                          {player.isReady ? '✓ 已准备' : '未准备'}
-                        </Text>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
                 {/* 规则显示 */}
                 <div style={{
                   display: 'flex',
@@ -279,8 +249,20 @@ export default function GameTable({
             {/* 上半部分：玩家信息、出牌区、控制按钮 */}
             <div className="bottom-player-header">
               <div className="player-info">
-                <Text strong>{positions.bottom.name} (我)</Text>
-                <br />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Text strong>{positions.bottom.name} (我)</Text>
+                  {isWaitingForReady && positions.bottom.isReady !== undefined && (
+                    <Text
+                      strong
+                      style={{
+                        fontSize: '14px',
+                        color: positions.bottom.isReady ? '#52c41a' : '#d9d9d9'
+                      }}
+                    >
+                      {positions.bottom.isReady ? '✓ 已准备' : '○ 未准备'}
+                    </Text>
+                  )}
+                </div>
                 <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
               </div>
 
