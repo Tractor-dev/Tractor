@@ -5,6 +5,7 @@ import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
 import Hand from './Hand';
 import GameTable from './GameTable';
+import RuleSelector from './RuleSelector';
 import './GameBoard.css';
 
 const { Title, Text } = Typography;
@@ -57,6 +58,8 @@ export default function GameBoard() {
   });
   const [quickPhraseModal, setQuickPhraseModal] = useState(false); // 快捷短语管理弹窗
   const [newQuickPhrase, setNewQuickPhrase] = useState(''); // 新的快捷短语输入
+  const [ruleSelectorModal, setRuleSelectorModal] = useState(false); // 规则选择器弹窗
+  const [selectedRule, setSelectedRule] = useState(null); // 当前选择的规则 { name, content }
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -489,6 +492,12 @@ export default function GameBoard() {
     setRenameModal(true);
   };
 
+  // 处理规则选择
+  const handleRuleSelected = (rule) => {
+    setSelectedRule(rule);
+    messageApi.success(`已设置规则: ${rule.name}`);
+  };
+
   // 发送聊天消息
   const handleSendChatMessage = (msg) => {
     const messageToSend = msg || chatMessage.trim();
@@ -596,6 +605,8 @@ export default function GameBoard() {
               trumpRank={trumpRank}
               isHost={isHost}
               onSetTrump={() => setTrumpModal(true)}
+              selectedRule={selectedRule}
+              onSelectRule={() => setRuleSelectorModal(true)}
             />
 
             {/* 控制区域 - 右下角 */}
@@ -659,6 +670,8 @@ export default function GameBoard() {
               trumpRank={trumpRank}
               isHost={isHost}
               onSetTrump={() => setTrumpModal(true)}
+              selectedRule={selectedRule}
+              onSelectRule={() => setRuleSelectorModal(true)}
             />
 
             {/* 控制区域 - 右下角 */}
@@ -710,6 +723,8 @@ export default function GameBoard() {
               trumpRank={trumpRank}
               isHost={isHost}
               onSetTrump={() => setTrumpModal(true)}
+              selectedRule={selectedRule}
+              onSelectRule={() => setRuleSelectorModal(true)}
             />
 
             {/* 辅助信息和操作区域 - 右下角 */}
@@ -798,6 +813,8 @@ export default function GameBoard() {
               isHost={isHost}
               onSetTrump={() => setTrumpModal(true)}
               revealedBottomCards={revealedBottomCards}
+              selectedRule={selectedRule}
+              onSelectRule={() => setRuleSelectorModal(true)}
             />
 
             {/* 控制区域 - 右下角 */}
@@ -839,6 +856,8 @@ export default function GameBoard() {
               isHost={isHost}
               onSetTrump={() => setTrumpModal(true)}
               revealedBottomCards={revealedBottomCards}
+              selectedRule={selectedRule}
+              onSelectRule={() => setRuleSelectorModal(true)}
             />
 
             {/* 控制区域 - 右下角 */}
@@ -1232,6 +1251,13 @@ export default function GameBoard() {
           </div>
         </div>
       </Modal>
+
+      {/* 规则选择器弹窗 */}
+      <RuleSelector
+        visible={ruleSelectorModal}
+        onClose={() => setRuleSelectorModal(false)}
+        onRuleSelected={handleRuleSelected}
+      />
     </div>
   );
 }
