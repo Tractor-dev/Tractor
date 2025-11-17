@@ -178,6 +178,55 @@ export function registerGameHandlers(io, socket, roomManager) {
   });
 
   /**
+   * 玩家准备
+   */
+  socket.on('player_ready', ({ roomId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) {
+        throw new Error('游戏未开始');
+      }
+
+      const allReady = gameEngine.playerReady(player.id);
+
+      // 广播玩家准备状态
+      io.to(room.id).emit('player_ready_status', {
+        playerId: player.id,
+        playerName: player.name,
+        isReady: player.isReady
+      });
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      if (allReady) {
+        // 所有玩家准备完毕
+        io.to(room.id).emit('all_players_ready', {
+          message: '所有玩家已准备，开始发牌'
+        });
+      }
+
+      logger.info(`房间 ${room.id} 玩家 ${player.name} 已准备`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('玩家准备失败:', error);
+    }
+  });
+
+  /**
    * 设置埋底玩家（房主）
    */
   socket.on('set_burying_player', ({ roomId, playerId }) => {

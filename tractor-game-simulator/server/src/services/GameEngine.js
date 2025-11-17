@@ -14,22 +14,80 @@ export class GameEngine {
   }
 
   /**
-   * 开始游戏
+   * 开始游戏 - 进入准备等待阶段
    */
   startGame() {
-    logger.info(`房间 ${this.room.id} 开始游戏`);
+    logger.info(`房间 ${this.room.id} 开始游戏 - 等待玩家准备`);
 
     // 重置游戏状态
     this.room.gameState.reset();
 
+    // 重置所有玩家的准备状态
+    this.room.players.forEach(player => {
+      player.isReady = false;
+    });
+
+    // 标记为等待准备状态（保持在WAITING阶段）
+    this.room.gameState.isWaitingForReady = true;
+
+    // Bot自动准备
+    this.room.players.filter(p => p.isBot).forEach(bot => {
+      bot.isReady = true;
+    });
+
+    // 广播进入准备等待状态
+    this.io.to(this.room.id).emit('game_started', {
+      phase: GamePhases.WAITING,
+      isWaitingForReady: true,
+      config: this.room.config
+    });
+  }
+
+  /**
+   * 玩家准备
+   */
+  playerReady(playerId) {
+    if (!this.room.gameState.isWaitingForReady) {
+      throw new Error('当前不在准备等待阶段');
+    }
+
+    const player = this.room.findPlayerById(playerId);
+    if (!player) {
+      throw new Error('玩家不存在');
+    }
+
+    if (player.isBot) {
+      throw new Error('Bot无需准备');
+    }
+
+    player.isReady = true;
+    logger.info(`房间 ${this.room.id} 玩家 ${player.name} 已准备`);
+
+    // 检查是否所有真人玩家都准备好了
+    const humanPlayers = this.room.players.filter(p => !p.isBot);
+    const allReady = humanPlayers.every(p => p.isReady);
+
+    if (allReady) {
+      logger.info(`房间 ${this.room.id} 所有玩家准备完毕，开始发牌`);
+      // 清除准备等待状态
+      this.room.gameState.isWaitingForReady = false;
+      this.startDrawing();
+    }
+
+    return allReady;
+  }
+
+  /**
+   * 开始发牌
+   */
+  startDrawing() {
     // 创建并启动摸牌管理器
     this.drawingManager = new DrawingPhaseManager(this.room, this.io);
     this.drawingManager.start();
 
-    // 广播游戏开始
-    this.io.to(this.room.id).emit('game_started', {
-      phase: GamePhases.DRAWING,
-      config: this.room.config
+    // 广播开始发牌
+    this.io.to(this.room.id).emit('start_drawing', {
+      phase: GamePhases.DRAWING
     });
   }
 
