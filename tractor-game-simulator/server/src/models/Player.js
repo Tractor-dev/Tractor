@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_PLAYER } from '../utils/constants.js';
 
 export class Player {
-  constructor(socketId, name, position) {
+  constructor(socketId, name, position, isBot = false) {
     this.id = uuidv4();
     this.socketId = socketId;
     this.name = name;
@@ -14,6 +14,7 @@ export class Player {
     this.isReady = false;
     this.isOnline = true;
     this.hasConfirmedReveal = false;
+    this.isBot = isBot; // 标记是否为bot
   }
 
   addCard(card) {
@@ -48,7 +49,8 @@ export class Player {
       position: this.position,
       isReady: this.isReady,
       isOnline: this.isOnline,
-      hasConfirmedReveal: this.hasConfirmedReveal
+      hasConfirmedReveal: this.hasConfirmedReveal,
+      isBot: this.isBot
     };
   }
 

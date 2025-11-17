@@ -1,13 +1,142 @@
 import { GameEngine } from '../../services/GameEngine.js';
 import { GamePhases } from '../../utils/constants.js';
+import BotService from '../../services/BotService.js';
 import logger from '../../utils/logger.js';
 
 // 存储每个房间的游戏引擎
 const gameEngines = new Map();
 
+// 存储每个房间的bot服务
+const botServices = new Map();
+
 // 导出gameEngines供其他模块使用（如roomHandlers中清理资源）
 export function getGameEngines() {
   return gameEngines;
+}
+
+// 导出botServices供其他模块使用
+export function getBotServices() {
+  return botServices;
+}
+
+/**
+ * 触发所有bot自动出牌（自由出牌模式）
+ */
+async function triggerAllBotsPlay(io, room, gameEngine) {
+  // 检查游戏状态
+  if (room.gameState.phase !== GamePhases.PLAYING) {
+    return;
+  }
+
+  // 找出所有还有手牌的bot
+  const botsWithCards = room.players.filter(p => p.isBot && p.cards.length > 0);
+
+  if (botsWithCards.length === 0) {
+    return;
+  }
+
+  // 获取或创建bot服务
+  let botService = botServices.get(room.id);
+  if (!botService) {
+    botService = new BotService();
+    botServices.set(room.id, botService);
+  }
+
+  // 依次让每个bot出一次牌
+  for (const bot of botsWithCards) {
+    // 再次检查游戏是否已结束
+    if (room.gameState.phase !== GamePhases.PLAYING) {
+      break;
+    }
+
+    try {
+      logger.info(`触发Bot ${bot.name} 自动出牌`);
+
+      // 延迟一小段时间，模拟思考过程
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // 获取bot在玩家列表中的索引
+      const botIndex = room.getPlayerIndex(bot.id);
+
+      // 调用bot获取决策
+      const cardIds = await botService.getBotAction(
+        room.gameState,
+        bot.cards,
+        botIndex,
+        room
+      );
+
+      logger.info(`Bot ${bot.name} 决策出牌: ${cardIds.length} 张`);
+
+      // 执行出牌
+      const result = gameEngine.playCards(bot.id, cardIds);
+
+      // 广播bot出牌
+      io.to(room.id).emit('cards_played', {
+        playerId: bot.id,
+        playerName: bot.name,
+        cards: result.playedCards,
+        remainingCount: result.remainingCount
+      });
+
+      // 检查是否有玩家打完牌
+      if (result.remainingCount === 0) {
+        io.to(room.id).emit('player_finished', {
+          playerId: bot.id,
+          playerName: bot.name
+        });
+      }
+
+      // 游戏结束
+      if (result.gameFinished) {
+        io.to(room.id).emit('bottom_revealed', {
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
+        });
+
+        io.to(room.id).emit('phase_changed', {
+          phase: 'revealing',
+          message: '所有玩家已出完牌，查看底牌'
+        });
+      }
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      // 如果游戏结束，停止循环
+      if (result.gameFinished) {
+        break;
+      }
+
+    } catch (error) {
+      logger.error(`Bot ${bot.name} 出牌失败:`, error);
+      // Bot出牌失败，跳过这个bot
+      try {
+        const result = gameEngine.playCards(bot.id, []);
+        io.to(room.id).emit('turn_passed', {
+          playerId: bot.id,
+          playerName: bot.name
+        });
+        io.to(room.id).emit('room_updated', {
+          room: room.toJSON()
+        });
+      } catch (skipError) {
+        logger.error(`Bot ${bot.name} 跳过也失败:`, skipError);
+      }
+    }
+  }
+
+  // 如果还有bot有牌，继续下一轮
+  const stillHasCards = room.players.some(p => p.isBot && p.cards.length > 0);
+  if (stillHasCards && room.gameState.phase === GamePhases.PLAYING) {
+    // 延迟后继续让bot出牌
+    setTimeout(() => {
+      triggerAllBotsPlay(io, room, gameEngine).catch(err => {
+        logger.error('触发bot继续出牌失败:', err);
+      });
+    }, 2000);
+  }
 }
 
 export function registerGameHandlers(io, socket, roomManager) {
@@ -183,6 +312,11 @@ export function registerGameHandlers(io, socket, roomManager) {
       });
 
       logger.info(`房间 ${room.id} 首发玩家: ${firstPlayer.name}`);
+
+      // 触发bot自动出牌
+      triggerAllBotsPlay(io, room, gameEngine).catch(err => {
+        logger.error('触发bot出牌失败:', err);
+      });
 
     } catch (error) {
       socket.emit('error', { message: error.message });
