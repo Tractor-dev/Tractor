@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
@@ -79,6 +79,16 @@ function App() {
       setLoadingRooms(false);
     });
 
+    // Bot添加
+    socket.on('bot_added', ({ player }) => {
+      messageApi.success(`Bot ${player.name} 已加入房间`);
+    });
+
+    // Bot移除
+    socket.on('bot_removed', ({ playerName }) => {
+      messageApi.info(`Bot ${playerName} 已离开房间`);
+    });
+
     return () => {
       socketService.disconnect();
     };
@@ -125,6 +135,23 @@ function App() {
     messageApi.info('已离开房间');
   };
 
+  const handleAddBot = () => {
+    const socket = socketService.socket;
+    const botCount = currentRoom.players.filter(p => p.isBot).length;
+    socket.emit(SOCKET_EVENTS.ADD_BOT, {
+      roomId: currentRoom.id,
+      botName: `AI Bot ${botCount + 1}`
+    });
+  };
+
+  const handleRemoveBot = (playerId) => {
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.REMOVE_BOT, {
+      roomId: currentRoom.id,
+      playerId
+    });
+  };
+
   // 初始加载房间列表
   useEffect(() => {
     if (isConnected && !currentRoom) {
@@ -166,10 +193,11 @@ function App() {
               <Title level={4}>玩家列表:</Title>
               {currentRoom.players.map((player, index) => (
                 <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px' }}>
-                  {index + 1}. {player.name}
+                  {index + 1}. {player.isBot && '🤖 '}{player.name}
                   {player.socketId === currentRoom.hostId && ' (房主)'}
                   {player.id === currentPlayer?.id && ' (你)'}
-                  - 分数: {player.score} - 等级: {player.level}
+                  {player.isBot && ' (Bot)'}
+                  {' - '} 分数: {player.score} - 等级: {player.level}
                 </div>
               ))}
             </div>
@@ -178,19 +206,49 @@ function App() {
               <p>底牌数量: {currentRoom.config.bottomCardsCount} 张</p>
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
             </div>
+
+            {/* Bot管理区域 - 仅房主可见 */}
+            {currentPlayer?.socketId === currentRoom.hostId && currentRoom.players.some(p => p.isBot) && (
+              <div style={{ marginBottom: '24px' }}>
+                <Divider>房间内的Bot</Divider>
+                <Space wrap>
+                  {currentRoom.players.filter(p => p.isBot).map(bot => (
+                    <Tag
+                      key={bot.id}
+                      closable
+                      onClose={() => handleRemoveBot(bot.id)}
+                      color="blue"
+                      style={{ fontSize: '14px', padding: '4px 8px' }}
+                    >
+                      🤖 {bot.name}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
             <Space>
               {currentPlayer?.socketId === currentRoom.hostId && (
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={() => {
-                    const socket = socketService.socket;
-                    socket.emit(SOCKET_EVENTS.START_GAME, { roomId: currentRoom.id });
-                  }}
-                  disabled={currentRoom.playerCount < 2}
-                >
-                  开始游戏
-                </Button>
+                <>
+                  <Button
+                    type="primary"
+                    size="large"
+                    onClick={() => {
+                      const socket = socketService.socket;
+                      socket.emit(SOCKET_EVENTS.START_GAME, { roomId: currentRoom.id });
+                    }}
+                    disabled={currentRoom.playerCount < 2}
+                  >
+                    开始游戏
+                  </Button>
+                  <Button
+                    size="large"
+                    onClick={handleAddBot}
+                    disabled={currentRoom.playerCount >= currentRoom.maxPlayers}
+                  >
+                    添加Bot
+                  </Button>
+                </>
               )}
               <Button type="default" onClick={handleLeaveRoom}>
                 离开房间
