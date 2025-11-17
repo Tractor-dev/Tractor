@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
@@ -19,6 +19,9 @@ function App() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [newBottomCardsCount, setNewBottomCardsCount] = useState(8);
+  const [newDealInterval, setNewDealInterval] = useState(500);
 
   useEffect(() => {
     // 连接Socket
@@ -79,6 +82,21 @@ function App() {
       setLoadingRooms(false);
     });
 
+    // Bot添加
+    socket.on('bot_added', ({ player }) => {
+      messageApi.success(`Bot ${player.name} 已加入房间`);
+    });
+
+    // Bot移除
+    socket.on('bot_removed', ({ playerName }) => {
+      messageApi.info(`Bot ${playerName} 已离开房间`);
+    });
+
+    // 配置更新
+    socket.on('config_updated', ({ config }) => {
+      messageApi.success('房间设置已更新，将在下一局游戏生效');
+    });
+
     return () => {
       socketService.disconnect();
     };
@@ -125,12 +143,57 @@ function App() {
     messageApi.info('已离开房间');
   };
 
+  const handleAddBot = () => {
+    const socket = socketService.socket;
+    const botCount = currentRoom.players.filter(p => p.isBot).length;
+    socket.emit(SOCKET_EVENTS.ADD_BOT, {
+      roomId: currentRoom.id,
+      botName: `AI Bot ${botCount + 1}`
+    });
+  };
+
+  const handleRemoveBot = (playerId) => {
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.REMOVE_BOT, {
+      roomId: currentRoom.id,
+      playerId
+    });
+  };
+
+  const handleUpdateConfig = () => {
+    if (newBottomCardsCount < 1 || newBottomCardsCount > 20) {
+      messageApi.warning('底牌数量必须在1-20之间');
+      return;
+    }
+    if (newDealInterval < 10 || newDealInterval > 5000) {
+      messageApi.warning('发牌间隔必须在10-5000毫秒之间');
+      return;
+    }
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.UPDATE_CONFIG, {
+      roomId: currentRoom.id,
+      config: {
+        bottomCardsCount: newBottomCardsCount,
+        dealInterval: newDealInterval
+      }
+    });
+    setShowConfigModal(false);
+  };
+
   // 初始加载房间列表
   useEffect(() => {
     if (isConnected && !currentRoom) {
       handleRefreshRooms();
     }
   }, [isConnected, currentRoom]);
+
+  // 同步房间配置
+  useEffect(() => {
+    if (currentRoom?.config) {
+      setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
+      setNewDealInterval(currentRoom.config.dealInterval);
+    }
+  }, [currentRoom]);
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
@@ -166,10 +229,11 @@ function App() {
               <Title level={4}>玩家列表:</Title>
               {currentRoom.players.map((player, index) => (
                 <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px' }}>
-                  {index + 1}. {player.name}
+                  {index + 1}. {player.isBot && '🤖 '}{player.name}
                   {player.socketId === currentRoom.hostId && ' (房主)'}
                   {player.id === currentPlayer?.id && ' (你)'}
-                  - 分数: {player.score} - 等级: {player.level}
+                  {player.isBot && ' (Bot)'}
+                  {' - '} 分数: {player.score} - 等级: {player.level}
                 </div>
               ))}
             </div>
@@ -178,19 +242,55 @@ function App() {
               <p>底牌数量: {currentRoom.config.bottomCardsCount} 张</p>
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
             </div>
+
+            {/* Bot管理区域 - 仅房主可见 */}
+            {currentPlayer?.socketId === currentRoom.hostId && currentRoom.players.some(p => p.isBot) && (
+              <div style={{ marginBottom: '24px' }}>
+                <Divider>房间内的Bot</Divider>
+                <Space wrap>
+                  {currentRoom.players.filter(p => p.isBot).map(bot => (
+                    <Tag
+                      key={bot.id}
+                      closable
+                      onClose={() => handleRemoveBot(bot.id)}
+                      color="blue"
+                      style={{ fontSize: '14px', padding: '4px 8px' }}
+                    >
+                      🤖 {bot.name}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
             <Space>
               {currentPlayer?.socketId === currentRoom.hostId && (
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={() => {
-                    const socket = socketService.socket;
-                    socket.emit(SOCKET_EVENTS.START_GAME, { roomId: currentRoom.id });
-                  }}
-                  disabled={currentRoom.playerCount < 2}
-                >
-                  开始游戏
-                </Button>
+                <>
+                  <Button
+                    type="primary"
+                    size="large"
+                    onClick={() => {
+                      const socket = socketService.socket;
+                      socket.emit(SOCKET_EVENTS.START_GAME, { roomId: currentRoom.id });
+                    }}
+                    disabled={currentRoom.playerCount < 2}
+                  >
+                    开始游戏
+                  </Button>
+                  <Button
+                    size="large"
+                    onClick={handleAddBot}
+                    disabled={currentRoom.playerCount >= currentRoom.maxPlayers}
+                  >
+                    添加Bot
+                  </Button>
+                  <Button
+                    size="large"
+                    onClick={() => setShowConfigModal(true)}
+                  >
+                    修改设置
+                  </Button>
+                </>
               )}
               <Button type="default" onClick={handleLeaveRoom}>
                 离开房间
@@ -198,6 +298,42 @@ function App() {
             </Space>
           </div>
         </Content>
+
+        {/* 房间设置弹窗 */}
+        <Modal
+          title="房间设置"
+          open={showConfigModal}
+          onOk={handleUpdateConfig}
+          onCancel={() => setShowConfigModal(false)}
+          okText="保存"
+          cancelText="取消"
+        >
+          <div>
+            <Typography.Text strong>底牌数量:</Typography.Text>
+            <br />
+            <InputNumber
+              style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
+              min={1}
+              max={20}
+              value={newBottomCardsCount}
+              onChange={setNewBottomCardsCount}
+            />
+            <br />
+            <Typography.Text strong>发牌间隔（毫秒）:</Typography.Text>
+            <br />
+            <InputNumber
+              style={{ width: '100%', marginTop: 8 }}
+              min={10}
+              max={5000}
+              step={100}
+              value={newDealInterval}
+              onChange={setNewDealInterval}
+            />
+            <br />
+            <br />
+            <Typography.Text type="secondary">设置将在下一局游戏开始时生效</Typography.Text>
+          </div>
+        </Modal>
       </Layout>
     );
   }
