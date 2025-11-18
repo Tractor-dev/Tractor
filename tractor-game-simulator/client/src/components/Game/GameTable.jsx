@@ -25,6 +25,8 @@ const { Text } = Typography;
  * @param {Function} props.onSelectRule - 选择规则的回调
  * @param {ReactNode} props.renderControls - 渲染控制区域的函数或组件
  * @param {Boolean} props.isWaitingForReady - 是否在等待玩家准备阶段
+ * @param {ReactNode} props.trumpDeclarationComponent - 亮主条组件
+ * @param {Object} props.currentTrumpDeclaration - 当前亮主信息
  */
 export default function GameTable({
   players,
@@ -44,7 +46,11 @@ export default function GameTable({
   selectedRule = null,
   onSelectRule,
   renderControls = null,
-  isWaitingForReady = false
+  isWaitingForReady = false,
+  trumpDeclarationComponent = null,
+  currentTrumpDeclaration = null,
+  buryingPlayerId = null,
+  dealerCountdown = null
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
@@ -92,6 +98,19 @@ export default function GameTable({
     return (suit === 'hearts' || suit === 'diamonds') ? 'red' : 'black';
   };
 
+  // 获取花色符号（扩展版）
+  const getSuitSymbolExtended = (suit) => {
+    const symbols = {
+      hearts: '♥',
+      diamonds: '♦',
+      clubs: '♣',
+      spades: '♠',
+      joker: '王',
+      no_trump: '无主'
+    };
+    return symbols[suit] || suit;
+  };
+
   // 渲染单个玩家区域
   const renderPlayerArea = (player, position) => {
     if (!player) return null;
@@ -100,11 +119,30 @@ export default function GameTable({
     const played = playedCards[player.id];
     const shown = shownCards[player.id];
 
+    // 检查是否是当前亮主的玩家
+    const hasDeclaredTrump = currentTrumpDeclaration && currentTrumpDeclaration.playerId === player.id;
+    // 检查是否是庄家
+    const isDealer = buryingPlayerId && player.id === buryingPlayerId;
+
     return (
       <div className={`player-area player-${position} ${isCurrentTurn ? 'current-turn' : ''}`}>
         <div className="player-info">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <Text strong>{player.name}</Text>
+            {isDealer && (
+              <span style={{
+                background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
+                color: '#8B4513',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                padding: '2px 8px',
+                borderRadius: '10px',
+                marginLeft: '4px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                庄
+              </span>
+            )}
             {isWaitingForReady && player.isReady !== undefined && (
               <Text
                 strong
@@ -125,16 +163,39 @@ export default function GameTable({
         </div>
 
         <div className="player-cards-area">
+          {/* 显示亮主信息 */}
+          {hasDeclaredTrump && (
+            <div className="declared-trump">
+              <Text
+                strong
+                style={{
+                  color: '#f5222d',
+                  fontSize: '14px',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  display: 'inline-block',
+                  marginBottom: '6px'
+                }}
+              >
+                {currentTrumpDeclaration.isCounter ? '反主' : '亮主'}
+              </Text>
+              {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+                <Hand cards={currentTrumpDeclaration.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+              )}
+            </div>
+          )}
+
           {played && played.cards && played.cards.length > 0 && (
             <div className="played-cards">
               <Text type="success">出牌:</Text>
-              <Hand cards={played.cards} disabled small />
+              <Hand cards={played.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
             </div>
           )}
           {shown && shown.cards && shown.cards.length > 0 && (
             <div className="shown-cards">
               <Text type="info">展示:</Text>
-              <Hand cards={shown.cards} disabled small />
+              <Hand cards={shown.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
             </div>
           )}
         </div>
@@ -169,7 +230,7 @@ export default function GameTable({
                 <Text strong style={{ fontSize: '18px', color: 'white', display: 'block', marginBottom: '12px' }}>
                   底牌：
                 </Text>
-                <Hand cards={revealedBottomCards} disabled small />
+                <Hand cards={revealedBottomCards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
@@ -195,6 +256,39 @@ export default function GameTable({
                     </Button>
                   )}
                 </div>
+
+                {/* 庄家倒计时显示 */}
+                {dealerCountdown !== null && dealerCountdown > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                    padding: '16px 24px',
+                    borderRadius: '12px',
+                    border: '2px solid #ffd700',
+                    boxShadow: '0 4px 12px rgba(255, 215, 0, 0.3)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '32px' }}>⏰</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <Text strong style={{ fontSize: '14px', color: '#ffd700' }}>指定庄家倒计时</Text>
+                        <Text style={{
+                          fontSize: '36px',
+                          fontWeight: 'bold',
+                          color: dealerCountdown <= 3 ? '#ff4757' : '#ffd700',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                        }}>
+                          {dealerCountdown}
+                        </Text>
+                      </div>
+                    </div>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                      {currentTrumpDeclaration ? '有人亮主，倒计时已重置' : '无人亮主将随机指定'}
+                    </Text>
+                  </div>
+                )}
 
                 {/* 规则显示 */}
                 <div style={{
@@ -251,6 +345,20 @@ export default function GameTable({
               <div className="player-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Text strong>{positions.bottom.name} (我)</Text>
+                  {buryingPlayerId && positions.bottom.id === buryingPlayerId && (
+                    <span style={{
+                      background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
+                      color: '#8B4513',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      marginLeft: '4px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}>
+                      庄
+                    </span>
+                  )}
                   {isWaitingForReady && positions.bottom.isReady !== undefined && (
                     <Text
                       strong
@@ -268,16 +376,39 @@ export default function GameTable({
 
               {/* 我的出牌/展示区域 - 在控制按钮左边 */}
               <div className="my-play-area-inline">
+                {/* 显示我的亮主信息 */}
+                {currentTrumpDeclaration && currentTrumpDeclaration.playerId === positions.bottom.id && (
+                  <div className="my-declared-trump-inline" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <Text
+                      strong
+                      style={{
+                        color: '#f5222d',
+                        fontSize: '14px',
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'inline-block',
+                        marginBottom: '6px'
+                      }}
+                    >
+                      {currentTrumpDeclaration.isCounter ? '反主' : '亮主'}
+                    </Text>
+                    {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+                      <Hand cards={currentTrumpDeclaration.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                    )}
+                  </div>
+                )}
+
                 {playedCards[positions.bottom.id] && playedCards[positions.bottom.id].cards && playedCards[positions.bottom.id].cards.length > 0 && (
                   <div className="my-played-cards-inline">
                     <Text type="success" style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的出牌:</Text>
-                    <Hand cards={playedCards[positions.bottom.id].cards} disabled />
+                    <Hand cards={playedCards[positions.bottom.id].cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
                   </div>
                 )}
                 {shownCards[positions.bottom.id] && shownCards[positions.bottom.id].cards && shownCards[positions.bottom.id].cards.length > 0 && (
                   <div className="my-shown-cards-inline">
                     <Text type="info" style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
-                    <Hand cards={shownCards[positions.bottom.id].cards} disabled />
+                    <Hand cards={shownCards[positions.bottom.id].cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
                   </div>
                 )}
               </div>
@@ -290,6 +421,13 @@ export default function GameTable({
               )}
             </div>
 
+            {/* 亮主条（仅摸牌阶段显示） */}
+            {trumpDeclarationComponent && (
+              <div className="trump-declaration-wrapper">
+                {trumpDeclarationComponent}
+              </div>
+            )}
+
             {/* 自己的手牌 */}
             <div className="my-hand">
               <Hand
@@ -297,6 +435,8 @@ export default function GameTable({
                 selectedCards={selectedCards}
                 onCardClick={onCardClick}
                 onReorder={onReorder}
+                trumpSuit={trumpSuit}
+                trumpRank={trumpRank}
               />
             </div>
           </div>

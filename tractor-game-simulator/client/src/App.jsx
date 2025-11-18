@@ -44,6 +44,7 @@ function App() {
     // 监听房间创建成功
     socket.on('room_created', ({ room, player }) => {
       console.log('收到房间创建成功事件:', { room, player });
+      console.log('🎮 创建时 gameState.trumpRank =', room?.gameState?.trumpRank);
       messageApi.success('房间创建成功！');
       setCurrentRoom(room);
       setCurrentPlayer(player);
@@ -63,6 +64,8 @@ function App() {
     // 监听房间状态更新
     socket.on('room_updated', ({ room }) => {
       console.log('房间状态更新:', room);
+      console.log('🎮 gameState.trumpRank =', room?.gameState?.trumpRank);
+      console.log('🎮 gameState.trumpSuit =', room?.gameState?.trumpSuit);
       setCurrentRoom(room);
     });
 

@@ -248,3 +248,27 @@
     font-size: 12px;
   }
 }
+
+/* 亮主条wrapper */
+.trump-declaration-wrapper {
+  margin: 12px 0;
+  padding: 0;
+}
+
+/* 亮主信息显示 */
+.declared-trump {
+  margin-bottom: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.my-declared-trump-inline {
+  margin-right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}

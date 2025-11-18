@@ -1,4 +1,4 @@
-import { GamePhases, PlayModes } from '../utils/constants.js';
+import { GamePhases, PlayModes, Ranks } from '../utils/constants.js';
 
 export class GameState {
   constructor() {
@@ -17,7 +17,8 @@ export class GameState {
     this.startTime = null;
     this.endTime = null;
     this.trumpSuit = null; // 主牌花色
-    this.trumpRank = null; // 主牌点数
+    this.trumpRank = Ranks.TWO; // 主牌点数，默认为2
+    this.currentTrumpDeclaration = null; // 当前亮主信息 {playerId, playerName, suit, count, declarationType, strength, jokerType}
     this.isWaitingForReady = false; // 是否在等待玩家准备
     this.selectedRule = null; // 选中的规则 { name, content }
   }
@@ -38,7 +39,8 @@ export class GameState {
     this.startTime = null;
     this.endTime = null;
     this.trumpSuit = null;
-    this.trumpRank = null;
+    this.trumpRank = Ranks.TWO; // 重置时也默认为2
+    this.currentTrumpDeclaration = null; // 清空亮主信息
     this.isWaitingForReady = false;
     this.selectedRule = null;
   }

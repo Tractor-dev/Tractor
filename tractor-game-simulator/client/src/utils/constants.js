@@ -34,6 +34,7 @@ export const SOCKET_EVENTS = {
 
   // 玩家操作
   SHOW_CARDS: 'show_cards',
+  DECLARE_TRUMP: 'declare_trump',
   BURY_CARDS: 'bury_cards',
   PLAY_CARDS: 'play_cards',
   PASS_TURN: 'pass_turn',
@@ -77,12 +78,12 @@ export const Ranks = {
   BIG_JOKER: 'big_joker'
 };
 
-// 花色排序
+// 花色排序 (黑桃、红桃、梅花、方片)
 export const SUIT_ORDER = {
-  [Suits.HEARTS]: 0,
-  [Suits.DIAMONDS]: 1,
+  [Suits.SPADES]: 0,
+  [Suits.HEARTS]: 1,
   [Suits.CLUBS]: 2,
-  [Suits.SPADES]: 3,
+  [Suits.DIAMONDS]: 3,
   [Suits.JOKER]: 4
 };
 

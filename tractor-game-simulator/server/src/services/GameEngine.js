@@ -348,6 +348,7 @@ export class GameEngine {
     // 停止摸牌管理器
     if (this.drawingManager) {
       this.drawingManager.stop();
+      this.drawingManager.stopDealerTimer();
       this.drawingManager = null;
     }
 

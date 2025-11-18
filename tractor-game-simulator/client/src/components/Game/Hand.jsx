@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Card from './Card';
 import './Hand.css';
 
-export default function Hand({ cards, selectedCards = [], onCardClick, disabled = false, small = false, onReorder }) {
+export default function Hand({ cards, selectedCards = [], onCardClick, disabled = false, small = false, onReorder, trumpSuit = null, trumpRank = null }) {
   const [draggedCard, setDraggedCard] = useState(null);
 
   // 防御性检查：确保cards是数组
@@ -83,6 +83,8 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
+          trumpSuit={trumpSuit}
+          trumpRank={trumpRank}
         />
       ))}
     </div>

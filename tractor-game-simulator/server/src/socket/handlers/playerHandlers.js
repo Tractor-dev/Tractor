@@ -1,4 +1,6 @@
 import logger from '../../utils/logger.js';
+import { validateDeclaration } from '../../utils/trumpUtils.js';
+import { getGameEngines } from './gameHandlers.js';
 
 export function registerPlayerHandlers(io, socket, roomManager) {
 
@@ -42,6 +44,98 @@ export function registerPlayerHandlers(io, socket, roomManager) {
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('展示手牌失败:', error);
+    }
+  });
+
+  /**
+   * 亮主（摸牌阶段）
+   */
+  socket.on('declare_trump', ({ roomId, suit, count }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      if (room.gameState.phase !== 'drawing') {
+        throw new Error('只能在摸牌阶段亮主');
+      }
+
+      const trumpRank = room.gameState.trumpRank;
+      if (!trumpRank) {
+        throw new Error('未设置级牌');
+      }
+
+      // 获取当前亮主信息
+      const currentTrump = room.gameState.currentTrumpDeclaration || null;
+
+      // 验证亮主是否合法
+      const validation = validateDeclaration(player.cards, suit, count, trumpRank, currentTrump);
+
+      if (!validation.valid) {
+        throw new Error(validation.message);
+      }
+
+      // 判断是亮主还是反主
+      const isCounter = currentTrump !== null;
+
+      // 记录亮主信息
+      room.gameState.currentTrumpDeclaration = {
+        playerId: player.id,
+        playerName: player.name,
+        suit: suit,
+        count: count,
+        declarationType: validation.declarationType,
+        strength: validation.strength,
+        jokerType: validation.jokerType,
+        isCounter: isCounter,
+        cards: validation.cards
+      };
+
+      // 设置主牌花色（除非是亮王，亮王表示无主）
+      if (suit !== 'joker') {
+        room.gameState.trumpSuit = suit;
+      } else {
+        room.gameState.trumpSuit = 'no_trump'; // 无主
+      }
+
+      // 广播亮主成功
+      io.to(room.id).emit('trump_declared', {
+        playerId: player.id,
+        playerName: player.name,
+        suit: suit,
+        count: count,
+        declarationType: validation.declarationType,
+        strength: validation.strength,
+        isCounter: isCounter,
+        cards: validation.cards.map(c => c.toJSON())
+      });
+
+      // 广播主牌更新
+      io.to(room.id).emit('trump_updated', {
+        trumpSuit: room.gameState.trumpSuit,
+        trumpRank: room.gameState.trumpRank
+      });
+
+      const action = isCounter ? '反主' : '亮主';
+      logger.info(`玩家 ${player.name} ${action}: ${count === 2 ? '一对' : '单张'} ${suit}`);
+
+      // 重置庄家倒计时
+      const gameEngines = getGameEngines();
+      const gameEngine = gameEngines.get(room.id);
+      if (gameEngine && gameEngine.drawingManager) {
+        gameEngine.drawingManager.startDealerCountdown();
+        logger.info(`房间 ${room.id} 重置庄家倒计时`);
+      }
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('亮主失败:', error);
     }
   });
 

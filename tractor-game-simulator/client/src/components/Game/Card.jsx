@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { isTrumpCard } from '../../utils/cardUtils';
 import './Card.css';
 
 const SUIT_SYMBOLS = {
@@ -35,8 +36,22 @@ const RANK_DISPLAY = {
   big_joker: '大王'
 };
 
-export default function Card({ card, selected = false, onClick, disabled = false, small = false, draggable = false, onDragStart, onDragEnd, onDragOver, onDrop }) {
+export default function Card({
+  card,
+  selected = false,
+  onClick,
+  disabled = false,
+  small = false,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  trumpSuit = null,
+  trumpRank = null
+}) {
   const isJoker = card.suit === 'joker';
+  const isTrump = isTrumpCard(card, trumpSuit, trumpRank);
 
   const displayRank = useMemo(() => {
     return RANK_DISPLAY[card.rank] || card.rank;
@@ -77,6 +92,13 @@ export default function Card({ card, selected = false, onClick, disabled = false
         <div className="card-rank">{displayRank}</div>
         {!isJoker && <div className="card-suit">{suitSymbol}</div>}
       </div>
+
+      {/* 主牌星标 */}
+      {isTrump && (
+        <div className="trump-badge">
+          <span className="trump-star">★</span>
+        </div>
+      )}
     </div>
   );
 }

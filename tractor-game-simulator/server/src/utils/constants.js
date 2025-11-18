@@ -100,3 +100,27 @@ export const DEFAULT_PLAYER = {
   score: 0,
   level: 2
 };
+
+/**
+ * 将等级转换为牌面值
+ * @param {number} level - 玩家等级 (2-14)
+ * @returns {string} 对应的牌面值
+ */
+export function levelToRank(level) {
+  const levelMap = {
+    2: Ranks.TWO,
+    3: Ranks.THREE,
+    4: Ranks.FOUR,
+    5: Ranks.FIVE,
+    6: Ranks.SIX,
+    7: Ranks.SEVEN,
+    8: Ranks.EIGHT,
+    9: Ranks.NINE,
+    10: Ranks.TEN,
+    11: Ranks.JACK,
+    12: Ranks.QUEEN,
+    13: Ranks.KING,
+    14: Ranks.ACE
+  };
+  return levelMap[level] || Ranks.TWO;
+}

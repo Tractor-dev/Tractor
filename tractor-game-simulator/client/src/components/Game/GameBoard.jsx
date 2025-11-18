@@ -3,9 +3,11 @@ import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, 
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
+import { detectAvailableDeclarations } from '../../utils/trumpUtils';
 import Hand from './Hand';
 import GameTable from './GameTable';
 import RuleSelector from './RuleSelector';
+import TrumpDeclaration from './TrumpDeclaration';
 import './GameBoard.css';
 
 const { Title, Text } = Typography;
@@ -60,11 +62,42 @@ export default function GameBoard() {
   const [newQuickPhrase, setNewQuickPhrase] = useState(''); // 新的快捷短语输入
   const [ruleSelectorModal, setRuleSelectorModal] = useState(false); // 规则选择器弹窗
   const [selectedRule, setSelectedRule] = useState(null); // 当前选择的规则 { name, content }
+  const [availableDeclarations, setAvailableDeclarations] = useState([]); // 可用的亮主选项
+  const [currentTrumpDeclaration, setCurrentTrumpDeclaration] = useState(null); // 当前主牌亮主信息
+  const [dealerCountdown, setDealerCountdown] = useState(null); // 庄家倒计时
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
   const gameState = currentRoom?.gameState;
   const phase = gameState?.phase || GamePhases.WAITING;
+
+  // 同步房间状态中的主牌信息到本地状态和store
+  useEffect(() => {
+    if (gameState) {
+      const roomTrumpSuit = gameState.trumpSuit;
+      const roomTrumpRank = gameState.trumpRank;
+
+      console.log(`🔄 同步房间状态: trumpSuit=${roomTrumpSuit}, trumpRank=${roomTrumpRank}`);
+
+      // 更新本地状态
+      setTrumpSuit(roomTrumpSuit);
+      setTrumpRank(roomTrumpRank);
+      // 更新store，触发手牌重新排序
+      setTrumpInfo(roomTrumpSuit, roomTrumpRank);
+    }
+  }, [gameState?.trumpSuit, gameState?.trumpRank, setTrumpInfo]);
+
+  // 检测手牌变化，更新可亮主选项（仅在摸牌阶段）
+  useEffect(() => {
+    if (phase !== GamePhases.DRAWING || !trumpRank) {
+      setAvailableDeclarations([]);
+      return;
+    }
+
+    const declarations = detectAvailableDeclarations(myCards, trumpRank, currentTrumpDeclaration);
+    setAvailableDeclarations(declarations);
+    console.log('🎯 可亮主选项更新:', declarations);
+  }, [myCards, trumpRank, phase, currentTrumpDeclaration]);
 
   // 监听游戏事件
   useEffect(() => {
@@ -83,6 +116,8 @@ export default function GameBoard() {
       setShownCards({}); // 清空展示的牌
       setPlayedCards({}); // 清空已出的牌
       clearSelection(); // 清空选中的牌
+      setCurrentTrumpDeclaration(null); // 清空亮主信息
+      setAvailableDeclarations([]); // 清空可用亮主选项
     });
 
     // 收到手牌
@@ -195,13 +230,44 @@ export default function GameBoard() {
 
     // 主牌更新
     socket.on('trump_updated', ({ trumpSuit, trumpRank }) => {
+      console.log(`🃏 收到trump_updated事件: trumpSuit=${trumpSuit}, trumpRank=${trumpRank}`);
       setTrumpSuit(trumpSuit);
       setTrumpRank(trumpRank);
       // 更新store中的主牌信息，自动重排手牌
       setTrumpInfo(trumpSuit, trumpRank);
       if (trumpSuit && trumpRank) {
         messageApi.info(`主牌已设置: ${trumpSuit} ${trumpRank}`);
+      } else if (trumpRank) {
+        console.log(`📢 级牌已设置: ${trumpRank}`);
       }
+    });
+
+    // 亮主成功
+    socket.on('trump_declared', ({ playerId, playerName, suit, count, declarationType, strength, isCounter, cards }) => {
+      const action = isCounter ? '反主' : '亮主';
+      const suitMap = {
+        'spades': '♠',
+        'hearts': '♥',
+        'clubs': '♣',
+        'diamonds': '♦',
+        'joker': '王'
+      };
+      const suitSymbol = suitMap[suit] || suit;
+
+      console.log(`🎺 ${action}成功: ${playerName} ${action}了 ${count} 张 ${suitSymbol}`);
+      messageApi.success(`${playerName} ${action}: ${count === 2 ? '一对' : '单张'}${suitSymbol}`);
+
+      // 更新当前亮主信息
+      setCurrentTrumpDeclaration({
+        playerId: playerId,
+        playerName: playerName,
+        suit: suit,
+        count: count,
+        declarationType: declarationType,
+        strength: strength,
+        isCounter: isCounter,
+        cards: cards || []
+      });
     });
 
     // 房间配置更新
@@ -252,6 +318,16 @@ export default function GameBoard() {
       messageApi.info(`${playerName} 选择了规则: ${rule.name}`);
     });
 
+    // 庄家倒计时开始/重置
+    socket.on('dealer_countdown_start', ({ countdown }) => {
+      setDealerCountdown(countdown);
+    });
+
+    // 庄家倒计时结束
+    socket.on('dealer_countdown_end', () => {
+      setDealerCountdown(null);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -270,6 +346,7 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
       socket.off('trump_updated');
+      socket.off('trump_declared');
       socket.off('config_updated');
       socket.off('player_name_updated');
       socket.off('chat_message_received');
@@ -278,8 +355,26 @@ export default function GameBoard() {
       socket.off('player_ready_status');
       socket.off('all_players_ready');
       socket.off('rule_selected');
+      socket.off('dealer_countdown_start');
+      socket.off('dealer_countdown_end');
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
+
+  // 庄家倒计时递减
+  useEffect(() => {
+    if (dealerCountdown === null || dealerCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setDealerCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [dealerCountdown]);
 
   // 同步主牌状态和规则
   useEffect(() => {
@@ -310,17 +405,31 @@ export default function GameBoard() {
     socket.emit('player_ready', { roomId: currentRoom.id });
   };
 
-  // 展示手牌
-  const handleShowCards = () => {
-    if (selectedCards.length === 0) {
-      messageApi.warning('请先选择要展示的牌');
+  // 亮主处理
+  const handleDeclare = (suitType, count) => {
+    // 映射suitType到实际的花色
+    const suitMap = {
+      'spades': 'spades',
+      'hearts': 'hearts',
+      'clubs': 'clubs',
+      'diamonds': 'diamonds',
+      'joker': 'joker'
+    };
+
+    const suit = suitMap[suitType];
+    if (!suit) {
+      messageApi.error('无效的花色');
       return;
     }
-    socket.emit(SOCKET_EVENTS.SHOW_CARDS, {
+
+    console.log(`🎺 尝试亮主: ${suitType}, 数量: ${count}`);
+
+    // 发送亮主请求到服务器
+    socket.emit(SOCKET_EVENTS.DECLARE_TRUMP, {
       roomId: currentRoom.id,
-      cardIds: selectedCards
+      suit: suit,
+      count: count
     });
-    clearSelection();
   };
 
   // 一键选中所有手牌
@@ -651,41 +760,17 @@ export default function GameBoard() {
       case GamePhases.DRAWING:
         const drawingButtons = [
           <Button
-            key="show"
-            onClick={handleShowCards}
-            disabled={selectedCards.length === 0}
-            style={buttonStyle}
-          >
-            展示牌({selectedCards.length})
-          </Button>,
-          <Button
             key="selectAll"
             onClick={handleSelectAllCards}
             disabled={myCards.length === 0}
             style={buttonStyle}
           >
             全选
-          </Button>
-        ];
-
-        if (isHost) {
-          drawingButtons.push(
-            <Button
-              key="setBurying"
-              type="primary"
-              onClick={() => setBuryingPlayerModal(true)}
-              style={buttonStyle}
-            >
-              指定埋底
-            </Button>
-          );
-        }
-
-        drawingButtons.push(
+          </Button>,
           <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
             改昵称
           </Button>
-        );
+        ];
 
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
@@ -865,6 +950,8 @@ export default function GameBoard() {
                 playedCards={{}}
                 shownCards={{}}
                 myCards={[]}
+                buryingPlayerId={gameState?.buryingPlayerId}
+                dealerCountdown={dealerCountdown}
                 selectedCards={[]}
                 onCardClick={() => {}}
                 onReorder={() => {}}
@@ -942,6 +1029,14 @@ export default function GameBoard() {
           <div className="phase-content playing-phase">
             {/* 游戏桌面 - 摸牌阶段显示展示的牌 */}
             <GameTable
+              trumpDeclarationComponent={
+                <TrumpDeclaration
+                  availableDeclarations={availableDeclarations}
+                  onDeclare={handleDeclare}
+                  currentTrump={currentTrumpDeclaration}
+                />
+              }
+              currentTrumpDeclaration={currentTrumpDeclaration}
               players={currentRoom.players}
               currentPlayer={currentPlayer}
               playedCards={{}}
@@ -959,6 +1054,8 @@ export default function GameBoard() {
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
               isWaitingForReady={false}
+              buryingPlayerId={gameState?.buryingPlayerId}
+              dealerCountdown={dealerCountdown}
             />
           </div>
         );
@@ -985,6 +1082,9 @@ export default function GameBoard() {
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
               isWaitingForReady={false}
+              currentTrumpDeclaration={currentTrumpDeclaration}
+              buryingPlayerId={gameState?.buryingPlayerId}
+              dealerCountdown={dealerCountdown}
             />
           </div>
         );
@@ -1011,6 +1111,9 @@ export default function GameBoard() {
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
               isWaitingForReady={false}
+              currentTrumpDeclaration={currentTrumpDeclaration}
+              buryingPlayerId={gameState?.buryingPlayerId}
+              dealerCountdown={dealerCountdown}
             />
           </div>
         );
@@ -1038,6 +1141,9 @@ export default function GameBoard() {
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
               isWaitingForReady={false}
+              currentTrumpDeclaration={currentTrumpDeclaration}
+              buryingPlayerId={gameState?.buryingPlayerId}
+              dealerCountdown={dealerCountdown}
             />
           </div>
         );
@@ -1065,6 +1171,9 @@ export default function GameBoard() {
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
               isWaitingForReady={false}
+              currentTrumpDeclaration={currentTrumpDeclaration}
+              buryingPlayerId={gameState?.buryingPlayerId}
+              dealerCountdown={dealerCountdown}
             />
           </div>
         );
@@ -1194,7 +1303,7 @@ export default function GameBoard() {
           <br />
           <br />
           {myBottomCards.length > 0 && (
-            <Hand cards={myBottomCards} disabled small />
+            <Hand cards={myBottomCards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
           )}
         </div>
       </Modal>
