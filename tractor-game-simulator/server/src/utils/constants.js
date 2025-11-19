@@ -124,3 +124,33 @@ export function levelToRank(level) {
   };
   return levelMap[level] || Ranks.TWO;
 }
+
+/**
+ * 规范化牌面值，确保返回正确的 Ranks 常量
+ * @param {number|string} rank - 牌面值（可能是数字或字符串）
+ * @returns {string} 规范化后的牌面值
+ */
+export function normalizeRank(rank) {
+  // 如果已经是有效的 Ranks 常量值，直接返回
+  const validRanks = Object.values(Ranks);
+  if (validRanks.includes(rank)) {
+    return rank;
+  }
+
+  // 如果是数字，使用 levelToRank 转换
+  const numRank = Number(rank);
+  if (!isNaN(numRank) && numRank >= 2 && numRank <= 14) {
+    return levelToRank(numRank);
+  }
+
+  // 字符串形式的数字 "2"-"10"
+  if (typeof rank === 'string' && /^\d+$/.test(rank)) {
+    const num = parseInt(rank, 10);
+    if (num >= 2 && num <= 10) {
+      return levelToRank(num);
+    }
+  }
+
+  // 默认返回 2
+  return Ranks.TWO;
+}

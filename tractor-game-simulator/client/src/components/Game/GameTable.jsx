@@ -401,14 +401,14 @@ export default function GameTable({
 
                 {playedCards[positions.bottom.id] && playedCards[positions.bottom.id].cards && playedCards[positions.bottom.id].cards.length > 0 && (
                   <div className="my-played-cards-inline">
-                    <Text type="success" style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的出牌:</Text>
-                    <Hand cards={playedCards[positions.bottom.id].cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                    <Text type="success" style={{ color: '#52c41a', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的出牌:</Text>
+                    <Hand cards={playedCards[positions.bottom.id].cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
                   </div>
                 )}
                 {shownCards[positions.bottom.id] && shownCards[positions.bottom.id].cards && shownCards[positions.bottom.id].cards.length > 0 && (
                   <div className="my-shown-cards-inline">
-                    <Text type="info" style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
-                    <Hand cards={shownCards[positions.bottom.id].cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                    <Text type="info" style={{ color: '#1890ff', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
+                    <Hand cards={shownCards[positions.bottom.id].cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
                   </div>
                 )}
               </div>

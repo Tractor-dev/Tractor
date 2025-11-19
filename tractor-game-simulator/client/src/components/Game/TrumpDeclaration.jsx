@@ -41,14 +41,32 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
       return;
     }
 
-    // 如果有多个选项（单张和一对），优先选择一对
-    const pairOption = options.find(o => o.count === 2 && o.canDeclare);
-    if (pairOption) {
+    // 王必须一次亮一对
+    if (slotType === 'joker') {
+      const pairOption = options.find(o => o.count === 2 && o.canDeclare);
+      if (pairOption) {
+        onDeclare(slotType, 2);
+      }
+      return;
+    }
+
+    // 花色牌：检查是否有加固选项
+    const reinforceOption = options.find(o => o.isReinforce && o.canDeclare);
+    if (reinforceOption) {
+      // 加固：亮一对
       onDeclare(slotType, 2);
+      return;
+    }
+
+    // 花色牌：默认亮一张，后续可以加固
+    const singleOption = options.find(o => o.count === 1 && o.canDeclare);
+    if (singleOption) {
+      onDeclare(slotType, 1);
     } else {
-      const singleOption = options.find(o => o.count === 1 && o.canDeclare);
-      if (singleOption) {
-        onDeclare(slotType, 1);
+      // 没有单张选项（可能被别人亮过单张了），尝试一对
+      const pairOption = options.find(o => o.count === 2 && o.canDeclare);
+      if (pairOption) {
+        onDeclare(slotType, 2);
       }
     }
   };

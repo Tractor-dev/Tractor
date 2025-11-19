@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
 import { detectAvailableDeclarations } from '../../utils/trumpUtils';
+import { validateLeadingPlay, validateFollowingPlay } from '../../utils/cardPatternUtils';
 import Hand from './Hand';
 import GameTable from './GameTable';
 import RuleSelector from './RuleSelector';
@@ -40,6 +41,7 @@ export default function GameBoard() {
   const [viewBottomModal, setViewBottomModal] = useState(false);
   const [shownCards, setShownCards] = useState({}); // { [playerId]: { playerName, cards } }
   const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
+  const [playHistory, setPlayHistory] = useState([]); // 出牌历史记录 [{ playerId, playerName, timestamp }, ...]
   const [revealedBottomCards, setRevealedBottomCards] = useState([]); // 展示的底牌
   const [myBottomCards, setMyBottomCards] = useState([]); // 我埋的底牌（仅埋底玩家可见）
   const [trumpSuit, setTrumpSuit] = useState(null); // 主牌花色
@@ -65,6 +67,7 @@ export default function GameBoard() {
   const [availableDeclarations, setAvailableDeclarations] = useState([]); // 可用的亮主选项
   const [currentTrumpDeclaration, setCurrentTrumpDeclaration] = useState(null); // 当前主牌亮主信息
   const [dealerCountdown, setDealerCountdown] = useState(null); // 庄家倒计时
+  const [trumpAnimation, setTrumpAnimation] = useState(null); // 毙牌动画 { type: 'trump' | 'overtrump', playerName }
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -94,10 +97,10 @@ export default function GameBoard() {
       return;
     }
 
-    const declarations = detectAvailableDeclarations(myCards, trumpRank, currentTrumpDeclaration);
+    const declarations = detectAvailableDeclarations(myCards, trumpRank, currentTrumpDeclaration, currentPlayer?.id);
     setAvailableDeclarations(declarations);
     console.log('🎯 可亮主选项更新:', declarations);
-  }, [myCards, trumpRank, phase, currentTrumpDeclaration]);
+  }, [myCards, trumpRank, phase, currentTrumpDeclaration, currentPlayer?.id]);
 
   // 监听游戏事件
   useEffect(() => {
@@ -115,6 +118,7 @@ export default function GameBoard() {
       setMyCards([]); // 清空手牌
       setShownCards({}); // 清空展示的牌
       setPlayedCards({}); // 清空已出的牌
+      setPlayHistory([]); // 清空出牌历史
       clearSelection(); // 清空选中的牌
       setCurrentTrumpDeclaration(null); // 清空亮主信息
       setAvailableDeclarations([]); // 清空可用亮主选项
@@ -173,6 +177,8 @@ export default function GameBoard() {
         console.log('更新后的 playedCards:', Object.keys(updated));
         return updated;
       });
+      // 添加到出牌历史
+      setPlayHistory(prev => [...prev, { playerId, playerName, timestamp: Date.now() }]);
     });
 
     // 玩家跳过
@@ -219,6 +225,17 @@ export default function GameBoard() {
         return updated;
       });
 
+      // 从出牌历史中移除该玩家的最后一次出牌
+      setPlayHistory(prev => {
+        const lastIndex = prev.map(p => p.playerId).lastIndexOf(playerId);
+        if (lastIndex !== -1) {
+          const updated = [...prev];
+          updated.splice(lastIndex, 1);
+          return updated;
+        }
+        return prev;
+      });
+
       // 如果是自己撤回，将牌添加回手牌
       if (playerId === currentPlayer?.id) {
         console.log('将牌添加回手牌:', cards.length, '张');
@@ -240,6 +257,33 @@ export default function GameBoard() {
       } else if (trumpRank) {
         console.log(`📢 级牌已设置: ${trumpRank}`);
       }
+    });
+
+    // 甩牌失败
+    socket.on('throw_failed', ({ playerId, playerName, message: msg, attemptedCards, attemptedCardObjects, forcedCards }) => {
+      messageApi.warning(`${playerName} ${msg}，实际出牌 ${forcedCards.length} 张`, 3);
+
+      // 如果是自己甩牌失败，恢复未被强制出的牌到手牌（因为前端在发送时进行了乐观移除）
+      if (playerId === currentPlayer?.id && Array.isArray(attemptedCardObjects)) {
+        const forcedIds = new Set((forcedCards || []).map(c => c.id));
+        const toRestore = attemptedCardObjects.filter(c => !forcedIds.has(c.id));
+        if (toRestore.length > 0) {
+          // 将未被强制出的牌加回手牌
+          toRestore.forEach(cardData => addCard(cardData));
+        }
+      }
+    });
+
+    // 毙牌动作
+    socket.on('trump_action', ({ type, playerId, playerName }) => {
+      const actionText = type === 'trump' ? '毙了' : '盖毙';
+      messageApi.success(`${playerName} ${actionText}！`, 2);
+      // 设置动画
+      setTrumpAnimation({ type, playerName });
+      // 3秒后清除动画
+      setTimeout(() => {
+        setTrumpAnimation(null);
+      }, 3000);
     });
 
     // 亮主成功
@@ -268,6 +312,17 @@ export default function GameBoard() {
         isCounter: isCounter,
         cards: cards || []
       });
+
+      // 立即同步主牌信息到本地并重排手牌，避免在网络延迟或缺少 trump_updated 事件前出现无主排序
+      try {
+        const immediateTrumpSuit = suit !== 'joker' ? suit : 'no_trump';
+        console.log(`📡 即时更新主牌: ${immediateTrumpSuit}, trumpRank=${trumpRank}`);
+        setTrumpSuit(immediateTrumpSuit);
+        // trumpRank 保持不变（由房间配置决定），但也再次传入以保证排序正确
+        setTrumpInfo(immediateTrumpSuit, trumpRank);
+      } catch (e) {
+        console.warn('同步主牌信息失败:', e);
+      }
     });
 
     // 房间配置更新
@@ -328,6 +383,31 @@ export default function GameBoard() {
       setDealerCountdown(null);
     });
 
+    // 回合状态更新
+    socket.on('round_updated', (roundUpdate) => {
+      console.log('收到 round_updated 事件:', roundUpdate);
+      if (roundUpdate.type === 'turn_changed') {
+        const currentPlayer = currentRoom.players[roundUpdate.currentPlayerIndex];
+        if (currentPlayer) {
+          messageApi.info(`现在轮到 ${currentPlayer.name} 出牌`);
+        }
+      } else if (roundUpdate.type === 'round_started') {
+        messageApi.success(roundUpdate.message || `轮次 ${roundUpdate.round} 开始`);
+        // 新一轮开始，清空出牌历史（因为是新的一轮，之前的牌不能再撤回）
+        setPlayHistory([]);
+        // 同时清空已出牌显示
+        setPlayedCards({});
+      } else if (roundUpdate.type === 'round_ended') {
+        // 轮次结束，显示获胜者信息
+        if (roundUpdate.roundWinner) {
+          messageApi.success(`第${roundUpdate.round}轮结束，${roundUpdate.roundWinner.playerName} 获胜，获得下一轮出牌权`);
+        }
+        // 清空出牌历史和显示，准备下一轮
+        setPlayHistory([]);
+        setPlayedCards({});
+      }
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -346,6 +426,8 @@ export default function GameBoard() {
       socket.off('score_updated');
       socket.off('level_updated');
       socket.off('trump_updated');
+      socket.off('throw_failed');
+      socket.off('trump_action');
       socket.off('trump_declared');
       socket.off('config_updated');
       socket.off('player_name_updated');
@@ -357,8 +439,10 @@ export default function GameBoard() {
       socket.off('rule_selected');
       socket.off('dealer_countdown_start');
       socket.off('dealer_countdown_end');
+      socket.off('trump_action');
+      socket.off('round_updated');
     };
-  }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer]);
+  }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer, currentRoom]);
 
   // 庄家倒计时递减
   useEffect(() => {
@@ -781,6 +865,15 @@ export default function GameBoard() {
       case GamePhases.BURYING:
         const buryingButtons = [];
 
+        // 调试信息
+        console.log('BURYING阶段调试:', {
+          isBuryingPlayer,
+          buryingPlayerId: gameState?.buryingPlayerId,
+          currentPlayerId: currentPlayer?.id,
+          selectedCardsCount: selectedCards.length,
+          requiredCount: currentRoom?.config?.bottomCardsCount
+        });
+
         if (isBuryingPlayer) {
           buryingButtons.push(
             <Button
@@ -791,6 +884,13 @@ export default function GameBoard() {
               style={{ ...buttonStyle, width: '150px' }}
             >
               埋底({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+            </Button>
+          );
+        } else {
+          // 如果不是埋底玩家，显示提示信息
+          buryingButtons.push(
+            <Button key="waiting" disabled style={{ ...buttonStyle, width: '150px' }}>
+              等待庄家埋底
             </Button>
           );
         }
@@ -810,21 +910,81 @@ export default function GameBoard() {
       case GamePhases.PLAYING:
         const playingButtons = [];
 
+        // 检查是否轮到当前玩家出牌
+        const isMyTurn = gameState?.playMode === PlayModes.FREE ||
+                        (gameState?.currentPlayerIndex !== null &&
+                         gameState?.currentPlayerIndex !== undefined &&
+                         currentRoom?.players[gameState.currentPlayerIndex]?.id === currentPlayer?.id);
+
+        // 检查是否可以撤回
+        const canUndo = (() => {
+          if (!currentPlayer?.id) return false;
+          // 找到当前玩家最后一次出牌的索引
+          const lastPlayIndex = playHistory.map(p => p.playerId).lastIndexOf(currentPlayer.id);
+          if (lastPlayIndex === -1) {
+            // 没有出牌记录
+            return false;
+          }
+          // 检查在此之后是否有其他玩家出牌
+          const hasSubsequentPlays = playHistory
+            .slice(lastPlayIndex + 1)
+            .some(p => p.playerId !== currentPlayer.id);
+          return !hasSubsequentPlays;
+        })();
+
+        // 验证选中的牌是否合法
+        const validateSelectedCards = (() => {
+          if (selectedCards.length === 0) {
+            return { valid: false, message: '请选择要出的牌' };
+          }
+
+          // 获取选中的牌对象
+          const selectedCardObjects = myCards.filter(card => selectedCards.includes(card.id));
+
+          // 判断是首发还是跟牌
+          const isLeading = gameState?.currentRoundPlays === 0 ||
+                           gameState?.playersPlayedThisRound?.length === 0 ||
+                           (Array.isArray(gameState?.playersPlayedThisRound) && gameState.playersPlayedThisRound.length === 0);
+
+          if (isLeading) {
+            return validateLeadingPlay(selectedCardObjects, trumpSuit, trumpRank);
+          } else {
+            // 跟牌时需要知道首发牌型
+            const leadingPattern = gameState?.leadingPattern;
+            if (!leadingPattern) {
+              // 如果没有首发牌型信息，按首发验证
+              return validateLeadingPlay(selectedCardObjects, trumpSuit, trumpRank);
+            }
+            return validateFollowingPlay(selectedCardObjects, myCards, leadingPattern, trumpSuit, trumpRank);
+          }
+        })();
+
+        const canPlay = isMyTurn && validateSelectedCards.valid;
+        const playButtonTitle = !isMyTurn ? '还没轮到你出牌' :
+                               !validateSelectedCards.valid ? validateSelectedCards.message : '';
+
         if (gameState.buryingPlayerId) {
           playingButtons.push(
             <Button
               key="play"
               type="primary"
               onClick={handlePlayCards}
-              disabled={selectedCards.length === 0}
+              disabled={!canPlay}
               style={buttonStyle}
+              title={playButtonTitle}
             >
               出牌({selectedCards.length})
             </Button>,
             <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
               聊天
             </Button>,
-            <Button key="undo" onClick={handleUndoPlay} style={buttonStyle}>
+            <Button
+              key="undo"
+              onClick={handleUndoPlay}
+              disabled={!canUndo}
+              style={buttonStyle}
+              title={!canUndo ? '无法撤回' : ''}
+            >
               撤回
             </Button>
           );
@@ -1090,6 +1250,11 @@ export default function GameBoard() {
         );
 
       case GamePhases.PLAYING:
+        // 获取当前轮到出牌的玩家ID
+        const currentTurnPlayerId = gameState?.currentPlayerIndex !== null && gameState?.currentPlayerIndex !== undefined
+          ? currentRoom.players[gameState.currentPlayerIndex]?.id
+          : null;
+
         return (
           <div className="phase-content playing-phase">
             {/* 游戏桌面 - 出牌阶段不显示展示的牌 */}
@@ -1102,7 +1267,7 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
-              currentTurnPlayerId={null}
+              currentTurnPlayerId={currentTurnPlayerId}
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
@@ -1119,6 +1284,10 @@ export default function GameBoard() {
         );
 
       case GamePhases.REVEALING:
+        const revealingCurrentTurnPlayerId = gameState?.currentPlayerIndex !== null && gameState?.currentPlayerIndex !== undefined
+          ? currentRoom.players[gameState.currentPlayerIndex]?.id
+          : null;
+
         return (
           <div className="phase-content playing-phase">
             {/* 游戏桌面 - 展示底牌，保留所有人的出牌 */}
@@ -1131,7 +1300,7 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
-              currentTurnPlayerId={null}
+              currentTurnPlayerId={revealingCurrentTurnPlayerId}
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
@@ -1149,6 +1318,10 @@ export default function GameBoard() {
         );
 
       case GamePhases.FINISHED:
+        const finishedCurrentTurnPlayerId = gameState?.currentPlayerIndex !== null && gameState?.currentPlayerIndex !== undefined
+          ? currentRoom.players[gameState.currentPlayerIndex]?.id
+          : null;
+
         return (
           <div className="phase-content playing-phase">
             {/* 游戏桌面 - 游戏结束，保留所有人的出牌和底牌 */}
@@ -1161,7 +1334,7 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
-              currentTurnPlayerId={null}
+              currentTurnPlayerId={finishedCurrentTurnPlayerId}
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
@@ -1186,6 +1359,45 @@ export default function GameBoard() {
   return (
     <div className="game-board">
       {contextHolder}
+
+      {/* 毙牌动画 */}
+      {trumpAnimation && (
+        <div
+          className="trump-animation-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            pointerEvents: 'none',
+            zIndex: 1000
+          }}
+        >
+          <div
+            className={`trump-animation ${trumpAnimation.type}`}
+            style={{
+              fontSize: trumpAnimation.type === 'overtrump' ? '72px' : '64px',
+              fontWeight: 'bold',
+              color: trumpAnimation.type === 'overtrump' ? '#ff4757' : '#ffa502',
+              textShadow: trumpAnimation.type === 'overtrump'
+                ? '0 0 20px #ff4757, 0 0 40px #ff4757, 0 0 60px #ff6b81'
+                : '0 0 20px #ffa502, 0 0 40px #ffa502, 0 0 60px #eccc68',
+              animation: 'trumpPop 0.5s ease-out forwards',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <span>{trumpAnimation.type === 'overtrump' ? '盖毙！' : '毙了！'}</span>
+            <span style={{ fontSize: '24px', opacity: 0.8 }}>{trumpAnimation.playerName}</span>
+          </div>
+        </div>
+      )}
 
       {/* 主游戏区域 */}
       <div className="main-game-area">

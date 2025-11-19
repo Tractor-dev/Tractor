@@ -1,4 +1,4 @@
-import { Suits, Ranks } from './constants.js';
+import { Suits, Ranks, normalizeRank } from './constants.js';
 
 /**
  * 亮主类型
@@ -26,10 +26,36 @@ export const DeclarationStrength = {
  * @param {String} suit - 要亮的花色
  * @param {Number} count - 数量（1或2）
  * @param {String} trumpRank - 级牌
- * @param {Object} currentTrump - 当前主牌 {suit, declarationType, strength}
+ * @param {Object} currentTrump - 当前主牌 {suit, declarationType, strength, playerId}
+ * @param {String} playerId - 当前操作的玩家ID
  * @returns {Object} {valid: boolean, message: string, declarationType: string, strength: number}
  */
-export function validateDeclaration(cards, suit, count, trumpRank, currentTrump = null) {
+export function validateDeclaration(cards, suit, count, trumpRank, currentTrump = null, playerId = null) {
+  // 检查是否自己反自己
+  if (currentTrump && playerId && currentTrump.playerId === playerId) {
+    // 同一玩家，检查是否是"加固"（同花色，从单张升级到一对）
+    if (currentTrump.suit === suit || (currentTrump.suit === 'no_trump' && suit === 'joker')) {
+      // 加固：必须是从单张升级到一对
+      if (currentTrump.declarationType === DeclarationTypes.SINGLE_RANK && count === 2) {
+        // 允许加固，继续验证
+      } else {
+        return {
+          valid: false,
+          message: '已经亮过了，无法重复亮主',
+          declarationType: null,
+          strength: 0
+        };
+      }
+    } else {
+      // 不同花色，禁止自己反自己
+      return {
+        valid: false,
+        message: '不能自己反自己的主',
+        declarationType: null,
+        strength: 0
+      };
+    }
+  }
   // 统计符合条件的牌
   let matchingCards = [];
 
@@ -96,9 +122,10 @@ export function validateDeclaration(cards, suit, count, trumpRank, currentTrump 
       }
     }
   } else {
+    const normTrumpRank = normalizeRank(trumpRank);
     // 亮级牌
     matchingCards = cards.filter(c =>
-      c.rank === trumpRank &&
+      String(c.rank) === String(normTrumpRank) &&
       c.suit === suit &&
       c.suit !== Suits.JOKER
     );
@@ -106,7 +133,7 @@ export function validateDeclaration(cards, suit, count, trumpRank, currentTrump 
     if (matchingCards.length < count) {
       return {
         valid: false,
-        message: `没有足够的${suit}${trumpRank}`,
+        message: `没有足够的${suit}${normTrumpRank}`,
         declarationType: null,
         strength: 0
       };
@@ -126,7 +153,7 @@ export function validateDeclaration(cards, suit, count, trumpRank, currentTrump 
 
     return {
       valid: true,
-      message: `亮${count === 2 ? '一对' : '单张'}${suit}${trumpRank}成功`,
+      message: `亮${count === 2 ? '一对' : '单张'}${suit}${normTrumpRank}成功`,
       declarationType: declarationType,
       strength: strength,
       cards: matchingCards.slice(0, count)

@@ -164,17 +164,29 @@
 
 /* 内联出牌区域 - 玩家信息和控制按钮之间 */
 .my-play-area-inline {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  justify-content: center;
+  min-width: 200px;
 }
 
 .my-played-cards-inline,
 .my-shown-cards-inline {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 2px solid rgba(82, 196, 26, 0.5);
+  min-width: 120px;
+}
+
+.my-played-cards-inline .hand,
+.my-shown-cards-inline .hand {
+  justify-content: center;
 }
 
 /* 内联控制区域 - 出牌区右边，靠右对齐 */

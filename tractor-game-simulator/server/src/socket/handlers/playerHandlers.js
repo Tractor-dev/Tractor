@@ -75,7 +75,7 @@ export function registerPlayerHandlers(io, socket, roomManager) {
       const currentTrump = room.gameState.currentTrumpDeclaration || null;
 
       // 验证亮主是否合法
-      const validation = validateDeclaration(player.cards, suit, count, trumpRank, currentTrump);
+      const validation = validateDeclaration(player.cards, suit, count, trumpRank, currentTrump, player.id);
 
       if (!validation.valid) {
         throw new Error(validation.message);
@@ -125,12 +125,19 @@ export function registerPlayerHandlers(io, socket, roomManager) {
       const action = isCounter ? '反主' : '亮主';
       logger.info(`玩家 ${player.name} ${action}: ${count === 2 ? '一对' : '单张'} ${suit}`);
 
-      // 重置庄家倒计时
+      // 只有在摸牌结束后才重置庄家倒计时
+      // 摸牌过程中亮主不触发倒计时
       const gameEngines = getGameEngines();
       const gameEngine = gameEngines.get(room.id);
       if (gameEngine && gameEngine.drawingManager) {
-        gameEngine.drawingManager.startDealerCountdown();
-        logger.info(`房间 ${room.id} 重置庄家倒计时`);
+        const { deck, drawingIndex } = room.gameState;
+        // 检查发牌是否已完成
+        if (drawingIndex >= deck.length) {
+          gameEngine.drawingManager.startDealerCountdown();
+          logger.info(`房间 ${room.id} 重置庄家倒计时`);
+        } else {
+          logger.info(`房间 ${room.id} 摸牌中，暂不触发倒计时`);
+        }
       }
 
     } catch (error) {

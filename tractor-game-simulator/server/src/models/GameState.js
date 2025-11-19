@@ -21,6 +21,11 @@ export class GameState {
     this.currentTrumpDeclaration = null; // 当前亮主信息 {playerId, playerName, suit, count, declarationType, strength, jokerType}
     this.isWaitingForReady = false; // 是否在等待玩家准备
     this.selectedRule = null; // 选中的规则 { name, content }
+
+    // 当前轮出牌记录
+    this.currentRoundPlays = []; // [{ playerIndex, playerId, cards, pattern }]
+    this.leadingPattern = null; // 首发牌型
+    this.currentWinnerIndex = null; // 当前轮最大的玩家索引
   }
 
   reset() {
@@ -43,6 +48,11 @@ export class GameState {
     this.currentTrumpDeclaration = null; // 清空亮主信息
     this.isWaitingForReady = false;
     this.selectedRule = null;
+
+    // 重置当前轮出牌记录
+    this.currentRoundPlays = [];
+    this.leadingPattern = null;
+    this.currentWinnerIndex = null;
   }
 
   toJSON() {
@@ -64,7 +74,10 @@ export class GameState {
       trumpSuit: this.trumpSuit,
       trumpRank: this.trumpRank,
       isWaitingForReady: this.isWaitingForReady,
-      selectedRule: this.selectedRule
+      selectedRule: this.selectedRule,
+      currentRoundPlays: this.currentRoundPlays.length,
+      leadingPattern: this.leadingPattern,
+      currentWinnerIndex: this.currentWinnerIndex
     };
   }
 }

@@ -28,7 +28,7 @@ export function isTrumpCard(card, trumpSuit, trumpRank) {
 
 /**
  * 获取主牌的优先级（用于排序）
- * 顺序：大王、小王、黑桃级牌、红桃级牌、梅花级牌、方片级牌
+ * 顺序：大王、小王、主花色级牌、其他花色级牌（按花色顺序）、主花色其他牌
  */
 function getTrumpPriority(card, trumpSuit, trumpRank) {
   // 大王
@@ -41,9 +41,14 @@ function getTrumpPriority(card, trumpSuit, trumpRank) {
     return 1;
   }
 
-  // 级牌（按花色排序：黑桃、红桃、梅花、方片）
+  // 级牌排序
   if (trumpRank && card.rank === trumpRank) {
-    return 2 + (SUIT_ORDER[card.suit] ?? 0);
+    // 主花色级牌优先级最高（排在王后面）
+    if (trumpSuit && trumpSuit !== Suits.NO_TRUMP && card.suit === trumpSuit) {
+      return 2;
+    }
+    // 其他花色级牌按 SUIT_ORDER 排序
+    return 3 + (SUIT_ORDER[card.suit] ?? 0);
   }
 
   // 其他主花色牌（在级牌之后）

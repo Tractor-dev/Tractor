@@ -1,4 +1,6 @@
 .hand {
+  --card-width: 80px;
+  --card-overlap: 25px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
@@ -12,7 +14,7 @@
 
 /* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */
 .hand > * {
-  margin-left: -25px;
+  margin-left: calc(var(--card-overlap, 25px) * -1);
   flex-shrink: 0;
 }
 
@@ -20,42 +22,52 @@
   margin-left: 0;
 }
 
-/* 牌多时更紧凑 */
-.hand.compact-1 > * {
-  margin-left: -30px;
+.hand.compact-1 {
+  --card-overlap: 30px;
 }
 
-.hand.compact-2 > * {
-  margin-left: -38px;
+.hand.compact-2 {
+  --card-overlap: 38px;
 }
 
-.hand.compact-3 > * {
-  margin-left: -45px;
+.hand.compact-3 {
+  --card-overlap: 45px;
 }
 
 .hand.small {
+  --card-width: 50px;
+  --card-overlap: 18px;
   padding: 10px;
   min-height: 90px;
   flex-wrap: nowrap;
 }
 
-.hand.small > * {
-  margin-left: -18px;
+.hand.small.compact-1 {
+  --card-overlap: 25px;
+}
+
+.hand.small.compact-2 {
+  --card-overlap: 30px;
+}
+
+.hand.small.compact-3 {
+  --card-overlap: 35px;
+}
+
+/* 拖拉机标记样式 */
+.card-wrapper {
+  position: relative;
+  display: inline-block;
+  width: var(--card-width, 80px);
   flex-shrink: 0;
 }
 
-.hand.small > *:first-child {
-  margin-left: 0;
+.tractor-line {
+  pointer-events: none;
+  z-index: 10;
 }
 
-.hand.small.compact-1 > * {
-  margin-left: -25px;
-}
-
-.hand.small.compact-2 > * {
-  margin-left: -30px;
-}
-
-.hand.small.compact-3 > * {
-  margin-left: -35px;
+.tractor-label {
+  pointer-events: none;
+  z-index: 11;
 }
