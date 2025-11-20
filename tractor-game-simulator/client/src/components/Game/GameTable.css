@@ -1,7 +1,6 @@
 .game-table {
   width: 100%;
-  height: calc(100vh - 200px);
-  min-height: 600px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -283,4 +282,23 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+}
+
+/* 自定义滚动条样式（用于闲家得分框） */
+.game-table ::-webkit-scrollbar {
+  height: 6px;
+}
+
+.game-table ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.game-table ::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.6);
+  border-radius: 3px;
+}
+
+.game-table ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.8);
 }

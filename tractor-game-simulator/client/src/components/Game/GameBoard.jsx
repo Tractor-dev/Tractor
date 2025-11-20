@@ -68,6 +68,11 @@ export default function GameBoard() {
   const [currentTrumpDeclaration, setCurrentTrumpDeclaration] = useState(null); // 当前主牌亮主信息
   const [dealerCountdown, setDealerCountdown] = useState(null); // 庄家倒计时
   const [trumpAnimation, setTrumpAnimation] = useState(null); // 毙牌动画 { type: 'trump' | 'overtrump', playerName }
+  const [attackerScore, setAttackerScore] = useState(0); // 闲家当前得分
+  const [collectedPointCards, setCollectedPointCards] = useState([]); // 闲家收集的分数牌
+  const [bottomScoreResult, setBottomScoreResult] = useState(null); // 底牌得分结果
+  const [upgradeResult, setUpgradeResult] = useState(null); // 升级结果
+  const [isReadyForNext, setIsReadyForNext] = useState(false); // 是否已准备下一局
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -122,6 +127,12 @@ export default function GameBoard() {
       clearSelection(); // 清空选中的牌
       setCurrentTrumpDeclaration(null); // 清空亮主信息
       setAvailableDeclarations([]); // 清空可用亮主选项
+      setAttackerScore(0); // 清空闲家得分
+      setCollectedPointCards([]); // 清空收集的分数牌
+      setBottomScoreResult(null); // 清空底牌得分结果
+      setUpgradeResult(null); // 清空升级结果
+      setRevealedBottomCards([]); // 清空底牌展示
+      setIsReadyForNext(false); // 重置准备状态
     });
 
     // 收到手牌
@@ -187,9 +198,28 @@ export default function GameBoard() {
     });
 
     // 展示底牌（修正事件名）
-    socket.on('bottom_revealed', ({ bottomCards }) => {
+    socket.on('bottom_revealed', ({ bottomCards, bottomScoreResult, upgradeResult }) => {
       messageApi.info(`底牌已展示: ${bottomCards.length} 张`);
       setRevealedBottomCards(bottomCards);
+      if (bottomScoreResult) {
+        setBottomScoreResult(bottomScoreResult);
+        setAttackerScore(bottomScoreResult.totalScore);
+        setCollectedPointCards(bottomScoreResult.collectedPointCards || []);
+        // 显示底牌得分结果
+        const resultMsg = bottomScoreResult.attackerWonBottom
+          ? `闲家拿底！底牌${bottomScoreResult.bottomPoints}分×${bottomScoreResult.bottomMultiplier}倍=${bottomScoreResult.bottomScoreGained}分，闲家总分：${bottomScoreResult.totalScore}分`
+          : `庄家守底！闲家总分：${bottomScoreResult.totalScore}分`;
+        messageApi.success(resultMsg, 5);
+      }
+      if (upgradeResult) {
+        setUpgradeResult(upgradeResult);
+        // 显示升级结果
+        const winnerMsg = upgradeResult.attackerWon ? '闲家获胜' : '庄家获胜';
+        const upgradeMsg = upgradeResult.attackerWon
+          ? `闲家升${upgradeResult.attackerLevelUp}级`
+          : `庄家升${upgradeResult.dealerLevelUp}级`;
+        messageApi.success(`${winnerMsg}！${upgradeMsg}`, 5);
+      }
     });
 
     // 收到我的底牌
@@ -198,9 +228,29 @@ export default function GameBoard() {
       setViewBottomModal(true);
     });
 
-    // 玩家确认
-    socket.on('player_confirmed', ({ playerName }) => {
-      messageApi.info(`${playerName} 已确认`);
+    // 玩家准备下一局
+    socket.on('player_ready_for_next', ({ playerName, readyCount, totalCount }) => {
+      messageApi.info(`${playerName} 已准备 (${readyCount}/${totalCount})`);
+    });
+
+    // 下一局开始
+    socket.on('next_game_started', () => {
+      messageApi.success('开始下一局！');
+      // 清空所有前端状态
+      setMyCards([]);
+      setShownCards({});
+      setPlayedCards({});
+      setPlayHistory([]);
+      clearSelection();
+      setCurrentTrumpDeclaration(null);
+      setAvailableDeclarations([]);
+      setAttackerScore(0);
+      setCollectedPointCards([]);
+      setBottomScoreResult(null);
+      setUpgradeResult(null);
+      setRevealedBottomCards([]);
+      setIsReadyForNext(false); // 重置准备状态
+      // 主牌信息会通过房间状态同步的useEffect自动更新
     });
 
     // 分数更新
@@ -402,6 +452,15 @@ export default function GameBoard() {
         if (roundUpdate.roundWinner) {
           messageApi.success(`第${roundUpdate.round}轮结束，${roundUpdate.roundWinner.playerName} 获胜，获得下一轮出牌权`);
         }
+        // 处理得分信息
+        if (roundUpdate.scoreInfo) {
+          const { roundPoints, winnerIsAttacker, attackerScore: newScore, collectedPointCards: newCards } = roundUpdate.scoreInfo;
+          if (winnerIsAttacker && roundPoints > 0) {
+            messageApi.info(`闲家得${roundPoints}分，总分：${newScore}分`, 3);
+          }
+          setAttackerScore(newScore);
+          setCollectedPointCards(newCards || []);
+        }
         // 清空出牌历史和显示，准备下一轮
         setPlayHistory([]);
         setPlayedCards({});
@@ -421,7 +480,8 @@ export default function GameBoard() {
       socket.off('play_undone');
       socket.off('bottom_revealed');
       socket.off('my_bottom_cards');
-      socket.off('player_confirmed');
+      socket.off('player_ready_for_next');
+      socket.off('next_game_started');
       socket.off('game_restarted');
       socket.off('score_updated');
       socket.off('level_updated');
@@ -612,8 +672,12 @@ export default function GameBoard() {
     });
   };
 
-  const handleConfirmReveal = () => {
-    socket.emit(SOCKET_EVENTS.CONFIRM_REVEAL, {
+  const handleReadyForNext = () => {
+    if (isReadyForNext) {
+      return; // 已经准备过了，防止重复点击
+    }
+    setIsReadyForNext(true);
+    socket.emit('ready_for_next_game', {
       roomId: currentRoom.id
     });
   };
@@ -1041,8 +1105,14 @@ export default function GameBoard() {
 
       case GamePhases.REVEALING:
         const revealingButtons = [
-          <Button key="confirm" type="primary" onClick={handleConfirmReveal} style={buttonStyle}>
-            确认
+          <Button
+            key="ready"
+            type="primary"
+            onClick={handleReadyForNext}
+            disabled={isReadyForNext}
+            style={buttonStyle}
+          >
+            {isReadyForNext ? '已准备' : '开始下一局'}
           </Button>,
           <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
             改昵称
@@ -1124,6 +1194,9 @@ export default function GameBoard() {
                 onSelectRule={() => setRuleSelectorModal(true)}
                 renderControls={renderControlButtons()}
                 isWaitingForReady={isWaitingForReady}
+                team1Level={gameState?.team1Level}
+                team2Level={gameState?.team2Level}
+                dealerPlayerIndex={gameState?.dealerPlayerIndex}
               />
             </div>
           );
@@ -1216,6 +1289,9 @@ export default function GameBoard() {
               isWaitingForReady={false}
               buryingPlayerId={gameState?.buryingPlayerId}
               dealerCountdown={dealerCountdown}
+              team1Level={gameState?.team1Level}
+              team2Level={gameState?.team2Level}
+              dealerPlayerIndex={gameState?.dealerPlayerIndex}
             />
           </div>
         );
@@ -1245,6 +1321,9 @@ export default function GameBoard() {
               currentTrumpDeclaration={currentTrumpDeclaration}
               buryingPlayerId={gameState?.buryingPlayerId}
               dealerCountdown={dealerCountdown}
+              team1Level={gameState?.team1Level}
+              team2Level={gameState?.team2Level}
+              dealerPlayerIndex={gameState?.dealerPlayerIndex}
             />
           </div>
         );
@@ -1279,6 +1358,11 @@ export default function GameBoard() {
               currentTrumpDeclaration={currentTrumpDeclaration}
               buryingPlayerId={gameState?.buryingPlayerId}
               dealerCountdown={dealerCountdown}
+              attackerScore={attackerScore}
+              collectedPointCards={collectedPointCards}
+              team1Level={gameState?.team1Level}
+              team2Level={gameState?.team2Level}
+              dealerPlayerIndex={gameState?.dealerPlayerIndex}
             />
           </div>
         );
@@ -1313,6 +1397,13 @@ export default function GameBoard() {
               currentTrumpDeclaration={currentTrumpDeclaration}
               buryingPlayerId={gameState?.buryingPlayerId}
               dealerCountdown={dealerCountdown}
+              attackerScore={attackerScore}
+              collectedPointCards={collectedPointCards}
+              bottomScoreResult={bottomScoreResult}
+              upgradeResult={upgradeResult}
+              team1Level={gameState?.team1Level}
+              team2Level={gameState?.team2Level}
+              dealerPlayerIndex={gameState?.dealerPlayerIndex}
             />
           </div>
         );
@@ -1347,6 +1438,13 @@ export default function GameBoard() {
               currentTrumpDeclaration={currentTrumpDeclaration}
               buryingPlayerId={gameState?.buryingPlayerId}
               dealerCountdown={dealerCountdown}
+              attackerScore={attackerScore}
+              collectedPointCards={collectedPointCards}
+              bottomScoreResult={bottomScoreResult}
+              upgradeResult={upgradeResult}
+              team1Level={gameState?.team1Level}
+              team2Level={gameState?.team2Level}
+              dealerPlayerIndex={gameState?.dealerPlayerIndex}
             />
           </div>
         );

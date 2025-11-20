@@ -399,8 +399,15 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank) {
     // play1是主牌，play2是副牌
     // 主牌必须匹配相同的牌型组合才能毙掉
     if (pattern2.type === PatternTypes.THROW && pattern2.components) {
-      // 检查主牌是否匹配了副牌的牌型组合
-      if (canTrumpThrow(pattern1.components, pattern2.components)) {
+      // 获取主牌的组件（如果不是THROW类型，先解析为组件）
+      let trumpComponents = pattern1.components;
+      if (!trumpComponents) {
+        const parsed = parseThrowCombination(play1.cards, trumpSuit, trumpRank);
+        trumpComponents = parsed.components || [];
+      }
+
+      // 检查主牌是否匹配了副牌的牌型组合（支持向下兼容）
+      if (canTrumpThrow(trumpComponents, pattern2.components)) {
         return 1; // 主牌毙掉副牌
       } else {
         return -1; // 主牌牌型不匹配，无法毙掉
@@ -412,8 +419,15 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank) {
   if (!isTrump1 && isTrump2) {
     // play2是主牌，play1是副牌
     if (pattern1.type === PatternTypes.THROW && pattern1.components) {
-      // 检查主牌是否匹配了副牌的牌型组合
-      if (canTrumpThrow(pattern2.components, pattern1.components)) {
+      // 获取主牌的组件（如果不是THROW类型，先解析为组件）
+      let trumpComponents = pattern2.components;
+      if (!trumpComponents) {
+        const parsed = parseThrowCombination(play2.cards, trumpSuit, trumpRank);
+        trumpComponents = parsed.components || [];
+      }
+
+      // 检查主牌是否匹配了副牌的牌型组合（支持向下兼容）
+      if (canTrumpThrow(trumpComponents, pattern1.components)) {
         return -1; // 主牌毙掉副牌
       } else {
         return 1; // 主牌牌型不匹配，无法毙掉
@@ -468,7 +482,12 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank) {
 }
 
 /**
- * 检查主牌是否能毙掉副牌甩牌（必须匹配相同的牌型组合）
+ * 检查主牌是否能毙掉副牌甩牌（支持向下兼容）
+ * 规则：
+ * - 对子可以向下兼容为2张单牌
+ * - 拖拉机可以向下兼容为对子或单牌
+ * - 长拖拉机可以向下兼容为短拖拉机+对子/单牌
+ *
  * @param {Array} trumpComponents - 主牌的组件
  * @param {Array} sideComponents - 副牌的组件
  * @returns {Boolean}
@@ -478,37 +497,93 @@ function canTrumpThrow(trumpComponents, sideComponents) {
   const trumpGrouped = groupComponentsByType(trumpComponents);
   const sideGrouped = groupComponentsByType(sideComponents);
 
-  // 检查每个副牌组件是否都有对应的主牌组件
-  for (const type of [PatternTypes.TRACTOR, PatternTypes.PAIR, PatternTypes.SINGLE]) {
-    const sideComps = sideGrouped[type] || [];
-    const trumpComps = trumpGrouped[type] || [];
+  // 统计副牌需要的各种牌型
+  const sideRequirements = {
+    tractors: {}, // { length: count }
+    pairs: (sideGrouped[PatternTypes.PAIR] || []).length,
+    singles: (sideGrouped[PatternTypes.SINGLE] || []).length
+  };
 
-    if (type === PatternTypes.TRACTOR) {
-      // 对于拖拉机，需要检查每个长度的拖拉机
-      const sideTractorLengths = {};
-      for (const comp of sideComps) {
-        const len = comp.length;
-        sideTractorLengths[len] = (sideTractorLengths[len] || 0) + 1;
-      }
+  // 统计副牌的拖拉机（按长度）
+  for (const comp of (sideGrouped[PatternTypes.TRACTOR] || [])) {
+    const len = comp.length;
+    sideRequirements.tractors[len] = (sideRequirements.tractors[len] || 0) + 1;
+  }
 
-      const trumpTractorLengths = {};
-      for (const comp of trumpComps) {
-        const len = comp.length;
-        trumpTractorLengths[len] = (trumpTractorLengths[len] || 0) + 1;
-      }
+  // 统计主牌资源（可以被拆分使用）
+  const trumpResources = {
+    tractors: [], // 数组，每个元素是 { length, count }
+    pairs: (trumpGrouped[PatternTypes.PAIR] || []).length,
+    singles: (trumpGrouped[PatternTypes.SINGLE] || []).length
+  };
 
-      // 检查每个长度的拖拉机数量是否足够
-      for (const [len, count] of Object.entries(sideTractorLengths)) {
-        if ((trumpTractorLengths[len] || 0) < count) {
-          return false; // 主牌没有足够的对应长度拖拉机
+  // 统计主牌的拖拉机（按长度从大到小排序）
+  const trumpTractorLengths = {};
+  for (const comp of (trumpGrouped[PatternTypes.TRACTOR] || [])) {
+    const len = comp.length;
+    trumpTractorLengths[len] = (trumpTractorLengths[len] || 0) + 1;
+  }
+  trumpResources.tractors = Object.entries(trumpTractorLengths)
+    .map(([len, count]) => ({ length: parseInt(len), count }))
+    .sort((a, b) => b.length - a.length); // 从长到短排序
+
+  // 贪心匹配算法
+  // 1. 先匹配拖拉机（长拖拉机可以覆盖短拖拉机）
+  const sideTractorsSorted = Object.entries(sideRequirements.tractors)
+    .map(([len, count]) => ({ length: parseInt(len), count }))
+    .sort((a, b) => b.length - a.length); // 从长到短排序
+
+  for (const sideT of sideTractorsSorted) {
+    let needed = sideT.count;
+    const requiredLength = sideT.length;
+
+    // 尝试用主牌的拖拉机来匹配（可以用更长的拖拉机）
+    for (const trumpT of trumpResources.tractors) {
+      if (trumpT.length >= requiredLength && trumpT.count > 0 && needed > 0) {
+        const used = Math.min(trumpT.count, needed);
+        trumpT.count -= used;
+        needed -= used;
+
+        // 如果主牌拖拉机更长，剩余部分转化为对子和单牌
+        if (trumpT.length > requiredLength) {
+          const extraPairs = (trumpT.length - requiredLength) / 2 * used;
+          trumpResources.pairs += extraPairs;
         }
       }
-    } else {
-      // 对于对子和单牌，只需要数量足够
-      if (trumpComps.length < sideComps.length) {
-        return false;
+    }
+
+    if (needed > 0) {
+      // 还需要更多拖拉机，尝试用对子拼凑
+      const pairsNeeded = requiredLength / 2 * needed;
+      if (trumpResources.pairs >= pairsNeeded) {
+        trumpResources.pairs -= pairsNeeded;
+        needed = 0;
+      } else {
+        return false; // 对子不够
       }
     }
+  }
+
+  // 2. 将剩余的拖拉机全部转化为对子
+  for (const trumpT of trumpResources.tractors) {
+    if (trumpT.count > 0) {
+      const pairsFromTractor = (trumpT.length / 2) * trumpT.count;
+      trumpResources.pairs += pairsFromTractor;
+    }
+  }
+
+  // 3. 匹配对子
+  if (trumpResources.pairs < sideRequirements.pairs) {
+    return false;
+  }
+  const remainingPairs = trumpResources.pairs - sideRequirements.pairs;
+
+  // 4. 将剩余对子转化为单牌
+  trumpResources.singles += remainingPairs * 2;
+
+  // 5. 匹配单牌
+  if (trumpResources.singles < sideRequirements.singles) {
+    return false;
   }
 
   return true; // 主牌匹配了所有副牌的牌型

@@ -1,4 +1,4 @@
-import { GamePhases, PlayModes, Ranks } from '../utils/constants.js';
+import { GamePhases, PlayModes, Ranks, levelToRank } from '../utils/constants.js';
 
 export class GameState {
   constructor() {
@@ -26,6 +26,17 @@ export class GameState {
     this.currentRoundPlays = []; // [{ playerIndex, playerId, cards, pattern }]
     this.leadingPattern = null; // 首发牌型
     this.currentWinnerIndex = null; // 当前轮最大的玩家索引
+
+    // 得分相关
+    this.collectedPointCards = []; // 闲家收集的分数牌
+    this.attackerScore = 0; // 闲家总得分
+    this.lastRoundLeadingPattern = null; // 最后一轮的首发牌型（用于计算底牌倍数）
+    this.lastRoundWinnerIndex = null; // 最后一轮的获胜者索引
+
+    // 升级相关
+    this.team1Level = 2; // 索引0和2的队伍等级
+    this.team2Level = 2; // 索引1和3的队伍等级
+    this.dealerPlayerIndex = null; // 当前庄家玩家索引
   }
 
   reset() {
@@ -44,7 +55,18 @@ export class GameState {
     this.startTime = null;
     this.endTime = null;
     this.trumpSuit = null;
-    this.trumpRank = Ranks.TWO; // 重置时也默认为2
+
+    // 根据下一局庄家的等级设置级牌
+    if (this.dealerPlayerIndex !== null) {
+      // 如果已经有庄家了，根据庄家所属队伍的等级设置级牌
+      const dealerTeam = this.dealerPlayerIndex % 2 === 0 ? 1 : 2;
+      const dealerLevel = dealerTeam === 1 ? this.team1Level : this.team2Level;
+      this.trumpRank = levelToRank(dealerLevel);
+    } else {
+      // 第一局，默认为2
+      this.trumpRank = Ranks.TWO;
+    }
+
     this.currentTrumpDeclaration = null; // 清空亮主信息
     this.isWaitingForReady = false;
     this.selectedRule = null;
@@ -53,6 +75,15 @@ export class GameState {
     this.currentRoundPlays = [];
     this.leadingPattern = null;
     this.currentWinnerIndex = null;
+
+    // 重置得分相关
+    this.collectedPointCards = [];
+    this.attackerScore = 0;
+    this.lastRoundLeadingPattern = null;
+    this.lastRoundWinnerIndex = null;
+
+    // 注意：不重置升级相关字段（team1Level, team2Level, dealerPlayerIndex）
+    // 这些字段需要在多局游戏中保持
   }
 
   toJSON() {
@@ -77,7 +108,15 @@ export class GameState {
       selectedRule: this.selectedRule,
       currentRoundPlays: this.currentRoundPlays.length,
       leadingPattern: this.leadingPattern,
-      currentWinnerIndex: this.currentWinnerIndex
+      currentWinnerIndex: this.currentWinnerIndex,
+      // 得分相关
+      collectedPointCards: this.collectedPointCards.map(c => c.toJSON ? c.toJSON() : c),
+      attackerScore: this.attackerScore,
+      lastRoundWinnerIndex: this.lastRoundWinnerIndex,
+      // 升级相关
+      team1Level: this.team1Level,
+      team2Level: this.team2Level,
+      dealerPlayerIndex: this.dealerPlayerIndex
     };
   }
 }

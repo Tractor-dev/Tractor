@@ -148,25 +148,37 @@ export class DrawingPhaseManager {
   /**
    * 指定庄家（埋底玩家）
    * 规则：
-   * 1. 如果有人亮主/反主，最后一个亮主的玩家成为庄家
-   * 2. 如果没人亮主，随机指定一个玩家作为庄家
+   * 1. 如果不是第一局（dealerPlayerIndex不为null），使用上一局计算的庄家索引
+   * 2. 如果是第一局：
+   *    a. 如果有人亮主/反主，最后一个亮主的玩家成为庄家
+   *    b. 如果没人亮主，随机指定一个玩家作为庄家
    */
   assignDealer() {
     // 停止倒计时定时器
     this.stopDealerTimer();
 
-    const { currentTrumpDeclaration } = this.room.gameState;
+    const { currentTrumpDeclaration, dealerPlayerIndex } = this.room.gameState;
     let dealer = null;
 
-    // 规则1：如果有亮主记录，选择最后亮主的玩家
-    if (currentTrumpDeclaration && currentTrumpDeclaration.playerId) {
+    // 规则1：如果不是第一局，直接使用上一局计算的庄家索引
+    if (dealerPlayerIndex !== null) {
+      dealer = this.room.players[dealerPlayerIndex];
+      if (dealer) {
+        logger.info(`房间 ${this.room.id} 根据上一局结果，${dealer.name} 成为庄家`);
+      } else {
+        logger.error(`房间 ${this.room.id} dealerPlayerIndex ${dealerPlayerIndex} 对应的玩家不存在`);
+      }
+    }
+
+    // 规则2：第一局 - 如果有亮主记录，选择最后亮主的玩家
+    if (!dealer && currentTrumpDeclaration && currentTrumpDeclaration.playerId) {
       dealer = this.room.players.find(p => p.id === currentTrumpDeclaration.playerId);
       if (dealer) {
         logger.info(`房间 ${this.room.id} 最后亮主的玩家 ${dealer.name} 成为庄家`);
       }
     }
 
-    // 规则2：如果没有亮主记录，随机选择
+    // 规则3：第一局且没有亮主记录，随机选择
     if (!dealer && this.room.players.length > 0) {
       const randomIndex = Math.floor(Math.random() * this.room.players.length);
       dealer = this.room.players[randomIndex];
@@ -183,6 +195,14 @@ export class DrawingPhaseManager {
 
     // 设置庄家
     this.room.gameState.buryingPlayerId = dealer.id;
+
+    // 如果是第一局（dealerPlayerIndex为null），同时设置dealerPlayerIndex
+    // 这样前端可以统一使用dealerPlayerIndex来判断庄家
+    if (this.room.gameState.dealerPlayerIndex === null) {
+      const dealerIndex = this.room.players.findIndex(p => p.id === dealer.id);
+      this.room.gameState.dealerPlayerIndex = dealerIndex;
+      logger.info(`房间 ${this.room.id} 第一局设置庄家索引: ${dealerIndex}`);
+    }
 
     // 广播庄家信息
     this.io.to(this.room.id).emit('burying_player_set', {

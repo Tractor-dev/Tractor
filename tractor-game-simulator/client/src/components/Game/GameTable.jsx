@@ -27,6 +27,13 @@ const { Text } = Typography;
  * @param {Boolean} props.isWaitingForReady - 是否在等待玩家准备阶段
  * @param {ReactNode} props.trumpDeclarationComponent - 亮主条组件
  * @param {Object} props.currentTrumpDeclaration - 当前亮主信息
+ * @param {Number} props.attackerScore - 闲家当前得分
+ * @param {Array} props.collectedPointCards - 闲家收集的分数牌
+ * @param {Object} props.bottomScoreResult - 底牌得分结果
+ * @param {Object} props.upgradeResult - 升级结果
+ * @param {Number} props.team1Level - 队伍1等级
+ * @param {Number} props.team2Level - 队伍2等级
+ * @param {Number} props.dealerPlayerIndex - 庄家玩家索引
  */
 export default function GameTable({
   players,
@@ -50,7 +57,14 @@ export default function GameTable({
   trumpDeclarationComponent = null,
   currentTrumpDeclaration = null,
   buryingPlayerId = null,
-  dealerCountdown = null
+  dealerCountdown = null,
+  attackerScore = 0,
+  collectedPointCards = [],
+  bottomScoreResult = null,
+  upgradeResult = null,
+  team1Level = 2,
+  team2Level = 2,
+  dealerPlayerIndex = null
 }) {
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
@@ -121,8 +135,18 @@ export default function GameTable({
 
     // 检查是否是当前亮主的玩家
     const hasDeclaredTrump = currentTrumpDeclaration && currentTrumpDeclaration.playerId === player.id;
+
     // 检查是否是庄家
-    const isDealer = buryingPlayerId && player.id === buryingPlayerId;
+    // 优先使用 dealerPlayerIndex（从第二局开始就知道了）
+    // 如果 dealerPlayerIndex 存在，根据索引判断
+    // 否则使用 buryingPlayerId（第一局摸完牌后才知道）
+    let isDealer = false;
+    if (dealerPlayerIndex !== null && players && players.length > 0) {
+      const playerIndex = players.findIndex(p => p.id === player.id);
+      isDealer = playerIndex === dealerPlayerIndex;
+    } else if (buryingPlayerId) {
+      isDealer = player.id === buryingPlayerId;
+    }
 
     return (
       <div className={`player-area player-${position} ${isCurrentTurn ? 'current-turn' : ''}`}>
@@ -203,8 +227,117 @@ export default function GameTable({
     );
   };
 
+  // 判断我方队伍（索引0和2是队伍1，索引1和3是队伍2）
+  const getTeamLabels = () => {
+    if (!currentPlayer || !players || players.length === 0) {
+      return { myTeamLabel: '我方', opponentTeamLabel: '对方', myTeamLevel: team1Level, opponentTeamLevel: team2Level };
+    }
+
+    const myIndex = players.findIndex(p => p.id === currentPlayer.id);
+    if (myIndex === -1) {
+      return { myTeamLabel: '我方', opponentTeamLabel: '对方', myTeamLevel: team1Level, opponentTeamLevel: team2Level };
+    }
+
+    // 索引0和2是队伍1，索引1和3是队伍2
+    const myTeam = myIndex % 2 === 0 ? 1 : 2;
+
+    if (myTeam === 1) {
+      return {
+        myTeamLabel: '我方',
+        opponentTeamLabel: '对方',
+        myTeamLevel: team1Level,
+        opponentTeamLevel: team2Level
+      };
+    } else {
+      return {
+        myTeamLabel: '我方',
+        opponentTeamLabel: '对方',
+        myTeamLevel: team2Level,
+        opponentTeamLevel: team1Level
+      };
+    }
+  };
+
+  const teamLabels = getTeamLabels();
+
   return (
     <div className="game-table">
+      {/* 左上角得分和等级显示 - 始终显示 */}
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        left: '10px',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        border: '2px solid #ffd700',
+        zIndex: 100,
+        width: '300px'
+      }}>
+        {/* 队伍等级显示 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: '12px',
+          paddingBottom: '8px',
+          borderBottom: '1px solid rgba(255, 215, 0, 0.3)'
+        }}>
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.myTeamLabel}等级</Text>
+            <Text strong style={{ color: '#52c41a', fontSize: '18px' }}>{teamLabels.myTeamLevel}</Text>
+          </div>
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.opponentTeamLabel}等级</Text>
+            <Text strong style={{ color: '#ff4d4f', fontSize: '18px' }}>{teamLabels.opponentTeamLevel}</Text>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <Text strong style={{ color: '#ffd700', fontSize: '14px' }}>闲家得分</Text>
+        </div>
+        <div style={{
+          fontSize: '24px',
+          fontWeight: 'bold',
+          color: '#fff',
+          textAlign: 'center',
+          marginBottom: '8px'
+        }}>
+          {attackerScore} 分
+        </div>
+        <div style={{
+          height: '100px',
+          position: 'relative'
+        }}>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block', marginBottom: '4px' }}>
+            分数牌 ({collectedPointCards.length}):
+          </Text>
+          {collectedPointCards.length > 0 ? (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'nowrap',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              maxHeight: '80px',
+              paddingBottom: '8px'
+            }}>
+              {collectedPointCards.map((card, index) => (
+                <div
+                  key={card.id || index}
+                  style={{
+                    marginLeft: index === 0 ? '0' : '-20px',
+                    flexShrink: 0
+                  }}
+                >
+                  <Hand cards={[card]} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>暂无</Text>
+          )}
+        </div>
+      </div>
+
       {/* 上方玩家 */}
       {positions.top && (
         <div className="position-top">
@@ -230,7 +363,104 @@ export default function GameTable({
                 <Text strong style={{ fontSize: '18px', color: 'white', display: 'block', marginBottom: '12px' }}>
                   底牌：
                 </Text>
-                <Hand cards={revealedBottomCards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                <Hand
+                  cards={revealedBottomCards}
+                  disabled
+                  small
+                  trumpSuit={bottomScoreResult?.currentGameTrumpSuit || trumpSuit}
+                  trumpRank={bottomScoreResult?.currentGameTrumpRank || trumpRank}
+                />
+
+                {/* 底牌得分结果 */}
+                {bottomScoreResult && (
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '12px 20px',
+                    backgroundColor: bottomScoreResult.attackerWonBottom ? 'rgba(82, 196, 26, 0.2)' : 'rgba(255, 215, 0, 0.2)',
+                    borderRadius: '8px',
+                    border: `2px solid ${bottomScoreResult.attackerWonBottom ? '#52c41a' : '#ffd700'}`
+                  }}>
+                    <Text strong style={{
+                      fontSize: '20px',
+                      color: bottomScoreResult.attackerWonBottom ? '#52c41a' : '#ffd700',
+                      display: 'block',
+                      marginBottom: '8px'
+                    }}>
+                      {bottomScoreResult.resultText}
+                    </Text>
+                    {bottomScoreResult.attackerWonBottom && (
+                      <Text style={{ color: 'white', fontSize: '14px' }}>
+                        底牌 {bottomScoreResult.bottomPoints} 分 × {bottomScoreResult.bottomMultiplier} 倍 = {bottomScoreResult.bottomScoreGained} 分
+                      </Text>
+                    )}
+                    <div style={{ marginTop: '8px' }}>
+                      <Text strong style={{ color: '#ffd700', fontSize: '16px' }}>
+                        闲家总分：{bottomScoreResult.totalScore} 分
+                      </Text>
+                    </div>
+                  </div>
+                )}
+
+                {/* 升级结果 */}
+                {upgradeResult && (
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '12px 20px',
+                    backgroundColor: upgradeResult.attackerWon ? 'rgba(82, 196, 26, 0.2)' : 'rgba(255, 77, 79, 0.2)',
+                    borderRadius: '8px',
+                    border: `2px solid ${upgradeResult.attackerWon ? '#52c41a' : '#ff4d4f'}`
+                  }}>
+                    <Text strong style={{
+                      fontSize: '24px',
+                      color: upgradeResult.attackerWon ? '#52c41a' : '#ff4d4f',
+                      display: 'block',
+                      marginBottom: '12px',
+                      textAlign: 'center'
+                    }}>
+                      {upgradeResult.attackerWon ? '🎉 闲家获胜！' : '👑 庄家获胜！'}
+                    </Text>
+
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-around',
+                      marginBottom: '12px',
+                      paddingBottom: '12px',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>庄家队伍</Text>
+                        <Text style={{ color: 'white', fontSize: '16px' }}>
+                          {upgradeResult.oldDealerLevel} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{upgradeResult.newDealerLevel}</Text>
+                        </Text>
+                        {upgradeResult.dealerLevelUp > 0 && (
+                          <Text style={{ color: '#52c41a', fontSize: '14px', display: 'block' }}>
+                            ↑ 升{upgradeResult.dealerLevelUp}级
+                          </Text>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>闲家队伍</Text>
+                        <Text style={{ color: 'white', fontSize: '16px' }}>
+                          {upgradeResult.oldAttackerLevel} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{upgradeResult.newAttackerLevel}</Text>
+                        </Text>
+                        {upgradeResult.attackerLevelUp > 0 && (
+                          <Text style={{ color: '#52c41a', fontSize: '14px', display: 'block' }}>
+                            ↑ 升{upgradeResult.attackerLevelUp}级
+                          </Text>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center' }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                        下一局庄家
+                      </Text>
+                      <Text strong style={{ color: '#ffd700', fontSize: '16px' }}>
+                        {upgradeResult.nextDealerName} (等级 {upgradeResult.nextDealerLevel})
+                      </Text>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
@@ -345,20 +575,31 @@ export default function GameTable({
               <div className="player-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Text strong>{positions.bottom.name} (我)</Text>
-                  {buryingPlayerId && positions.bottom.id === buryingPlayerId && (
-                    <span style={{
-                      background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
-                      color: '#8B4513',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      marginLeft: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}>
-                      庄
-                    </span>
-                  )}
+                  {(() => {
+                    // 检查是否是庄家 - 使用和其他位置相同的判断逻辑
+                    let isDealer = false;
+                    if (dealerPlayerIndex !== null && players && players.length > 0) {
+                      const playerIndex = players.findIndex(p => p.id === positions.bottom.id);
+                      isDealer = playerIndex === dealerPlayerIndex;
+                    } else if (buryingPlayerId) {
+                      isDealer = positions.bottom.id === buryingPlayerId;
+                    }
+
+                    return isDealer ? (
+                      <span style={{
+                        background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
+                        color: '#8B4513',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        marginLeft: '4px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}>
+                        庄
+                      </span>
+                    ) : null;
+                  })()}
                   {isWaitingForReady && positions.bottom.isReady !== undefined && (
                     <Text
                       strong

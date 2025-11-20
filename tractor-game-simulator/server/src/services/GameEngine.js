@@ -13,6 +13,18 @@ import {
   validateThrow,
   PatternTypes
 } from '../utils/cardPatternUtils.js';
+import {
+  calculateRoundPoints,
+  extractPointCards,
+  isAttacker,
+  calculateBottomMultiplier,
+  calculateBottomPoints,
+  generateScoringSummary,
+  calculateLevelUpgrade,
+  upgradeLevel,
+  getNextDealerIndex
+} from '../utils/scoringUtils.js';
+import { levelToRank } from '../utils/constants.js';
 
 export class GameEngine {
   constructor(room, io) {
@@ -405,6 +417,7 @@ export class GameEngine {
 
     // 检查本轮是否结束
     let roundWinner = null;
+    let roundScoreInfo = null;
     if (this.room.gameState.playersPlayedThisRound.size === this.room.players.length) {
       logger.info(`[调试] 检测到轮次结束，当前轮: ${this.room.gameState.currentRound}`);
       // 本轮结束，确定获胜者
@@ -417,6 +430,37 @@ export class GameEngine {
       };
 
       logger.info(`房间 ${this.room.id} 第${this.room.gameState.currentRound}轮结束，${winner.name} 获胜`);
+
+      // 计算本轮得分
+      const currentLeadingPattern = this.room.gameState.leadingPattern;
+      const allRoundCards = this.room.gameState.currentRoundPlays.flatMap(play => play.cards);
+      const roundPoints = calculateRoundPoints(allRoundCards);
+      const roundPointCards = extractPointCards(allRoundCards);
+
+      // 获取庄家索引
+      const dealerIndex = this.room.getPlayerIndex(this.room.gameState.buryingPlayerId);
+
+      // 判断赢家是否是闲家
+      const winnerIsAttacker = isAttacker(winnerIndex, dealerIndex, this.room.players.length);
+
+      if (winnerIsAttacker && roundPoints > 0) {
+        // 闲家赢了且有分数牌，收集分数牌
+        this.room.gameState.collectedPointCards.push(...roundPointCards);
+        this.room.gameState.attackerScore += roundPoints;
+        logger.info(`闲家获得 ${roundPoints} 分，总分: ${this.room.gameState.attackerScore}`);
+      }
+
+      roundScoreInfo = {
+        roundPoints,
+        roundPointCards: roundPointCards.map(c => c.toJSON()),
+        winnerIsAttacker,
+        attackerScore: this.room.gameState.attackerScore,
+        collectedPointCards: this.room.gameState.collectedPointCards.map(c => c.toJSON())
+      };
+
+      // 保存最后一轮信息（用于底牌计算）
+      this.room.gameState.lastRoundLeadingPattern = currentLeadingPattern;
+      this.room.gameState.lastRoundWinnerIndex = winnerIndex;
 
       // 清空当前轮出牌记录，准备下一轮
       this.room.gameState.currentRoundPlays = [];
@@ -433,6 +477,7 @@ export class GameEngine {
       if (roundUpdate) {
         roundUpdate.roundWinner = roundWinner;
         roundUpdate.nextRound = this.room.gameState.currentRound;
+        roundUpdate.scoreInfo = roundScoreInfo;
       }
     }
 
@@ -564,31 +609,192 @@ export class GameEngine {
 
     logger.info(`房间 ${this.room.id} 游戏结束`);
 
-    // 重置确认状态
-    this.room.players.forEach(p => p.hasConfirmedReveal = false);
+    // 保存当前局的主牌信息（在计算升级更新trumpRank之前）
+    const currentGameTrumpSuit = this.room.gameState.trumpSuit;
+    const currentGameTrumpRank = this.room.gameState.trumpRank;
+
+    // 计算底牌得分
+    const bottomScoreResult = this.calculateBottomScore();
+    // 保存当前局的主牌信息到底牌结果中
+    bottomScoreResult.currentGameTrumpSuit = currentGameTrumpSuit;
+    bottomScoreResult.currentGameTrumpRank = currentGameTrumpRank;
+    this.room.gameState.bottomScoreResult = bottomScoreResult;
+
+    logger.info(`底牌结果: ${bottomScoreResult.resultText}, 底牌分数: ${bottomScoreResult.bottomPoints}, 倍数: ${bottomScoreResult.bottomMultiplier}, 闲家总分: ${this.room.gameState.attackerScore}`);
+
+    // 计算升级（这会更新trumpRank为下一局的级牌）
+    const upgradeResult = this.calculateUpgrade();
+    this.room.gameState.upgradeResult = upgradeResult;
+
+    logger.info(`升级结果: ${upgradeResult.attackerWon ? '闲家获胜' : '庄家获胜'}, 庄家升${upgradeResult.dealerLevelUp}级, 闲家升${upgradeResult.attackerLevelUp}级`);
+
+    // 重置下一局准备状态
+    this.room.players.forEach(p => p.isReadyForNext = false);
   }
 
   /**
-   * 玩家确认查看底牌
+   * 计算底牌得分
    */
-  confirmReveal(playerId) {
+  calculateBottomScore() {
+    const lastRoundWinnerIndex = this.room.gameState.lastRoundWinnerIndex;
+    const dealerIndex = this.room.getPlayerIndex(this.room.gameState.buryingPlayerId);
+
+    // 判断最后一轮赢家是否是闲家
+    const attackerWonLastRound = isAttacker(lastRoundWinnerIndex, dealerIndex, this.room.players.length);
+
+    // 计算底牌分数
+    const bottomPoints = calculateBottomPoints(this.room.gameState.bottomCards);
+
+    // 计算倍数
+    const bottomMultiplier = calculateBottomMultiplier(this.room.gameState.lastRoundLeadingPattern);
+
+    // 如果闲家赢了最后一轮，获得底牌分数
+    if (attackerWonLastRound && bottomPoints > 0) {
+      const bottomScoreGained = bottomPoints * bottomMultiplier;
+      this.room.gameState.attackerScore += bottomScoreGained;
+
+      // 底牌分数牌不加入 collectedPointCards，只在底牌结果中单独展示
+      logger.info(`闲家拿底，获得 ${bottomPoints} x ${bottomMultiplier} = ${bottomScoreGained} 分`);
+    }
+
+    // 生成结果摘要
+    return generateScoringSummary({
+      collectedPointCards: this.room.gameState.collectedPointCards.map(c => c.toJSON ? c.toJSON() : c),
+      attackerScore: this.room.gameState.attackerScore,
+      bottomCards: this.room.gameState.bottomCards.map(c => c.toJSON()),
+      attackerWonLastRound,
+      bottomMultiplier,
+      bottomPoints
+    });
+  }
+
+  /**
+   * 计算升级
+   */
+  calculateUpgrade() {
+    const attackerScore = this.room.gameState.attackerScore;
+    const dealerIndex = this.room.getPlayerIndex(this.room.gameState.buryingPlayerId);
+
+    // 如果是第一局（dealerPlayerIndex为null），设置当前庄家
+    if (this.room.gameState.dealerPlayerIndex === null) {
+      this.room.gameState.dealerPlayerIndex = dealerIndex;
+    }
+
+    // 计算升级数
+    const { attackerWon, dealerLevelUp, attackerLevelUp } = calculateLevelUpgrade(attackerScore);
+
+    // 确定庄家队伍和闲家队伍
+    // 队伍1: 索引0和2, 队伍2: 索引1和3
+    const dealerTeam = dealerIndex % 2 === 0 ? 1 : 2;
+    const attackerTeam = dealerTeam === 1 ? 2 : 1;
+
+    // 升级前的等级
+    const oldDealerLevel = dealerTeam === 1 ? this.room.gameState.team1Level : this.room.gameState.team2Level;
+    const oldAttackerLevel = attackerTeam === 1 ? this.room.gameState.team1Level : this.room.gameState.team2Level;
+
+    // 升级
+    let newDealerLevel = upgradeLevel(oldDealerLevel, dealerLevelUp);
+    let newAttackerLevel = upgradeLevel(oldAttackerLevel, attackerLevelUp);
+
+    // 更新队伍等级
+    if (dealerTeam === 1) {
+      this.room.gameState.team1Level = newDealerLevel;
+      this.room.gameState.team2Level = newAttackerLevel;
+    } else {
+      this.room.gameState.team1Level = newAttackerLevel;
+      this.room.gameState.team2Level = newDealerLevel;
+    }
+
+    // 计算下一局庄家
+    const nextDealerIndex = getNextDealerIndex(dealerIndex, attackerWon, this.room.players.length);
+    this.room.gameState.dealerPlayerIndex = nextDealerIndex;
+
+    // 更新下一局的级牌（根据下一局庄家的等级）
+    const nextDealerTeam = nextDealerIndex % 2 === 0 ? 1 : 2;
+    const nextDealerLevel = nextDealerTeam === 1 ? this.room.gameState.team1Level : this.room.gameState.team2Level;
+    this.room.gameState.trumpRank = levelToRank(nextDealerLevel);
+
+    logger.info(`下一局庄家: 玩家${nextDealerIndex}, 等级: ${nextDealerLevel}, 级牌: ${this.room.gameState.trumpRank}`);
+
+    // 获取玩家名称
+    const dealerPlayer = this.room.findPlayerByIndex(dealerIndex);
+    const nextDealerPlayer = this.room.findPlayerByIndex(nextDealerIndex);
+
+    return {
+      attackerWon,
+      dealerLevelUp,
+      attackerLevelUp,
+      dealerTeam,
+      attackerTeam,
+      oldDealerLevel,
+      oldAttackerLevel,
+      newDealerLevel,
+      newAttackerLevel,
+      currentDealerIndex: dealerIndex,
+      currentDealerName: dealerPlayer ? dealerPlayer.name : '未知',
+      nextDealerIndex,
+      nextDealerName: nextDealerPlayer ? nextDealerPlayer.name : '未知',
+      nextDealerLevel,
+      nextTrumpRank: this.room.gameState.trumpRank,
+      // 队伍等级信息
+      team1Level: this.room.gameState.team1Level,
+      team2Level: this.room.gameState.team2Level
+    };
+  }
+
+  /**
+   * 玩家准备开始下一局
+   */
+  readyForNextGame(playerId) {
     const player = this.room.findPlayerById(playerId);
     if (player) {
-      player.hasConfirmedReveal = true;
+      player.isReadyForNext = true;
     }
 
-    // 检查是否所有人都确认了
-    const allConfirmed = this.room.players.every(p => p.hasConfirmedReveal);
-    if (allConfirmed) {
-      this.room.gameState.phase = GamePhases.FINISHED;
-      logger.info(`房间 ${this.room.id} 所有玩家已确认，游戏完全结束`);
+    // 检查是否所有人都准备好了
+    const allReady = this.room.players.every(p => p.isReadyForNext);
+    if (allReady) {
+      logger.info(`房间 ${this.room.id} 所有玩家已准备，开始下一局`);
+      // 重置所有玩家的准备状态
+      this.room.players.forEach(p => p.isReadyForNext = false);
+      // 直接开始下一局
+      this.startNextGame();
     }
 
-    return allConfirmed;
+    return allReady;
   }
 
   /**
-   * 重新开始游戏
+   * 开始下一局（自动进入发牌阶段）
+   */
+  startNextGame() {
+    this.room.resetForNewGame();
+
+    // 重置游戏状态
+    this.room.gameState.reset();
+
+    // 所有玩家自动准备
+    this.room.players.forEach(player => {
+      player.isReady = true;
+    });
+
+    // 不进入等待准备阶段，直接开始发牌
+    this.room.gameState.isWaitingForReady = false;
+
+    logger.info(`房间 ${this.room.id} 开始下一局 - 直接进入发牌阶段`);
+
+    // 广播下一局开始（清空客户端状态）
+    this.io.to(this.room.id).emit('next_game_started', {
+      message: '开始下一局',
+      trumpRank: this.room.gameState.trumpRank
+    });
+
+    // 直接开始发牌
+    this.startDrawing();
+  }
+
+  /**
+   * 重新开始游戏（房主手动重启）
    */
   restartGame() {
     this.room.resetForNewGame();

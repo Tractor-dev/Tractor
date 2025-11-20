@@ -136,8 +136,11 @@ async function triggerBotPlay(io, room, gameEngine) {
     // 游戏结束
     if (result.gameFinished) {
       logger.info('游戏结束，揭示底牌');
+      // 发送底牌和得分结果
       io.to(room.id).emit('bottom_revealed', {
-        bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
+        bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
+        bottomScoreResult: room.gameState.bottomScoreResult,
+        upgradeResult: room.gameState.upgradeResult
       });
 
       io.to(room.id).emit('phase_changed', {
@@ -515,8 +518,11 @@ export function registerGameHandlers(io, socket, roomManager) {
 
       // 游戏结束
       if (result.gameFinished) {
+        // 发送底牌和得分结果
         io.to(room.id).emit('bottom_revealed', {
-          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
+          bottomScoreResult: room.gameState.bottomScoreResult,
+          upgradeResult: room.gameState.upgradeResult
         });
 
         io.to(room.id).emit('phase_changed', {
@@ -575,7 +581,9 @@ export function registerGameHandlers(io, socket, roomManager) {
       // 游戏结束检查
       if (result.gameFinished) {
         io.to(room.id).emit('bottom_revealed', {
-          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
+          bottomScoreResult: room.gameState.bottomScoreResult,
+          upgradeResult: room.gameState.upgradeResult
         });
 
         io.to(room.id).emit('phase_changed', {
@@ -670,9 +678,9 @@ export function registerGameHandlers(io, socket, roomManager) {
   });
 
   /**
-   * 确认查看底牌
+   * 准备开始下一局
    */
-  socket.on('confirm_reveal', ({ roomId }) => {
+  socket.on('ready_for_next_game', ({ roomId }) => {
     try {
       const room = roomManager.getRoom(roomId);
       if (!room) {
@@ -689,35 +697,26 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error('游戏未开始');
       }
 
-      const allConfirmed = gameEngine.confirmReveal(player.id);
+      const allReady = gameEngine.readyForNextGame(player.id);
 
-      // 广播确认状态
-      const confirmedCount = room.players.filter(p => p.hasConfirmedReveal).length;
-      io.to(room.id).emit('player_confirmed_reveal', {
+      // 广播准备状态
+      const readyCount = room.players.filter(p => p.isReadyForNext).length;
+      io.to(room.id).emit('player_ready_for_next', {
         playerId: player.id,
         playerName: player.name,
-        confirmedCount,
+        readyCount,
         totalCount: room.players.length
       });
 
-      // 所有人确认后进入finished阶段
-      if (allConfirmed) {
-        const duration = (room.gameState.endTime - room.gameState.startTime) / 1000;
-        io.to(room.id).emit('game_finished', {
-          players: room.players.map(p => p.toJSON()),
-          duration,
-          totalRounds: room.gameState.currentRound
-        });
-
-        // 广播房间状态更新
-        io.to(room.id).emit('room_updated', {
-          room: room.toJSON()
-        });
-      }
+      // 所有人准备好后会自动开始下一局（在 readyForNextGame 中处理）
+      // 这里只需要广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
 
     } catch (error) {
       socket.emit('error', { message: error.message });
-      logger.error('确认查看底牌失败:', error);
+      logger.error('准备下一局失败:', error);
     }
   });
 
