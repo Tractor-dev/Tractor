@@ -1,4 +1,5 @@
 import { SUIT_ORDER, RANK_ORDER, Suits, Ranks } from './constants.js';
+import { getCardStrength, getEffectiveSuit } from './cardPatternUtils.js';
 
 /**
  * 判断一张牌是否为主牌
@@ -109,6 +110,7 @@ function isTrumpSuitCard(card, trumpSuit, trumpRank) {
  * 2. 级牌（黑桃、红桃、梅花、方片）
  * 3. 主花色牌（非级牌，按点数A到2排序）
  * 4. 其他花色牌（按花色顺序，同花色内按点数A到2排序）
+ * 5. 拖拉机组件调整到视觉上相连
  * @param {Array} cards - 牌数组
  * @param {String} trumpSuit - 主牌花色 (可选)
  * @param {String} trumpRank - 主牌点数 (可选)
@@ -119,7 +121,8 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
     return cards;
   }
 
-  return [...cards].sort((a, b) => {
+  // 第一步：按照基本规则排序
+  let sorted = [...cards].sort((a, b) => {
     const aIsJokerOrTrumpRank = isJokerOrTrumpRank(a, trumpRank);
     const bIsJokerOrTrumpRank = isJokerOrTrumpRank(b, trumpRank);
     const aIsTrumpSuitCard = isTrumpSuitCard(a, trumpSuit, trumpRank);
@@ -168,4 +171,161 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
 
     return rankB - rankA; // 降序：A到2
   });
+
+  // 第二步：如果有主牌信息，调整拖拉机使其组件相连
+  if (trumpSuit && trumpRank && sorted.length >= 4) {
+    sorted = adjustTractorsForVisualContinuity(sorted, trumpSuit, trumpRank);
+  }
+
+  return sorted;
+}
+
+/**
+ * 调整拖拉机使其组件在视觉上相连
+ * @param {Array} cards - 已排序的牌数组
+ * @param {String} trumpSuit - 主牌花色
+ * @param {String} trumpRank - 级牌
+ * @returns {Array} 调整后的牌数组
+ */
+function adjustTractorsForVisualContinuity(cards, trumpSuit, trumpRank) {
+  // 只处理主牌区域的拖拉机
+  const trumpCards = cards.filter(c => isTrumpCard(c, trumpSuit, trumpRank));
+  if (trumpCards.length < 4) {
+    return cards;
+  }
+
+  // 检测所有对子
+  const pairs = [];
+  const used = new Set();
+
+  for (let i = 0; i < trumpCards.length; i++) {
+    if (used.has(i)) continue;
+    const card1 = trumpCards[i];
+
+    for (let j = i + 1; j < trumpCards.length; j++) {
+      if (used.has(j)) continue;
+      const card2 = trumpCards[j];
+
+      // 判断是否是对子
+      if (card1.rank === card2.rank && card1.suit === card2.suit) {
+        pairs.push({
+          cards: [card1, card2],
+          strength: getCardStrength(card1, trumpSuit, trumpRank),
+          indices: [
+            cards.findIndex(c => c.id === card1.id),
+            cards.findIndex(c => c.id === card2.id)
+          ]
+        });
+        used.add(i);
+        used.add(j);
+        break;
+      }
+    }
+  }
+
+  if (pairs.length < 2) {
+    return cards;
+  }
+
+  // 按强度排序对子
+  pairs.sort((a, b) => a.strength - b.strength);
+
+  // 找出所有拖拉机
+  const tractors = [];
+  let tractorStart = 0;
+
+  for (let i = 1; i <= pairs.length; i++) {
+    let isConsecutive = false;
+
+    if (i < pairs.length) {
+      const prevStrength = pairs[i-1].strength;
+      const currStrength = pairs[i].strength;
+      const strengthDiff = currStrength - prevStrength;
+
+      // 检查是否无主局
+      const isNoTrump = !trumpSuit || trumpSuit === 'no_trump';
+
+      // 判断是否连续（使用和Hand.jsx相同的逻辑）
+      if ((prevStrength === 997 && currStrength === 998) ||
+          (prevStrength === 998 && currStrength === 999) ||
+          (prevStrength === 999 && currStrength === 1000) ||
+          (prevStrength === 997 && currStrength === 999 && isNoTrump)) {  // 仅无主局
+        isConsecutive = true;
+      } else if (strengthDiff === 1) {
+        isConsecutive = true;
+      } else if (strengthDiff === 2) {
+        const trumpRankValue = RANK_ORDER[trumpRank] || 0;
+        if (trumpRankValue === prevStrength + 1) {
+          isConsecutive = true;
+        }
+      }
+    }
+
+    if (!isConsecutive) {
+      // 当前拖拉机结束
+      const tractorLength = i - tractorStart;
+      if (tractorLength >= 2) {
+        const tractorPairs = pairs.slice(tractorStart, i);
+        tractors.push({
+          pairs: tractorPairs,
+          length: tractorLength
+        });
+      }
+      tractorStart = i;
+    }
+  }
+
+  if (tractors.length === 0) {
+    return cards;
+  }
+
+  // 对每个拖拉机，调整其成员牌的位置使其相连
+  let result = [...cards];
+
+  for (const tractor of tractors) {
+    // 重新计算拖拉机牌的当前索引（因为之前的调整可能改变了位置）
+    const tractorCardIds = tractor.pairs.flatMap(pair => pair.cards.map(c => c.id));
+    const currentIndices = tractorCardIds.map(id => result.findIndex(c => c.id === id));
+    currentIndices.sort((a, b) => a - b);
+
+    // 检查这些牌是否已经相连
+    let isAlreadyContinuous = true;
+    for (let i = 1; i < currentIndices.length; i++) {
+      if (currentIndices[i] !== currentIndices[i-1] + 1) {
+        isAlreadyContinuous = false;
+        break;
+      }
+    }
+
+    if (isAlreadyContinuous) {
+      continue; // 已经相连，不需要调整
+    }
+
+    // 提取拖拉机的所有牌（按强度排序，保证从小到大）
+    const tractorCards = tractorCardIds.map(id => result.find(c => c.id === id));
+    tractorCards.sort((a, b) => {
+      const strengthA = getCardStrength(a, trumpSuit, trumpRank);
+      const strengthB = getCardStrength(b, trumpSuit, trumpRank);
+      return strengthA - strengthB;
+    });
+
+    // 从result中移除这些牌
+    result = result.filter(c => !tractorCardIds.includes(c.id));
+
+    // 找到插入位置：原来拖拉机中最小索引的位置
+    const minOriginalIndex = Math.min(...currentIndices);
+    let insertPos = minOriginalIndex;
+
+    // 调整插入位置（考虑已删除的牌）
+    for (let i = 0; i < minOriginalIndex; i++) {
+      if (tractorCardIds.includes(cards[i]?.id)) {
+        insertPos--;
+      }
+    }
+
+    // 在该位置重新插入拖拉机的牌
+    result.splice(insertPos, 0, ...tractorCards);
+  }
+
+  return result;
 }

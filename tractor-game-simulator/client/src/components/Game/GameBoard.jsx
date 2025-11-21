@@ -865,7 +865,7 @@ export default function GameBoard() {
 
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
 
-  // 渲染控制按钮区域（每行最多4个按钮）
+  // 渲染控制按钮区域 - 简化版,只保留核心功能按钮
   const renderControlButtons = () => {
     const buttonStyle = { width: '100px', fontSize: '13px' };
 
@@ -891,14 +891,8 @@ export default function GameBoard() {
             );
           }
 
-          buttons.push(
-            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-              修改昵称
-            </Button>
-          );
-
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               {buttons}
             </div>
           );
@@ -906,37 +900,21 @@ export default function GameBoard() {
         return null;
 
       case GamePhases.DRAWING:
-        const drawingButtons = [
-          <Button
-            key="selectAll"
-            onClick={handleSelectAllCards}
-            disabled={myCards.length === 0}
-            style={buttonStyle}
-          >
-            全选
-          </Button>,
-          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-            改昵称
-          </Button>
-        ];
-
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
-            {drawingButtons}
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button
+              key="selectAll"
+              onClick={handleSelectAllCards}
+              disabled={myCards.length === 0}
+              style={buttonStyle}
+            >
+              全选
+            </Button>
           </div>
         );
 
       case GamePhases.BURYING:
         const buryingButtons = [];
-
-        // 调试信息
-        console.log('BURYING阶段调试:', {
-          isBuryingPlayer,
-          buryingPlayerId: gameState?.buryingPlayerId,
-          currentPlayerId: currentPlayer?.id,
-          selectedCardsCount: selectedCards.length,
-          requiredCount: currentRoom?.config?.bottomCardsCount
-        });
 
         if (isBuryingPlayer) {
           buryingButtons.push(
@@ -951,7 +929,6 @@ export default function GameBoard() {
             </Button>
           );
         } else {
-          // 如果不是埋底玩家，显示提示信息
           buryingButtons.push(
             <Button key="waiting" disabled style={{ ...buttonStyle, width: '150px' }}>
               等待庄家埋底
@@ -959,21 +936,13 @@ export default function GameBoard() {
           );
         }
 
-        buryingButtons.push(
-          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-            改昵称
-          </Button>
-        );
-
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             {buryingButtons}
           </div>
         );
 
       case GamePhases.PLAYING:
-        const playingButtons = [];
-
         // 检查是否轮到当前玩家出牌
         const isMyTurn = gameState?.playMode === PlayModes.FREE ||
                         (gameState?.currentPlayerIndex !== null &&
@@ -983,13 +952,10 @@ export default function GameBoard() {
         // 检查是否可以撤回
         const canUndo = (() => {
           if (!currentPlayer?.id) return false;
-          // 找到当前玩家最后一次出牌的索引
           const lastPlayIndex = playHistory.map(p => p.playerId).lastIndexOf(currentPlayer.id);
           if (lastPlayIndex === -1) {
-            // 没有出牌记录
             return false;
           }
-          // 检查在此之后是否有其他玩家出牌
           const hasSubsequentPlays = playHistory
             .slice(lastPlayIndex + 1)
             .some(p => p.playerId !== currentPlayer.id);
@@ -1002,10 +968,8 @@ export default function GameBoard() {
             return { valid: false, message: '请选择要出的牌' };
           }
 
-          // 获取选中的牌对象
           const selectedCardObjects = myCards.filter(card => selectedCards.includes(card.id));
 
-          // 判断是首发还是跟牌
           const isLeading = gameState?.currentRoundPlays === 0 ||
                            gameState?.playersPlayedThisRound?.length === 0 ||
                            (Array.isArray(gameState?.playersPlayedThisRound) && gameState.playersPlayedThisRound.length === 0);
@@ -1013,10 +977,8 @@ export default function GameBoard() {
           if (isLeading) {
             return validateLeadingPlay(selectedCardObjects, trumpSuit, trumpRank);
           } else {
-            // 跟牌时需要知道首发牌型
             const leadingPattern = gameState?.leadingPattern;
             if (!leadingPattern) {
-              // 如果没有首发牌型信息，按首发验证
               return validateLeadingPlay(selectedCardObjects, trumpSuit, trumpRank);
             }
             return validateFollowingPlay(selectedCardObjects, myCards, leadingPattern, trumpSuit, trumpRank);
@@ -1027,8 +989,9 @@ export default function GameBoard() {
         const playButtonTitle = !isMyTurn ? '还没轮到你出牌' :
                                !validateSelectedCards.valid ? validateSelectedCards.message : '';
 
-        if (gameState.buryingPlayerId) {
-          playingButtons.push(
+        // 右上角只保留: 出牌、撤回、聊天、全选
+        return (
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <Button
               key="play"
               type="primary"
@@ -1038,10 +1001,7 @@ export default function GameBoard() {
               title={playButtonTitle}
             >
               出牌({selectedCards.length})
-            </Button>,
-            <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
-              聊天
-            </Button>,
+            </Button>
             <Button
               key="undo"
               onClick={handleUndoPlay}
@@ -1051,108 +1011,32 @@ export default function GameBoard() {
             >
               撤回
             </Button>
-          );
-
-          if (currentPlayer?.id === gameState.buryingPlayerId) {
-            playingButtons.push(
-              <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
-                看底牌
-              </Button>
-            );
-          }
-
-          playingButtons.push(
+            <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
+              聊天
+            </Button>
             <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
               全选
-            </Button>,
-            <Button key="score-5" onClick={() => handleQuickAdjustScore(-5)} style={buttonStyle}>
-              -5分
-            </Button>,
-            <Button key="score+5" onClick={() => handleQuickAdjustScore(5)} style={buttonStyle}>
-              +5分
-            </Button>,
-            <Button key="score+10" onClick={() => handleQuickAdjustScore(10)} style={buttonStyle}>
-              +10分
-            </Button>,
-            <Button key="level-1" onClick={() => handleQuickAdjustLevel(-1)} style={buttonStyle}>
-              -1级
-            </Button>,
-            <Button key="level+1" onClick={() => handleQuickAdjustLevel(1)} style={buttonStyle}>
-              +1级
             </Button>
-          );
-
-          if (isHost) {
-            playingButtons.push(
-              <Button key="restart" danger onClick={handleRestartGame} style={buttonStyle}>
-                重新开始
-              </Button>
-            );
-          }
-
-          playingButtons.push(
-            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-              改昵称
-            </Button>
-          );
-        }
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
-            {playingButtons}
           </div>
         );
 
       case GamePhases.REVEALING:
-        const revealingButtons = [
-          <Button
-            key="ready"
-            type="primary"
-            onClick={handleReadyForNext}
-            disabled={isReadyForNext}
-            style={buttonStyle}
-          >
-            {isReadyForNext ? '已准备' : '开始下一局'}
-          </Button>,
-          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-            改昵称
-          </Button>
-        ];
-
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
-            {revealingButtons}
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button
+              key="ready"
+              type="primary"
+              onClick={handleReadyForNext}
+              disabled={isReadyForNext}
+              style={buttonStyle}
+            >
+              {isReadyForNext ? '已准备' : '开始下一局'}
+            </Button>
           </div>
         );
 
       case GamePhases.FINISHED:
-        const finishedButtons = [];
-
-        if (isHost) {
-          finishedButtons.push(
-            <Button key="adjustScore" onClick={() => setScoreAdjustModal(true)} style={buttonStyle}>
-              调整分数
-            </Button>,
-            <Button key="adjustLevel" onClick={() => setLevelAdjustModal(true)} style={buttonStyle}>
-              调整等级
-            </Button>,
-            <Button key="restart" type="primary" onClick={handleRestartGame} style={buttonStyle}>
-              重新开始
-            </Button>
-          );
-        }
-
-        finishedButtons.push(
-          <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-            改昵称
-          </Button>
-        );
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
-            {finishedButtons}
-          </div>
-        );
+        return null;
 
       default:
         return null;
@@ -1197,6 +1081,7 @@ export default function GameBoard() {
                 team1Level={gameState?.team1Level}
                 team2Level={gameState?.team2Level}
                 dealerPlayerIndex={gameState?.dealerPlayerIndex}
+                onRename={handleOpenRenameModal}
               />
             </div>
           );
@@ -1292,6 +1177,7 @@ export default function GameBoard() {
               team1Level={gameState?.team1Level}
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
+              onRename={handleOpenRenameModal}
             />
           </div>
         );
@@ -1324,6 +1210,7 @@ export default function GameBoard() {
               team1Level={gameState?.team1Level}
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
+              onRename={handleOpenRenameModal}
             />
           </div>
         );
@@ -1363,15 +1250,13 @@ export default function GameBoard() {
               team1Level={gameState?.team1Level}
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
+              onRename={handleOpenRenameModal}
             />
           </div>
         );
 
       case GamePhases.REVEALING:
-        const revealingCurrentTurnPlayerId = gameState?.currentPlayerIndex !== null && gameState?.currentPlayerIndex !== undefined
-          ? currentRoom.players[gameState.currentPlayerIndex]?.id
-          : null;
-
+        // 揭示底牌阶段不需要高亮边框，传递 null
         return (
           <div className="phase-content playing-phase">
             {/* 游戏桌面 - 展示底牌，保留所有人的出牌 */}
@@ -1384,7 +1269,7 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
-              currentTurnPlayerId={revealingCurrentTurnPlayerId}
+              currentTurnPlayerId={null}
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
@@ -1409,10 +1294,7 @@ export default function GameBoard() {
         );
 
       case GamePhases.FINISHED:
-        const finishedCurrentTurnPlayerId = gameState?.currentPlayerIndex !== null && gameState?.currentPlayerIndex !== undefined
-          ? currentRoom.players[gameState.currentPlayerIndex]?.id
-          : null;
-
+        // 游戏结束阶段不需要高亮边框，传递 null
         return (
           <div className="phase-content playing-phase">
             {/* 游戏桌面 - 游戏结束，保留所有人的出牌和底牌 */}
@@ -1425,7 +1307,7 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={reorderCards}
-              currentTurnPlayerId={finishedCurrentTurnPlayerId}
+              currentTurnPlayerId={null}
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
@@ -1445,6 +1327,7 @@ export default function GameBoard() {
               team1Level={gameState?.team1Level}
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
+              onRename={handleOpenRenameModal}
             />
           </div>
         );

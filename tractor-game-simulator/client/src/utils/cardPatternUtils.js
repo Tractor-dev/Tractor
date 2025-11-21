@@ -178,10 +178,14 @@ function checkTrumpTractor(pairs, trumpSuit, trumpRank) {
     const current = pairs[i];
     const next = pairs[i + 1];
 
+    // 检查是否无主局
+    const isNoTrump = !trumpSuit || trumpSuit === 'no_trump';
+
     if (next.strength - current.strength !== 1 &&
         !(current.strength === 997 && next.strength === 998) &&
         !(current.strength === 998 && next.strength === 999) &&
-        !(current.strength === 999 && next.strength === 1000)) {
+        !(current.strength === 999 && next.strength === 1000) &&
+        !(current.strength === 997 && next.strength === 999 && isNoTrump)) {  // 仅无主局：级牌(997) -> 小王(999)
 
       const currentRankValue = RANK_ORDER[current.rank] || 0;
       const nextRankValue = RANK_ORDER[next.rank] || 0;

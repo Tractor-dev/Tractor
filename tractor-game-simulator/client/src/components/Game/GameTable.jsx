@@ -1,5 +1,6 @@
 import { Typography, Button } from 'antd';
 import Hand from './Hand';
+import { sortCards } from '../../utils/cardUtils';
 import './GameTable.css';
 
 const { Text } = Typography;
@@ -187,39 +188,17 @@ export default function GameTable({
         </div>
 
         <div className="player-cards-area">
-          {/* 显示亮主信息 */}
-          {hasDeclaredTrump && (
-            <div className="declared-trump">
-              <Text
-                strong
-                style={{
-                  color: '#f5222d',
-                  fontSize: '14px',
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  padding: '4px 8px',
-                  borderRadius: '12px',
-                  display: 'inline-block',
-                  marginBottom: '6px'
-                }}
-              >
-                {currentTrumpDeclaration.isCounter ? '反主' : '亮主'}
-              </Text>
-              {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
-                <Hand cards={currentTrumpDeclaration.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
-              )}
-            </div>
-          )}
+          {/* 亮主区域 - 其他玩家的亮主在这里居中显示 */}
+          <div className="declared-trump-zone">
+            {hasDeclaredTrump && currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+              <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+            )}
+          </div>
 
-          {played && played.cards && played.cards.length > 0 && (
-            <div className="played-cards">
-              <Text type="success">出牌:</Text>
-              <Hand cards={played.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
-            </div>
-          )}
           {shown && shown.cards && shown.cards.length > 0 && (
             <div className="shown-cards">
               <Text type="info">展示:</Text>
-              <Hand cards={shown.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+              <Hand cards={shown.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
             </div>
           )}
         </div>
@@ -259,6 +238,21 @@ export default function GameTable({
   };
 
   const teamLabels = getTeamLabels();
+
+  // 渲染出牌区域（在玩家框和桌面中央之间）
+  const renderPlayedCardsArea = (player, position) => {
+    if (!player) return null;
+    const played = playedCards[player.id];
+
+    // 始终渲染出牌区域，即使没有牌，以保持布局稳定
+    return (
+      <div className={`played-cards-area played-cards-${position}`}>
+        {played && played.cards && played.cards.length > 0 && (
+          <Hand cards={sortCards(played.cards, trumpSuit, trumpRank)} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="game-table">
@@ -342,6 +336,7 @@ export default function GameTable({
       {positions.top && (
         <div className="position-top">
           {renderPlayerArea(positions.top, 'top')}
+          {renderPlayedCardsArea(positions.top, 'top')}
         </div>
       )}
 
@@ -351,6 +346,7 @@ export default function GameTable({
         {positions.left && (
           <div className="position-left">
             {renderPlayerArea(positions.left, 'left')}
+            {renderPlayedCardsArea(positions.left, 'left')}
           </div>
         )}
 
@@ -562,6 +558,7 @@ export default function GameTable({
         {positions.right && (
           <div className="position-right">
             {renderPlayerArea(positions.right, 'right')}
+            {renderPlayedCardsArea(positions.right, 'right')}
           </div>
         )}
       </div>
@@ -569,8 +566,11 @@ export default function GameTable({
       {/* 下方玩家（自己） */}
       {positions.bottom && (
         <div className="position-bottom">
-          <div className="player-area player-bottom current-player">
-            {/* 上半部分：玩家信息、出牌区、控制按钮 */}
+          {/* 我的出牌区域 - 在玩家框上方居中 */}
+          {renderPlayedCardsArea(positions.bottom, 'bottom')}
+
+          <div className={`player-area player-bottom current-player ${positions.bottom.id === currentTurnPlayerId ? 'current-turn' : ''}`}>
+            {/* 上半部分：玩家信息和控制按钮 */}
             <div className="bottom-player-header">
               <div className="player-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -615,46 +615,7 @@ export default function GameTable({
                 <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
               </div>
 
-              {/* 我的出牌/展示区域 - 在控制按钮左边 */}
-              <div className="my-play-area-inline">
-                {/* 显示我的亮主信息 */}
-                {currentTrumpDeclaration && currentTrumpDeclaration.playerId === positions.bottom.id && (
-                  <div className="my-declared-trump-inline" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <Text
-                      strong
-                      style={{
-                        color: '#f5222d',
-                        fontSize: '14px',
-                        background: 'rgba(255, 255, 255, 0.9)',
-                        padding: '4px 8px',
-                        borderRadius: '12px',
-                        display: 'inline-block',
-                        marginBottom: '6px'
-                      }}
-                    >
-                      {currentTrumpDeclaration.isCounter ? '反主' : '亮主'}
-                    </Text>
-                    {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
-                      <Hand cards={currentTrumpDeclaration.cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
-                    )}
-                  </div>
-                )}
-
-                {playedCards[positions.bottom.id] && playedCards[positions.bottom.id].cards && playedCards[positions.bottom.id].cards.length > 0 && (
-                  <div className="my-played-cards-inline">
-                    <Text type="success" style={{ color: '#52c41a', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的出牌:</Text>
-                    <Hand cards={playedCards[positions.bottom.id].cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
-                  </div>
-                )}
-                {shownCards[positions.bottom.id] && shownCards[positions.bottom.id].cards && shownCards[positions.bottom.id].cards.length > 0 && (
-                  <div className="my-shown-cards-inline">
-                    <Text type="info" style={{ color: '#1890ff', fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
-                    <Hand cards={shownCards[positions.bottom.id].cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
-                  </div>
-                )}
-              </div>
-
-              {/* 控制按钮区域 - 在出牌区右边 */}
+              {/* 控制按钮区域 - 右侧 */}
               {renderControls && (
                 <div className="inline-controls">
                   {renderControls}
@@ -669,16 +630,27 @@ export default function GameTable({
               </div>
             )}
 
-            {/* 自己的手牌 */}
-            <div className="my-hand">
-              <Hand
-                cards={myCards}
-                selectedCards={selectedCards}
-                onCardClick={onCardClick}
-                onReorder={onReorder}
-                trumpSuit={trumpSuit}
-                trumpRank={trumpRank}
-              />
+            {/* 自己的手牌区域 - 左端分一小块作为亮主区 */}
+            <div className="my-hand-container">
+              {/* 亮主区域 - 只在有亮主时显示 */}
+              {currentTrumpDeclaration && currentTrumpDeclaration.playerId === positions.bottom.id && (
+                <div className="bottom-trump-zone">
+                  {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+                    <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                  )}
+                </div>
+              )}
+              {/* 手牌区域 */}
+              <div className="my-hand">
+                <Hand
+                  cards={myCards}
+                  selectedCards={selectedCards}
+                  onCardClick={onCardClick}
+                  onReorder={onReorder}
+                  trumpSuit={trumpSuit}
+                  trumpRank={trumpRank}
+                />
+              </div>
             </div>
           </div>
         </div>

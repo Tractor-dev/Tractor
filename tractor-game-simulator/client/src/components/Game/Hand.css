@@ -3,12 +3,14 @@
   --card-overlap: 25px;
   display: flex;
   flex-direction: row;
-  justify-content: flex-start;
+  justify-content: center; /* 改为居中对齐 */
   align-items: flex-end;
   padding: 10px 5px; /* 减小内边距，增加可用空间 */
   min-height: 150px;
   flex-wrap: nowrap;
+  width: 100%; /* 添加100%宽度 */
   max-width: 100%;
+  box-sizing: border-box; /* 添加box-sizing */
   overflow-x: visible; /* 允许溢出可见，而不是滚动 */
 }
 
@@ -34,6 +36,10 @@
   --card-overlap: 45px;
 }
 
+.hand.compact-4 {
+  --card-overlap: 50px; /* 33张牌时的重叠度 */
+}
+
 .hand.small {
   --card-width: 50px;
   --card-overlap: 18px;
@@ -52,6 +58,10 @@
 
 .hand.small.compact-3 {
   --card-overlap: 35px;
+}
+
+.hand.small.compact-4 {
+  --card-overlap: 38px; /* 小卡片33张时的重叠度 */
 }
 
 /* 拖拉机标记样式 */

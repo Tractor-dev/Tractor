@@ -78,10 +78,14 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
           const currStrength = pairs[i].strength;
           const strengthDiff = currStrength - prevStrength;
 
+          // 检查是否无主局
+          const isNoTrump = !trumpSuit || trumpSuit === 'no_trump';
+
           // 主牌的特殊连接
           if ((prevStrength === 997 && currStrength === 998) ||
               (prevStrength === 998 && currStrength === 999) ||
-              (prevStrength === 999 && currStrength === 1000)) {
+              (prevStrength === 999 && currStrength === 1000) ||
+              (prevStrength === 997 && currStrength === 999 && isNoTrump)) {  // 仅无主局：级牌(997) -> 小王(999)
             isConsecutive = true;
           }
           // 强度差为1，直接连续
@@ -160,6 +164,7 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
   // 根据牌数计算紧凑程度
   const getCompactClass = () => {
     const cardCount = cards.length;
+    if (cardCount > 31) return 'compact-4'; // 33张牌（看底牌时）
     if (cardCount > 28) return 'compact-3';
     if (cardCount > 22) return 'compact-2';
     if (cardCount > 15) return 'compact-1';
