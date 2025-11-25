@@ -381,6 +381,9 @@ export default function GameBoard() {
       messageApi.success('房间设置已更新，将在下一局游戏生效');
       setNewBottomCardsCount(config.bottomCardsCount);
       setNewDealInterval(config.dealInterval);
+      if (config.playMode) {
+        setNewPlayMode(config.playMode);
+      }
     });
 
     // 玩家昵称更新
