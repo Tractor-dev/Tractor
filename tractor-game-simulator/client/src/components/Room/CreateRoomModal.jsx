@@ -1,10 +1,12 @@
 import { Modal, Form, Input, InputNumber, Switch, Typography } from 'antd';
 import { PlayModes } from '../../utils/constants';
+import { useI18n } from '../../locales/index.jsx';
 
 const { Text } = Typography;
 
 export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
   const [form] = Form.useForm();
+  const { t } = useI18n();
 
   const handleSubmit = () => {
     form.validateFields().then(values => {
@@ -15,70 +17,70 @@ export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
 
   return (
     <Modal
-      title="创建房间"
+      title={t('room.createRoom')}
       open={visible}
       onOk={handleSubmit}
       onCancel={onClose}
-      okText="创建"
-      cancelText="取消"
+      okText={t('common.create')}
+      cancelText={t('common.cancel')}
     >
       <Form
         form={form}
         layout="vertical"
         initialValues={{
-          roomName: '我的房间',
-          playerName: '玩家1',
+          roomName: t('room.defaultRoomName'),
+          playerName: `${t('room.defaultPlayerName')}1`,
           bottomCardsCount: 8,
           dealInterval: 100,
           isFreeMode: false
         }}
       >
         <Form.Item
-          label="房间名称"
+          label={t('createRoomForm.roomNameLabel')}
           name="roomName"
-          rules={[{ required: true, message: '请输入房间名称' }]}
+          rules={[{ required: true, message: t('createRoomForm.roomNameRequired') }]}
         >
-          <Input placeholder="请输入房间名称" />
+          <Input placeholder={t('createRoomForm.roomNamePlaceholder')} />
         </Form.Item>
 
         <Form.Item
-          label="你的昵称"
+          label={t('createRoomForm.playerNameLabel')}
           name="playerName"
-          rules={[{ required: true, message: '请输入昵称' }]}
+          rules={[{ required: true, message: t('createRoomForm.playerNameRequired') }]}
         >
-          <Input placeholder="请输入你的昵称" />
+          <Input placeholder={t('createRoomForm.playerNamePlaceholder')} />
         </Form.Item>
 
         <Form.Item
-          label="底牌数量"
+          label={t('createRoomForm.bottomCardsLabel')}
           name="bottomCardsCount"
-          rules={[{ required: true, message: '请输入底牌数量' }]}
+          rules={[{ required: true, message: t('createRoomForm.bottomCardsRequired') }]}
         >
           <InputNumber min={1} max={20} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item
-          label="发牌间隔（毫秒）"
+          label={t('createRoomForm.dealIntervalLabel')}
           name="dealInterval"
-          rules={[{ required: true, message: '请输入发牌间隔' }]}
+          rules={[{ required: true, message: t('createRoomForm.dealIntervalRequired') }]}
         >
           <InputNumber min={10} max={5000} step={100} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item label="游戏模式">
+        <Form.Item label={t('createRoomForm.gameModeLabel')}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text strong>自由模式:</Text>
+              <Text strong>{t('createRoomForm.freeMode')}:</Text>
               <Form.Item name="isFreeMode" noStyle valuePropName="checked">
                 <Switch
-                  checkedChildren="开启"
-                  unCheckedChildren="关闭"
+                  checkedChildren={t('createRoomForm.freeModeOn')}
+                  unCheckedChildren={t('createRoomForm.freeModeOff')}
                 />
               </Form.Item>
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级<br />
-              基础模式：按顺序出牌，完善的亮主、得分和升级规则
+              {t('createRoomForm.freeModeDesc')}<br />
+              {t('createRoomForm.basicModeDesc')}
             </Text>
           </div>
         </Form.Item>

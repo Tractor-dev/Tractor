@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { Modal, Form, Input } from 'antd';
+import { useI18n } from '../../locales/index.jsx';
 
 export default function JoinRoomModal({ visible, onClose, onJoinRoom, roomId = '' }) {
   const [form] = Form.useForm();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (visible && roomId) {
@@ -24,34 +26,34 @@ export default function JoinRoomModal({ visible, onClose, onJoinRoom, roomId = '
 
   return (
     <Modal
-      title="加入房间"
+      title={t('room.joinRoom')}
       open={visible}
       onOk={handleSubmit}
       onCancel={handleCancel}
-      okText="加入"
-      cancelText="取消"
+      okText={t('common.join')}
+      cancelText={t('common.cancel')}
     >
       <Form
         form={form}
         layout="vertical"
         initialValues={{
-          playerName: `玩家${Math.floor(Math.random() * 1000)}`
+          playerName: `${t('room.defaultPlayerName')}${Math.floor(Math.random() * 1000)}`
         }}
       >
         <Form.Item
-          label="房间ID"
+          label={t('joinRoomForm.roomIdLabel')}
           name="roomId"
-          rules={[{ required: true, message: '请输入房间ID' }]}
+          rules={[{ required: true, message: t('joinRoomForm.roomIdRequired') }]}
         >
-          <Input placeholder="请输入房间ID或从列表选择" disabled={!!roomId} />
+          <Input placeholder={t('room.enterRoomId')} disabled={!!roomId} />
         </Form.Item>
 
         <Form.Item
-          label="你的昵称"
+          label={t('createRoomForm.playerNameLabel')}
           name="playerName"
-          rules={[{ required: true, message: '请输入昵称' }]}
+          rules={[{ required: true, message: t('createRoomForm.playerNameRequired') }]}
         >
-          <Input placeholder="请输入你的昵称" maxLength={20} />
+          <Input placeholder={t('createRoomForm.playerNamePlaceholder')} maxLength={20} />
         </Form.Item>
       </Form>
     </Modal>
