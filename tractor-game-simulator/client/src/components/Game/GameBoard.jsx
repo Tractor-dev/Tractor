@@ -958,23 +958,43 @@ export default function GameBoard() {
             </Button>
           );
 
+          if (isHost) {
+            drawingButtons.push(
+              <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+                房间设置
+              </Button>
+            );
+          }
+
           return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
               {drawingButtons}
             </div>
           );
         } else {
-          // 基础模式：只保留全选
+          // 基础模式：只保留全选和房间设置（房主）
+          const drawingButtons = [
+            <Button
+              key="selectAll"
+              onClick={handleSelectAllCards}
+              disabled={myCards.length === 0}
+              style={buttonStyle}
+            >
+              全选
+            </Button>
+          ];
+
+          if (isHost) {
+            drawingButtons.push(
+              <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+                房间设置
+              </Button>
+            );
+          }
+
           return (
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <Button
-                key="selectAll"
-                onClick={handleSelectAllCards}
-                disabled={myCards.length === 0}
-                style={buttonStyle}
-              >
-                全选
-              </Button>
+              {drawingButtons}
             </div>
           );
         }
@@ -998,6 +1018,14 @@ export default function GameBoard() {
           buryingButtons.push(
             <Button key="waiting" disabled style={{ ...buttonStyle, width: '150px' }}>
               等待庄家埋底
+            </Button>
+          );
+        }
+
+        if (isHost) {
+          buryingButtons.push(
+            <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+              房间设置
             </Button>
           );
         }
@@ -1120,6 +1148,14 @@ export default function GameBoard() {
                 改昵称
               </Button>
             );
+
+            if (isHost) {
+              playingButtons.push(
+                <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+                  房间设置
+                </Button>
+              );
+            }
           }
 
           return (
@@ -1128,7 +1164,7 @@ export default function GameBoard() {
             </div>
           );
         } else {
-          // 基础模式：出牌、撤回、聊天、全选、看底牌（庄家）、重新开始（房主）、修改昵称
+          // 基础模式：出牌、撤回、聊天、全选、看底牌（庄家）、重新开始（房主）、修改昵称、房间设置（房主）
           const playingButtons = [
             <Button
               key="play"
@@ -1182,6 +1218,15 @@ export default function GameBoard() {
             </Button>
           );
 
+          // 房间设置（仅房主）
+          if (isHost) {
+            playingButtons.push(
+              <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+                房间设置
+              </Button>
+            );
+          }
+
           return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
               {playingButtons}
@@ -1190,22 +1235,44 @@ export default function GameBoard() {
         }
 
       case GamePhases.REVEALING:
+        const revealingButtons = [
+          <Button
+            key="ready"
+            type="primary"
+            onClick={handleReadyForNext}
+            disabled={isReadyForNext}
+            style={buttonStyle}
+          >
+            {isReadyForNext ? '已准备' : '开始下一局'}
+          </Button>
+        ];
+
+        if (isHost) {
+          revealingButtons.push(
+            <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+              房间设置
+            </Button>
+          );
+        }
+
         return (
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <Button
-              key="ready"
-              type="primary"
-              onClick={handleReadyForNext}
-              disabled={isReadyForNext}
-              style={buttonStyle}
-            >
-              {isReadyForNext ? '已准备' : '开始下一局'}
-            </Button>
+            {revealingButtons}
           </div>
         );
 
       case GamePhases.FINISHED:
-        return null;
+        if (!isHost) {
+          return null;
+        }
+
+        return (
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+              房间设置
+            </Button>
+          </div>
+        );
 
       default:
         return null;
