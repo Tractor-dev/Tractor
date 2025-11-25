@@ -174,20 +174,29 @@ export class GameEngine {
     // 进入出牌阶段
     this.room.gameState.phase = GamePhases.PLAYING;
 
-    // 埋底玩家自动成为首发玩家，开始第一轮
-    const playerIndex = this.room.getPlayerIndex(playerId);
-    this.room.gameState.firstPlayerId = playerId;
-    this.room.gameState.currentPlayerIndex = playerIndex;
-    this.room.gameState.roundStartPlayerIndex = playerIndex;
-    this.room.gameState.currentRound = 1;
     // Use room config's playMode instead of hardcoding ORDERED
     this.room.gameState.playMode = this.room.config.playMode || PlayModes.ORDERED;
-    this.room.gameState.playersPlayedThisRound.clear();
 
-    // 创建回合管理器
-    this.roundManager = new RoundManager(this.room);
+    const isFreeMode = this.room.gameState.playMode === PlayModes.FREE;
 
-    logger.info(`房间 ${this.room.id} 进入出牌阶段，${player.name} 先出牌，模式: ${this.room.gameState.playMode}`);
+    if (isFreeMode) {
+      // 自由模式：不需要设置首发玩家和回合管理器
+      this.room.gameState.currentPlayerIndex = null; // 自由模式没有"当前玩家"
+      logger.info(`房间 ${this.room.id} 进入自由出牌阶段`);
+    } else {
+      // 基础模式：埋底玩家自动成为首发玩家，开始第一轮
+      const playerIndex = this.room.getPlayerIndex(playerId);
+      this.room.gameState.firstPlayerId = playerId;
+      this.room.gameState.currentPlayerIndex = playerIndex;
+      this.room.gameState.roundStartPlayerIndex = playerIndex;
+      this.room.gameState.currentRound = 1;
+      this.room.gameState.playersPlayedThisRound.clear();
+
+      // 创建回合管理器
+      this.roundManager = new RoundManager(this.room);
+
+      logger.info(`房间 ${this.room.id} 进入出牌阶段，${player.name} 先出牌，模式: ${this.room.gameState.playMode}`);
+    }
 
     return true;
   }
@@ -224,7 +233,9 @@ export class GameEngine {
   }
 
   /**
-   * 出牌 - 按照双升规则，有序出牌
+   * 出牌 - 根据游戏模式处理出牌逻辑
+   * 自由模式：任意玩家可随时出任意牌
+   * 基础模式：按照双升规则，有序出牌
    */
   playCards(playerId, cardIds) {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
@@ -237,6 +248,65 @@ export class GameEngine {
       throw new Error('玩家不存在');
     }
 
+    // 获取当前游戏模式
+    const isFreeMode = this.room.gameState.playMode === PlayModes.FREE;
+
+    // 自由模式：简化逻辑，任何玩家可以随时出任意牌
+    if (isFreeMode) {
+      return this.playCardsFreeMode(player, cardIds);
+    }
+
+    // 基础模式（有序出牌）：保持原有逻辑
+    return this.playCardsOrderedMode(player, cardIds);
+  }
+
+  /**
+   * 自由模式出牌 - 任意玩家可随时出任意牌，无规则验证
+   */
+  playCardsFreeMode(player, cardIds) {
+    // 验证牌是否在手中
+    const validCards = player.cards.filter(card => cardIds.includes(card.id));
+    if (validCards.length !== cardIds.length) {
+      throw new Error('选择的牌不在手中');
+    }
+
+    // 移除牌
+    player.removeCards(cardIds);
+
+    // 记录出牌历史
+    this.room.gameState.playHistory.push({
+      playerId: player.id,
+      playerName: player.name,
+      cards: validCards.map(c => c.toJSON()),
+      timestamp: new Date()
+    });
+
+    logger.info(`房间 ${this.room.id} 玩家 ${player.name} 出牌 ${cardIds.length} 张（自由模式）`);
+
+    // 检查游戏是否结束（所有玩家手牌为0）
+    const allPlayersFinished = this.room.players.every(p => p.cards.length === 0);
+    if (allPlayersFinished) {
+      this.finishGame();
+      return {
+        playedCards: validCards.map(c => c.toJSON()),
+        remainingCount: player.cards.length,
+        gameFinished: true
+      };
+    }
+
+    return {
+      playedCards: validCards.map(c => c.toJSON()),
+      remainingCount: player.cards.length,
+      gameFinished: false
+    };
+  }
+
+  /**
+   * 基础模式出牌 - 按照双升规则，有序出牌
+   */
+  playCardsOrderedMode(player, cardIds) {
+    const playerId = player.id;
+
     // 如果还没有回合管理器，说明还未设置首发玩家
     if (!this.roundManager) {
       throw new Error('还未设置首发玩家');
@@ -247,11 +317,8 @@ export class GameEngine {
 
     // 验证是否轮到该玩家出牌
     if (!this.roundManager.canPlayerPlay(playerIndex)) {
-      const mode = this.room.gameState.playMode;
-      if (mode === PlayModes.ORDERED) {
-        const currentPlayer = this.room.findPlayerByIndex(this.room.gameState.currentPlayerIndex);
-        throw new Error(`现在不是你的回合，请等待 ${currentPlayer.name} 出牌`);
-      }
+      const currentPlayer = this.room.findPlayerByIndex(this.room.gameState.currentPlayerIndex);
+      throw new Error(`现在不是你的回合，请等待 ${currentPlayer.name} 出牌`);
     }
 
     // 验证牌是否在手中
@@ -525,7 +592,8 @@ export class GameEngine {
 
   /**
    * 撤回上次出牌 - 将上次自己打的牌收回手中
-   * 只有当下一位玩家还未出牌时才能撤回
+   * 自由模式：任何时候都可以撤回自己的最后一次出牌
+   * 基础模式：只有当下一位玩家还未出牌时才能撤回
    */
   undoLastPlay(playerId) {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
@@ -555,13 +623,17 @@ export class GameEngine {
       throw new Error('没有找到你的出牌记录');
     }
 
-    // 检查是否有后续的其他玩家出牌记录
-    const hasSubsequentPlays = this.room.gameState.playHistory
-      .slice(lastPlayIndex + 1)
-      .some(play => play.playerId !== playerId);
+    const isFreeMode = this.room.gameState.playMode === PlayModes.FREE;
 
-    if (hasSubsequentPlays) {
-      throw new Error('下一位玩家已经出牌，无法撤回');
+    // 基础模式下检查是否有后续的其他玩家出牌记录
+    if (!isFreeMode) {
+      const hasSubsequentPlays = this.room.gameState.playHistory
+        .slice(lastPlayIndex + 1)
+        .some(play => play.playerId !== playerId);
+
+      if (hasSubsequentPlays) {
+        throw new Error('下一位玩家已经出牌，无法撤回');
+      }
     }
 
     const lastPlay = this.room.gameState.playHistory[lastPlayIndex];
@@ -578,12 +650,10 @@ export class GameEngine {
     // 自动排序
     player.cards = DeckService.autoSortCards(player.cards);
 
-    // 恢复回合状态
-    const playerIndex = lastPlay.playerIndex;
-    this.room.gameState.playersPlayedThisRound.delete(playerIndex);
-
-    // 如果在有序模式下，恢复当前玩家索引
-    if (this.room.gameState.playMode === PlayModes.ORDERED) {
+    // 基础模式下恢复回合状态
+    if (!isFreeMode && lastPlay.playerIndex !== undefined) {
+      const playerIndex = lastPlay.playerIndex;
+      this.room.gameState.playersPlayedThisRound.delete(playerIndex);
       this.room.gameState.currentPlayerIndex = playerIndex;
     }
 
@@ -610,24 +680,45 @@ export class GameEngine {
 
     logger.info(`房间 ${this.room.id} 游戏结束`);
 
-    // 保存当前局的主牌信息（在计算升级更新trumpRank之前）
-    const currentGameTrumpSuit = this.room.gameState.trumpSuit;
-    const currentGameTrumpRank = this.room.gameState.trumpRank;
+    const isFreeMode = this.room.gameState.playMode === PlayModes.FREE;
 
-    // 计算底牌得分
-    const bottomScoreResult = this.calculateBottomScore();
-    // 保存当前局的主牌信息到底牌结果中
-    bottomScoreResult.currentGameTrumpSuit = currentGameTrumpSuit;
-    bottomScoreResult.currentGameTrumpRank = currentGameTrumpRank;
-    this.room.gameState.bottomScoreResult = bottomScoreResult;
+    if (isFreeMode) {
+      // 自由模式：简化的结束逻辑，不计算得分和升级
+      this.room.gameState.bottomScoreResult = {
+        attackerScore: 0,
+        bottomPoints: 0,
+        bottomMultiplier: 1,
+        attackerWonBottom: false,
+        resultText: '自由模式 - 无得分计算'
+      };
+      this.room.gameState.upgradeResult = {
+        attackerWon: false,
+        dealerLevelUp: 0,
+        attackerLevelUp: 0
+      };
+      logger.info('自由模式游戏结束');
+    } else {
+      // 基础模式：完整的得分和升级计算
 
-    logger.info(`底牌结果: ${bottomScoreResult.resultText}, 底牌分数: ${bottomScoreResult.bottomPoints}, 倍数: ${bottomScoreResult.bottomMultiplier}, 闲家总分: ${this.room.gameState.attackerScore}`);
+      // 保存当前局的主牌信息（在计算升级更新trumpRank之前）
+      const currentGameTrumpSuit = this.room.gameState.trumpSuit;
+      const currentGameTrumpRank = this.room.gameState.trumpRank;
 
-    // 计算升级（这会更新trumpRank为下一局的级牌）
-    const upgradeResult = this.calculateUpgrade();
-    this.room.gameState.upgradeResult = upgradeResult;
+      // 计算底牌得分
+      const bottomScoreResult = this.calculateBottomScore();
+      // 保存当前局的主牌信息到底牌结果中
+      bottomScoreResult.currentGameTrumpSuit = currentGameTrumpSuit;
+      bottomScoreResult.currentGameTrumpRank = currentGameTrumpRank;
+      this.room.gameState.bottomScoreResult = bottomScoreResult;
 
-    logger.info(`升级结果: ${upgradeResult.attackerWon ? '闲家获胜' : '庄家获胜'}, 庄家升${upgradeResult.dealerLevelUp}级, 闲家升${upgradeResult.attackerLevelUp}级`);
+      logger.info(`底牌结果: ${bottomScoreResult.resultText}, 底牌分数: ${bottomScoreResult.bottomPoints}, 倍数: ${bottomScoreResult.bottomMultiplier}, 闲家总分: ${this.room.gameState.attackerScore}`);
+
+      // 计算升级（这会更新trumpRank为下一局的级牌）
+      const upgradeResult = this.calculateUpgrade();
+      this.room.gameState.upgradeResult = upgradeResult;
+
+      logger.info(`升级结果: ${upgradeResult.attackerWon ? '闲家获胜' : '庄家获胜'}, 庄家升${upgradeResult.dealerLevelUp}级, 闲家升${upgradeResult.attackerLevelUp}级`);
+    }
 
     // 重置下一局准备状态
     this.room.players.forEach(p => p.isReadyForNext = false);
