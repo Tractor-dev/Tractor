@@ -180,13 +180,14 @@ export class GameEngine {
     this.room.gameState.currentPlayerIndex = playerIndex;
     this.room.gameState.roundStartPlayerIndex = playerIndex;
     this.room.gameState.currentRound = 1;
-    this.room.gameState.playMode = PlayModes.ORDERED;
+    // Use room config's playMode instead of hardcoding ORDERED
+    this.room.gameState.playMode = this.room.config.playMode || PlayModes.ORDERED;
     this.room.gameState.playersPlayedThisRound.clear();
 
     // 创建回合管理器
     this.roundManager = new RoundManager(this.room);
 
-    logger.info(`房间 ${this.room.id} 进入出牌阶段，${player.name} 先出牌`);
+    logger.info(`房间 ${this.room.id} 进入出牌阶段，${player.name} 先出牌，模式: ${this.room.gameState.playMode}`);
 
     return true;
   }
