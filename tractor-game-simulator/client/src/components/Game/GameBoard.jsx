@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch } from 'antd';
+import { GlobalOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
 import { detectAvailableDeclarations } from '../../utils/trumpUtils';
 import { validateLeadingPlay, validateFollowingPlay } from '../../utils/cardPatternUtils';
+import { useI18n, LANGUAGE_NAMES } from '../../locales/index.jsx';
 import Hand from './Hand';
 import GameTable from './GameTable';
 import RuleSelector from './RuleSelector';
@@ -29,6 +31,7 @@ export default function GameBoard() {
     setTrumpInfo
   } = useGameStore();
 
+  const { t, language, toggleLanguage } = useI18n();
   const [messageApi, contextHolder] = message.useMessage();
   const [buryingPlayerModal, setBuryingPlayerModal] = useState(false);
   const [firstPlayerModal, setFirstPlayerModal] = useState(false);
@@ -114,13 +117,13 @@ export default function GameBoard() {
 
     // 游戏开始
     socket.on('game_started', ({ gameState }) => {
-      messageApi.success('游戏开始！');
+      messageApi.success(t('game.gameStarted'));
       setShownCards({}); // 清空展示的牌
     });
 
     // 游戏重新开始
     socket.on('game_restarted', () => {
-      messageApi.success('游戏重新开始！');
+      messageApi.success(t('game.gameRestarted'));
       setMyCards([]); // 清空手牌
       setShownCards({}); // 清空展示的牌
       setPlayedCards({}); // 清空已出的牌
@@ -143,7 +146,7 @@ export default function GameBoard() {
 
     // 玩家展示手牌
     socket.on('cards_shown', ({ playerId, playerName, cards }) => {
-      messageApi.info(`${playerName} 展示了 ${cards.length} 张牌`);
+      messageApi.info(t('messages.cardsShown', { name: playerName, count: cards.length }));
       // 更新该玩家的展示牌区域（覆盖之前的牌）
       setShownCards(prev => ({
         ...prev,
@@ -154,17 +157,17 @@ export default function GameBoard() {
     // 收到底牌（埋底玩家）
     socket.on('bottom_cards_received', ({ bottomCards, totalCards }) => {
       bottomCards.forEach(card => addCard(card));
-      messageApi.success(`收到 ${bottomCards.length} 张底牌，当前共 ${totalCards} 张牌`);
+      messageApi.success(t('bottom.receivedBottomCards', { count: bottomCards.length, total: totalCards }));
     });
 
     // 埋底玩家设置
     socket.on('burying_player_set', ({ playerName }) => {
-      messageApi.info(`${playerName} 被指定为埋底玩家`);
+      messageApi.info(t('bottom.buryingPlayerSet', { name: playerName }));
     });
 
     // 埋底完成
     socket.on('cards_buried', ({ playerName, playerId }) => {
-      messageApi.success(`${playerName} 完成埋底`);
+      messageApi.success(t('bottom.buryCompleted', { name: playerName }));
       // 如果是我自己埋的底，清空我的底牌缓存（已经埋了）
       if (playerId === currentPlayer?.id) {
         // 底牌已经保存在后端，前端不需要再显示
@@ -173,13 +176,13 @@ export default function GameBoard() {
 
     // 首发玩家设置
     socket.on('first_player_set', ({ playerName }) => {
-      messageApi.info(`${playerName} 先出牌`);
+      messageApi.info(t('messages.firstPlayerSet', { name: playerName }));
     });
 
     // 玩家出牌
     socket.on('cards_played', ({ playerId, playerName, cards }) => {
       console.log('收到 cards_played 事件:', { playerId, playerName, cardsCount: cards.length });
-      messageApi.info(`${playerName} 出了 ${cards.length} 张牌`);
+      messageApi.info(t('messages.cardsPlayed', { name: playerName, count: cards.length }));
       // 更新该玩家的出牌区域（覆盖之前的牌）
       setPlayedCards(prev => {
         const updated = {
@@ -195,12 +198,12 @@ export default function GameBoard() {
 
     // 玩家跳过
     socket.on('turn_passed', ({ playerName }) => {
-      messageApi.info(`${playerName} 跳过了回合`);
+      messageApi.info(t('messages.turnPassed', { name: playerName }));
     });
 
     // 展示底牌（修正事件名）
     socket.on('bottom_revealed', ({ bottomCards, bottomScoreResult, upgradeResult }) => {
-      messageApi.info(`底牌已展示: ${bottomCards.length} 张`);
+      messageApi.info(t('bottom.bottomRevealed', { count: bottomCards.length }));
       setRevealedBottomCards(bottomCards);
       if (bottomScoreResult) {
         setBottomScoreResult(bottomScoreResult);
@@ -208,18 +211,18 @@ export default function GameBoard() {
         setCollectedPointCards(bottomScoreResult.collectedPointCards || []);
         // 显示底牌得分结果
         const resultMsg = bottomScoreResult.attackerWonBottom
-          ? `闲家拿底！底牌${bottomScoreResult.bottomPoints}分×${bottomScoreResult.bottomMultiplier}倍=${bottomScoreResult.bottomScoreGained}分，闲家总分：${bottomScoreResult.totalScore}分`
-          : `庄家守底！闲家总分：${bottomScoreResult.totalScore}分`;
+          ? `${t('bottom.attackerWonBottom')} ${t('bottom.bottomPoints', { points: bottomScoreResult.bottomPoints, multiplier: bottomScoreResult.bottomMultiplier, gained: bottomScoreResult.bottomScoreGained })} ${t('bottom.totalScore', { score: bottomScoreResult.totalScore })}`
+          : `${t('bottom.dealerKeptBottom')} ${t('bottom.totalScore', { score: bottomScoreResult.totalScore })}`;
         messageApi.success(resultMsg, 5);
       }
       if (upgradeResult) {
         setUpgradeResult(upgradeResult);
         // 显示升级结果
-        const winnerMsg = upgradeResult.attackerWon ? '闲家获胜' : '庄家获胜';
+        const winnerMsg = upgradeResult.attackerWon ? t('bottom.attackerWins') : t('bottom.dealerWins');
         const upgradeMsg = upgradeResult.attackerWon
-          ? `闲家升${upgradeResult.attackerLevelUp}级`
-          : `庄家升${upgradeResult.dealerLevelUp}级`;
-        messageApi.success(`${winnerMsg}！${upgradeMsg}`, 5);
+          ? t('bottom.levelUp', { count: upgradeResult.attackerLevelUp })
+          : t('bottom.levelUp', { count: upgradeResult.dealerLevelUp });
+        messageApi.success(`${winnerMsg} ${upgradeMsg}`, 5);
       }
     });
 
@@ -231,12 +234,12 @@ export default function GameBoard() {
 
     // 玩家准备下一局
     socket.on('player_ready_for_next', ({ playerName, readyCount, totalCount }) => {
-      messageApi.info(`${playerName} 已准备 (${readyCount}/${totalCount})`);
+      messageApi.info(t('messages.playerReadyForNext', { name: playerName, ready: readyCount, total: totalCount }));
     });
 
     // 下一局开始
     socket.on('next_game_started', () => {
-      messageApi.success('开始下一局！');
+      messageApi.success(t('messages.nextGameStarted'));
       // 清空所有前端状态
       setMyCards([]);
       setShownCards({});
@@ -256,18 +259,18 @@ export default function GameBoard() {
 
     // 分数更新
     socket.on('score_updated', ({ playerId, newScore }) => {
-      messageApi.success('分数已更新');
+      messageApi.success(t('adjust.scoreUpdated'));
     });
 
     // 等级更新
     socket.on('level_updated', ({ playerId, newLevel }) => {
-      messageApi.success('等级已更新');
+      messageApi.success(t('adjust.levelUpdated'));
     });
 
     // 撤回出牌
     socket.on('play_undone', ({ playerId, playerName, cards }) => {
       console.log('收到 play_undone 事件:', { playerId, playerName, cardsCount: cards.length });
-      messageApi.info(`${playerName} 撤回了出牌`);
+      messageApi.info(t('messages.playUndone', { name: playerName }));
       // 清除该玩家的已出牌显示
       setPlayedCards(prev => {
         const updated = { ...prev };
@@ -304,7 +307,7 @@ export default function GameBoard() {
       // 更新store中的主牌信息，自动重排手牌
       setTrumpInfo(trumpSuit, trumpRank);
       if (trumpSuit && trumpRank) {
-        messageApi.info(`主牌已设置: ${trumpSuit} ${trumpRank}`);
+        messageApi.info(`${t('trump.trumpSet')}: ${trumpSuit} ${trumpRank}`);
       } else if (trumpRank) {
         console.log(`📢 级牌已设置: ${trumpRank}`);
       }
@@ -312,7 +315,7 @@ export default function GameBoard() {
 
     // 甩牌失败
     socket.on('throw_failed', ({ playerId, playerName, message: msg, attemptedCards, attemptedCardObjects, forcedCards }) => {
-      messageApi.warning(`${playerName} ${msg}，实际出牌 ${forcedCards.length} 张`, 3);
+      messageApi.warning(t('messages.throwFailed', { name: playerName, count: forcedCards.length }), 3);
 
       // 如果是自己甩牌失败，恢复未被强制出的牌到手牌（因为前端在发送时进行了乐观移除）
       if (playerId === currentPlayer?.id && Array.isArray(attemptedCardObjects)) {
@@ -327,8 +330,8 @@ export default function GameBoard() {
 
     // 毙牌动作
     socket.on('trump_action', ({ type, playerId, playerName }) => {
-      const actionText = type === 'trump' ? '毙了' : '盖毙';
-      messageApi.success(`${playerName} ${actionText}！`, 2);
+      const actionText = type === 'trump' ? t('trump.trumpAction') : t('trump.overTrumpAction');
+      messageApi.success(`${playerName} ${actionText}`, 2);
       // 设置动画
       setTrumpAnimation({ type, playerName });
       // 3秒后清除动画
@@ -339,18 +342,20 @@ export default function GameBoard() {
 
     // 亮主成功
     socket.on('trump_declared', ({ playerId, playerName, suit, count, declarationType, strength, isCounter, cards }) => {
-      const action = isCounter ? '反主' : '亮主';
+      const action = isCounter ? 'counter' : 'declare';
       const suitMap = {
-        'spades': '♠',
-        'hearts': '♥',
-        'clubs': '♣',
-        'diamonds': '♦',
-        'joker': '王'
+        'spades': t('suits.spades'),
+        'hearts': t('suits.hearts'),
+        'clubs': t('suits.clubs'),
+        'diamonds': t('suits.diamonds'),
+        'joker': t('suits.joker')
       };
       const suitSymbol = suitMap[suit] || suit;
+      const countType = count === 2 ? 'pair' : 'single';
 
       console.log(`🎺 ${action}成功: ${playerName} ${action}了 ${count} 张 ${suitSymbol}`);
-      messageApi.success(`${playerName} ${action}: ${count === 2 ? '一对' : '单张'}${suitSymbol}`);
+      const msgKey = isCounter ? 'messages.counterDeclare' : (count === 2 ? 'messages.declaredPair' : 'messages.declaredSingle');
+      messageApi.success(t(msgKey, { name: playerName, suit: suitSymbol, type: countType }));
 
       // 更新当前亮主信息
       setCurrentTrumpDeclaration({
@@ -378,7 +383,7 @@ export default function GameBoard() {
 
     // 房间配置更新
     socket.on('config_updated', ({ config }) => {
-      messageApi.success('房间设置已更新，将在下一局游戏生效');
+      messageApi.success(t('messages.configUpdated'));
       setNewBottomCardsCount(config.bottomCardsCount);
       setNewDealInterval(config.dealInterval);
       if (config.playMode) {
@@ -389,9 +394,9 @@ export default function GameBoard() {
     // 玩家昵称更新
     socket.on('player_name_updated', ({ playerId, oldName, newName }) => {
       if (playerId === currentPlayer?.id) {
-        messageApi.success(`昵称已修改为: ${newName}`);
+        messageApi.success(t('nickname.nicknameUpdated', { name: newName }));
       } else {
-        messageApi.info(`${oldName} 修改昵称为: ${newName}`);
+        messageApi.info(t('nickname.playerRenamed', { oldName, newName }));
       }
     });
 
@@ -403,28 +408,28 @@ export default function GameBoard() {
 
     // Bot添加
     socket.on('bot_added', ({ player }) => {
-      messageApi.success(`Bot ${player.name} 已加入房间`);
+      messageApi.success(t('messages.botAdded', { name: player.name }));
     });
 
     // Bot移除
     socket.on('bot_removed', ({ playerName }) => {
-      messageApi.info(`Bot ${playerName} 已离开房间`);
+      messageApi.info(t('messages.botRemoved', { name: playerName }));
     });
 
     // 玩家准备状态更新
     socket.on('player_ready_status', ({ playerName, isReady }) => {
-      messageApi.info(`${playerName} ${isReady ? '已准备' : '取消准备'}`);
+      messageApi.info(isReady ? t('messages.playerReady', { name: playerName }) : t('messages.playerCancelReady', { name: playerName }));
     });
 
     // 所有玩家准备完毕
     socket.on('all_players_ready', ({ message }) => {
-      messageApi.success(message);
+      messageApi.success(t('messages.allPlayersReady'));
     });
 
     // 规则选择
     socket.on('rule_selected', ({ playerName, rule }) => {
       setSelectedRule(rule);
-      messageApi.info(`${playerName} 选择了规则: ${rule.name}`);
+      messageApi.info(t('messages.ruleSelected', { name: playerName, rule: rule.name }));
     });
 
     // 庄家倒计时开始/重置
@@ -443,10 +448,10 @@ export default function GameBoard() {
       if (roundUpdate.type === 'turn_changed') {
         const currentPlayer = currentRoom.players[roundUpdate.currentPlayerIndex];
         if (currentPlayer) {
-          messageApi.info(`现在轮到 ${currentPlayer.name} 出牌`);
+          messageApi.info(t('messages.currentTurn', { name: currentPlayer.name }));
         }
       } else if (roundUpdate.type === 'round_started') {
-        messageApi.success(roundUpdate.message || `轮次 ${roundUpdate.round} 开始`);
+        messageApi.success(roundUpdate.message || t('messages.roundStarted', { round: roundUpdate.round }));
         // 新一轮开始，清空出牌历史（因为是新的一轮，之前的牌不能再撤回）
         setPlayHistory([]);
         // 同时清空已出牌显示
@@ -454,13 +459,13 @@ export default function GameBoard() {
       } else if (roundUpdate.type === 'round_ended') {
         // 轮次结束，显示获胜者信息
         if (roundUpdate.roundWinner) {
-          messageApi.success(`第${roundUpdate.round}轮结束，${roundUpdate.roundWinner.playerName} 获胜，获得下一轮出牌权`);
+          messageApi.success(t('messages.roundEnded', { round: roundUpdate.round, winner: roundUpdate.roundWinner.playerName }));
         }
         // 处理得分信息
         if (roundUpdate.scoreInfo) {
           const { roundPoints, winnerIsAttacker, attackerScore: newScore, collectedPointCards: newCards } = roundUpdate.scoreInfo;
           if (winnerIsAttacker && roundPoints > 0) {
-            messageApi.info(`闲家得${roundPoints}分，总分：${newScore}分`, 3);
+            messageApi.info(t('messages.attackerGotPoints', { points: roundPoints, total: newScore }), 3);
           }
           setAttackerScore(newScore);
           setCollectedPointCards(newCards || []);
@@ -557,7 +562,7 @@ export default function GameBoard() {
   // 展示手牌（仅自由模式）
   const handleShowCards = () => {
     if (selectedCards.length === 0) {
-      messageApi.warning('请先选择要展示的牌');
+      messageApi.warning(t('play.selectCardsToShow'));
       return;
     }
     socket.emit(SOCKET_EVENTS.SHOW_CARDS, {
@@ -580,7 +585,7 @@ export default function GameBoard() {
 
     const suit = suitMap[suitType];
     if (!suit) {
-      messageApi.error('无效的花色');
+      messageApi.error(t('messages.errorOccurred'));
       return;
     }
 
@@ -597,7 +602,7 @@ export default function GameBoard() {
   // 一键选中所有手牌
   const handleSelectAllCards = () => {
     if (myCards.length === 0) {
-      messageApi.warning('没有手牌可选择');
+      messageApi.warning(t('play.noCardsToSelect'));
       return;
     }
     const allCardIds = myCards.map(card => card.id);
@@ -613,7 +618,7 @@ export default function GameBoard() {
   // 设置埋底玩家
   const handleSetBuryingPlayer = () => {
     if (!selectedBuryingPlayer) {
-      messageApi.warning('请选择埋底玩家');
+      messageApi.warning(t('play.selectBuryingPlayer'));
       return;
     }
     socket.emit(SOCKET_EVENTS.SET_BURYING_PLAYER, {
@@ -626,7 +631,7 @@ export default function GameBoard() {
   // 埋底
   const handleBuryCards = () => {
     if (selectedCards.length !== currentRoom.config.bottomCardsCount) {
-      messageApi.warning(`请选择 ${currentRoom.config.bottomCardsCount} 张牌进行埋底`);
+      messageApi.warning(t('play.selectCorrectBuryCount', { count: currentRoom.config.bottomCardsCount }));
       return;
     }
     const cardsToRemove = [...selectedCards];
@@ -642,7 +647,7 @@ export default function GameBoard() {
   // 设置首发玩家
   const handleSetFirstPlayer = () => {
     if (!selectedFirstPlayer) {
-      messageApi.warning('请选择首发玩家');
+      messageApi.warning(t('play.selectPlayerFirst'));
       return;
     }
     socket.emit(SOCKET_EVENTS.SET_FIRST_PLAYER, {
@@ -655,7 +660,7 @@ export default function GameBoard() {
   // 出牌
   const handlePlayCards = () => {
     if (selectedCards.length === 0) {
-      messageApi.warning('请先选择要出的牌');
+      messageApi.warning(t('play.selectCardsFirst'));
       return;
     }
     const cardsToPlay = [...selectedCards];
@@ -703,7 +708,7 @@ export default function GameBoard() {
   // 调整分数
   const handleUpdateScore = () => {
     if (!selectedPlayerId) {
-      messageApi.warning('请选择玩家');
+      messageApi.warning(t('play.selectPlayerFirst'));
       return;
     }
     socket.emit(SOCKET_EVENTS.UPDATE_SCORE, {
@@ -717,7 +722,7 @@ export default function GameBoard() {
   // 调整等级
   const handleUpdateLevel = () => {
     if (!selectedPlayerId) {
-      messageApi.warning('请选择玩家');
+      messageApi.warning(t('play.selectPlayerFirst'));
       return;
     }
     socket.emit(SOCKET_EVENTS.UPDATE_LEVEL, {
@@ -764,11 +769,11 @@ export default function GameBoard() {
   // 更新房间配置
   const handleUpdateRoomConfig = () => {
     if (newBottomCardsCount < 1 || newBottomCardsCount > 20) {
-      messageApi.warning('底牌数量必须在1-20之间');
+      messageApi.warning(t('createRoomForm.bottomCardsValidation'));
       return;
     }
     if (newDealInterval < 10 || newDealInterval > 5000) {
-      messageApi.warning('发牌间隔必须在10-5000毫秒之间');
+      messageApi.warning(t('createRoomForm.dealIntervalValidation'));
       return;
     }
     socket.emit(SOCKET_EVENTS.UPDATE_CONFIG, {
@@ -786,11 +791,11 @@ export default function GameBoard() {
   const handleUpdatePlayerName = () => {
     const trimmedName = newPlayerName.trim();
     if (!trimmedName) {
-      messageApi.warning('昵称不能为空');
+      messageApi.warning(t('nickname.nicknameEmpty'));
       return;
     }
     if (trimmedName.length > 20) {
-      messageApi.warning('昵称长度不能超过20个字符');
+      messageApi.warning(t('nickname.nicknameTooLong'));
       return;
     }
     socket.emit(SOCKET_EVENTS.UPDATE_PLAYER_NAME, {
@@ -821,11 +826,11 @@ export default function GameBoard() {
   const handleSendChatMessage = (msg) => {
     const messageToSend = msg || chatMessage.trim();
     if (!messageToSend) {
-      messageApi.warning('消息不能为空');
+      messageApi.warning(t('chat.messageEmpty'));
       return;
     }
     if (messageToSend.length > 200) {
-      messageApi.warning('消息长度不能超过200个字符');
+      messageApi.warning(t('chat.messageTooLong'));
       return;
     }
     socket.emit(SOCKET_EVENTS.SEND_CHAT_MESSAGE, {
@@ -839,22 +844,22 @@ export default function GameBoard() {
   const handleAddQuickPhrase = () => {
     const trimmed = newQuickPhrase.trim();
     if (!trimmed) {
-      messageApi.warning('快捷短语不能为空');
+      messageApi.warning(t('chat.phraseEmpty'));
       return;
     }
     if (trimmed.length > 50) {
-      messageApi.warning('快捷短语长度不能超过50个字符');
+      messageApi.warning(t('chat.phraseTooLong'));
       return;
     }
     if (quickPhrases.includes(trimmed)) {
-      messageApi.warning('该快捷短语已存在');
+      messageApi.warning(t('chat.phraseExists'));
       return;
     }
     const newPhrases = [...quickPhrases, trimmed];
     setQuickPhrases(newPhrases);
     localStorage.setItem('tractorQuickPhrases', JSON.stringify(newPhrases));
     setNewQuickPhrase('');
-    messageApi.success('快捷短语已添加');
+    messageApi.success(t('chat.phraseAdded'));
   };
 
   // 删除快捷短语
@@ -862,7 +867,7 @@ export default function GameBoard() {
     const newPhrases = quickPhrases.filter(p => p !== phrase);
     setQuickPhrases(newPhrases);
     localStorage.setItem('tractorQuickPhrases', JSON.stringify(newPhrases));
-    messageApi.success('快捷短语已删除');
+    messageApi.success(t('chat.phraseDeleted'));
   };
 
   // 添加Bot
@@ -893,7 +898,7 @@ export default function GameBoard() {
     if (!isHost) return null;
     return (
       <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-        房间设置
+        {t('room.roomSettings')}
       </Button>
     );
   };
@@ -901,21 +906,28 @@ export default function GameBoard() {
   // 通用按钮组件 - 修改昵称
   const renderRenameButton = () => (
     <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-      改昵称
+      {t('play.rename')}
     </Button>
   );
 
   // 通用按钮组件 - 聊天
   const renderChatButton = () => (
     <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
-      聊天
+      {t('play.chat')}
     </Button>
   );
 
   // 通用按钮组件 - 全选
   const renderSelectAllButton = () => (
     <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
-      全选
+      {t('play.selectAll')}
+    </Button>
+  );
+
+  // 通用按钮组件 - 切换语言
+  const renderLanguageButton = () => (
+    <Button key="language" icon={<GlobalOutlined />} onClick={toggleLanguage} style={buttonStyle}>
+      {LANGUAGE_NAMES[language]}
     </Button>
   );
 
@@ -940,10 +952,12 @@ export default function GameBoard() {
                 onClick={handlePlayerReady}
                 style={buttonStyle}
               >
-                {currentPlayer?.isReady ? '取消准备' : '准备'}
+                {currentPlayer?.isReady ? t('common.cancelReady') : t('common.ready')}
               </Button>
             );
           }
+          
+          buttons.push(renderLanguageButton());
 
           return (
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -963,7 +977,7 @@ export default function GameBoard() {
               disabled={selectedCards.length === 0}
               style={buttonStyle}
             >
-              展示牌({selectedCards.length})
+              {t('play.showCards')}({selectedCards.length})
             </Button>,
             renderSelectAllButton()
           ];
@@ -976,12 +990,13 @@ export default function GameBoard() {
                 onClick={() => setBuryingPlayerModal(true)}
                 style={buttonStyle}
               >
-                指定埋底
+                {t('play.setBurying')}
               </Button>
             );
           }
 
           drawingButtons.push(renderRenameButton());
+          drawingButtons.push(renderLanguageButton());
           const settingsBtn = renderSettingsButton();
           if (settingsBtn) drawingButtons.push(settingsBtn);
 
@@ -992,7 +1007,7 @@ export default function GameBoard() {
           );
         } else {
           // 基础模式：只保留全选和房间设置（房主）
-          const drawingButtons = [renderSelectAllButton()];
+          const drawingButtons = [renderSelectAllButton(), renderLanguageButton()];
           const settingsBtn = renderSettingsButton();
           if (settingsBtn) drawingButtons.push(settingsBtn);
 
@@ -1015,13 +1030,13 @@ export default function GameBoard() {
               disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
               style={{ ...buttonStyle, width: '150px' }}
             >
-              埋底({selectedCards.length}/{currentRoom.config.bottomCardsCount})
+              {t('play.bury')}({selectedCards.length}/{currentRoom.config.bottomCardsCount})
             </Button>
           );
         } else {
           buryingButtons.push(
             <Button key="waiting" disabled style={{ ...buttonStyle, width: '150px' }}>
-              等待庄家埋底
+              {t('play.waitingBury')}
             </Button>
           );
         }
@@ -1030,6 +1045,7 @@ export default function GameBoard() {
           const settingsBtn = renderSettingsButton();
           if (settingsBtn) buryingButtons.push(settingsBtn);
         }
+        buryingButtons.push(renderLanguageButton());
 
         return (
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1060,7 +1076,7 @@ export default function GameBoard() {
         // 验证选中的牌是否合法
         const validateSelectedCards = (() => {
           if (selectedCards.length === 0) {
-            return { valid: false, message: '请选择要出的牌' };
+            return { valid: false, message: t('play.selectCardsFirst') };
           }
 
           const selectedCardObjects = myCards.filter(card => selectedCards.includes(card.id));
@@ -1081,7 +1097,7 @@ export default function GameBoard() {
         })();
 
         const canPlay = isMyTurn && (isFreeMode || validateSelectedCards.valid);
-        const playButtonTitle = !isMyTurn ? '还没轮到你出牌' :
+        const playButtonTitle = !isMyTurn ? t('play.notYourTurn') :
                                (!isFreeMode && !validateSelectedCards.valid) ? validateSelectedCards.message : '';
 
         if (isFreeMode) {
@@ -1097,18 +1113,18 @@ export default function GameBoard() {
                 disabled={selectedCards.length === 0}
                 style={buttonStyle}
               >
-                出牌({selectedCards.length})
+                {t('play.playCards')}({selectedCards.length})
               </Button>,
               renderChatButton(),
               <Button key="undo" onClick={handleUndoPlay} style={buttonStyle}>
-                撤回
+                {t('play.undo')}
               </Button>
             );
 
             if (currentPlayer?.id === gameState.buryingPlayerId) {
               playingButtons.push(
                 <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
-                  看底牌
+                  {t('play.viewBottom')}
                 </Button>
               );
             }
@@ -1116,31 +1132,32 @@ export default function GameBoard() {
             playingButtons.push(
               renderSelectAllButton(),
               <Button key="score-5" onClick={() => handleQuickAdjustScore(-5)} style={buttonStyle}>
-                -5分
+                {t('adjust.minusScore')}
               </Button>,
               <Button key="score+5" onClick={() => handleQuickAdjustScore(5)} style={buttonStyle}>
-                +5分
+                {t('adjust.plusScore5')}
               </Button>,
               <Button key="score+10" onClick={() => handleQuickAdjustScore(10)} style={buttonStyle}>
-                +10分
+                {t('adjust.plusScore10')}
               </Button>,
               <Button key="level-1" onClick={() => handleQuickAdjustLevel(-1)} style={buttonStyle}>
-                -1级
+                {t('adjust.minusLevel')}
               </Button>,
               <Button key="level+1" onClick={() => handleQuickAdjustLevel(1)} style={buttonStyle}>
-                +1级
+                {t('adjust.plusLevel')}
               </Button>
             );
 
             if (isHost) {
               playingButtons.push(
                 <Button key="restart" danger onClick={handleRestartGame} style={buttonStyle}>
-                  重新开始
+                  {t('game.restartGame')}
                 </Button>
               );
             }
 
             playingButtons.push(renderRenameButton());
+            playingButtons.push(renderLanguageButton());
             const settingsBtn = renderSettingsButton();
             if (settingsBtn) playingButtons.push(settingsBtn);
           }
@@ -1161,16 +1178,16 @@ export default function GameBoard() {
               style={buttonStyle}
               title={playButtonTitle}
             >
-              出牌({selectedCards.length})
+              {t('play.playCards')}({selectedCards.length})
             </Button>,
             <Button
               key="undo"
               onClick={handleUndoPlay}
               disabled={!canUndo}
               style={buttonStyle}
-              title={!canUndo ? '无法撤回' : ''}
+              title={!canUndo ? t('play.cannotUndo') : ''}
             >
-              撤回
+              {t('play.undo')}
             </Button>,
             renderChatButton(),
             renderSelectAllButton()
@@ -1180,7 +1197,7 @@ export default function GameBoard() {
           if (currentPlayer?.id === gameState?.buryingPlayerId) {
             playingButtons.push(
               <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
-                看底牌
+                {t('play.viewBottom')}
               </Button>
             );
           }
@@ -1189,13 +1206,14 @@ export default function GameBoard() {
           if (isHost) {
             playingButtons.push(
               <Button key="restart" onClick={handleRestartGame} style={buttonStyle}>
-                重新开始
+                {t('game.restartGame')}
               </Button>
             );
           }
 
           // 修改昵称
           playingButtons.push(renderRenameButton());
+          playingButtons.push(renderLanguageButton());
 
           // 房间设置（仅房主）
           {
@@ -1219,7 +1237,7 @@ export default function GameBoard() {
             disabled={isReadyForNext}
             style={buttonStyle}
           >
-            {isReadyForNext ? '已准备' : '开始下一局'}
+            {isReadyForNext ? t('common.readied') : t('play.startNextGame')}
           </Button>
         ];
 
@@ -1227,6 +1245,7 @@ export default function GameBoard() {
           const settingsBtn = renderSettingsButton();
           if (settingsBtn) revealingButtons.push(settingsBtn);
         }
+        revealingButtons.push(renderLanguageButton());
 
         return (
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1236,11 +1255,14 @@ export default function GameBoard() {
 
       case GamePhases.FINISHED:
         {
+          const buttons = [];
           const settingsBtn = renderSettingsButton();
-          if (!settingsBtn) return null;
+          if (settingsBtn) buttons.push(settingsBtn);
+          buttons.push(renderLanguageButton());
+          if (buttons.length === 0) return null;
           return (
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              {settingsBtn}
+              {buttons}
             </div>
           );
         }
@@ -1257,7 +1279,7 @@ export default function GameBoard() {
     switch (phase) {
       case GamePhases.WAITING:
         if (!currentRoom) {
-          return <div className="phase-content"><Text>等待加入房间...</Text></div>;
+          return <div className="phase-content"><Text>{t('game.waitingForRoom')}</Text></div>;
         }
 
         const isWaitingForReady = gameState?.isWaitingForReady || false;
@@ -1299,10 +1321,10 @@ export default function GameBoard() {
         // 正常的房间等待界面
         return (
           <div className="phase-content">
-            <Title level={3}>等待开始</Title>
-            <Text>当前玩家: {currentRoom.playerCount} / {currentRoom.maxPlayers}</Text>
+            <Title level={3}>{t('game.waitingToStart')}</Title>
+            <Text>{t('room.players')}: {currentRoom.playerCount} / {currentRoom.maxPlayers}</Text>
             <br />
-            <Text type="secondary">底牌数量: {currentRoom.config?.bottomCardsCount || 8} | 发牌间隔: {currentRoom.config?.dealInterval || 500}ms</Text>
+            <Text type="secondary">{t('game.bottomCards')}: {currentRoom.config?.bottomCardsCount || 8} | {t('game.dealInterval')}: {currentRoom.config?.dealInterval || 500}ms</Text>
             <br />
             <br />
 
@@ -1312,14 +1334,14 @@ export default function GameBoard() {
                 <Space size="middle">
                   {currentRoom.playerCount >= 2 && (
                     <Button type="primary" size="large" onClick={handleStartGame}>
-                      开始游戏
+                      {t('game.startGame')}
                     </Button>
                   )}
                   <Button size="large" onClick={() => setRoomConfigModal(true)}>
-                    房间设置
+                    {t('room.roomSettings')}
                   </Button>
                   <Button size="large" onClick={handleAddBot} disabled={currentRoom.playerCount >= currentRoom.maxPlayers}>
-                    添加Bot
+                    {t('game.addBot')}
                   </Button>
                 </Space>
               )}
@@ -1327,7 +1349,7 @@ export default function GameBoard() {
               {/* Bot列表 */}
               {isHost && currentRoom.players.some(p => p.isBot) && (
                 <div style={{ width: '80%', maxWidth: '600px' }}>
-                  <Divider>房间内的Bot</Divider>
+                  <Divider>{t('game.botsInRoom')}</Divider>
                   <Space wrap>
                     {currentRoom.players.filter(p => p.isBot).map(bot => (
                       <Tag
@@ -1344,9 +1366,14 @@ export default function GameBoard() {
               )}
 
               {/* 所有玩家可用按钮 */}
-              <Button onClick={handleOpenRenameModal}>
-                修改昵称
-              </Button>
+              <Space>
+                <Button onClick={handleOpenRenameModal}>
+                  {t('nickname.modifyNickname')}
+                </Button>
+                <Button icon={<GlobalOutlined />} onClick={toggleLanguage}>
+                  {LANGUAGE_NAMES[language]}
+                </Button>
+              </Space>
             </Space>
           </div>
         );
@@ -1583,7 +1610,7 @@ export default function GameBoard() {
               gap: '8px'
             }}
           >
-            <span>{trumpAnimation.type === 'overtrump' ? '盖毙！' : '毙了！'}</span>
+            <span>{trumpAnimation.type === 'overtrump' ? t('trump.overTrumpAction') : t('trump.trumpAction')}</span>
             <span style={{ fontSize: '24px', opacity: 0.8 }}>{trumpAnimation.playerName}</span>
           </div>
         </div>
@@ -1596,14 +1623,14 @@ export default function GameBoard() {
 
       {/* 埋底玩家选择弹窗 */}
       <Modal
-        title="选择埋底玩家"
+        title={t('play.selectBuryingPlayer')}
         open={buryingPlayerModal}
         onOk={handleSetBuryingPlayer}
         onCancel={() => setBuryingPlayerModal(false)}
       >
         <Select
           style={{ width: '100%' }}
-          placeholder="选择玩家"
+          placeholder={t('play.selectPlayerFirst')}
           onChange={setSelectedBuryingPlayer}
         >
           {currentRoom.players.map(player => (
@@ -1616,14 +1643,14 @@ export default function GameBoard() {
 
       {/* 首发玩家选择弹窗 */}
       <Modal
-        title="选择首发玩家"
+        title={t('play.selectPlayerFirst')}
         open={firstPlayerModal}
         onOk={handleSetFirstPlayer}
         onCancel={() => setFirstPlayerModal(false)}
       >
         <Select
           style={{ width: '100%' }}
-          placeholder="选择玩家"
+          placeholder={t('play.selectPlayerFirst')}
           onChange={setSelectedFirstPlayer}
         >
           {currentRoom.players.map(player => (
@@ -1636,25 +1663,25 @@ export default function GameBoard() {
 
       {/* 调整分数弹窗 */}
       <Modal
-        title="调整分数"
+        title={t('adjust.adjustScore')}
         open={scoreAdjustModal}
         onOk={handleUpdateScore}
         onCancel={() => setScoreAdjustModal(false)}
       >
         <Select
           style={{ width: '100%', marginBottom: 16 }}
-          placeholder="选择玩家"
+          placeholder={t('play.selectPlayerFirst')}
           onChange={setSelectedPlayerId}
         >
           {currentRoom.players.map(player => (
             <Select.Option key={player.id} value={player.id}>
-              {player.name} (当前: {player.score})
+              {player.name} ({t('adjust.currentScore', { score: player.score })})
             </Select.Option>
           ))}
         </Select>
         <InputNumber
           style={{ width: '100%' }}
-          placeholder="新分数"
+          placeholder={t('adjust.newScore')}
           value={adjustValue}
           onChange={setAdjustValue}
         />
@@ -1662,25 +1689,25 @@ export default function GameBoard() {
 
       {/* 调整等级弹窗 */}
       <Modal
-        title="调整等级"
+        title={t('adjust.adjustLevel')}
         open={levelAdjustModal}
         onOk={handleUpdateLevel}
         onCancel={() => setLevelAdjustModal(false)}
       >
         <Select
           style={{ width: '100%', marginBottom: 16 }}
-          placeholder="选择玩家"
+          placeholder={t('play.selectPlayerFirst')}
           onChange={setSelectedPlayerId}
         >
           {currentRoom.players.map(player => (
             <Select.Option key={player.id} value={player.id}>
-              {player.name} (当前: {player.level})
+              {player.name} ({t('adjust.currentLevel', { level: player.level })})
             </Select.Option>
           ))}
         </Select>
         <InputNumber
           style={{ width: '100%' }}
-          placeholder="新等级"
+          placeholder={t('adjust.newLevel')}
           min={2}
           max={14}
           value={adjustValue}
@@ -1690,18 +1717,18 @@ export default function GameBoard() {
 
       {/* 查看我的底牌弹窗 */}
       <Modal
-        title="我的底牌"
+        title={t('bottom.myBottomCards')}
         open={viewBottomModal}
         onOk={() => setViewBottomModal(false)}
         onCancel={() => setViewBottomModal(false)}
         footer={[
           <Button key="close" type="primary" onClick={() => setViewBottomModal(false)}>
-            关闭
+            {t('common.close')}
           </Button>
         ]}
       >
         <div style={{ textAlign: 'center' }}>
-          <Text>已埋 {myBottomCards.length} 张底牌</Text>
+          <Text>{t('bottom.buriedCards', { count: myBottomCards.length })}</Text>
           <br />
           <br />
           {myBottomCards.length > 0 && (
@@ -1712,23 +1739,23 @@ export default function GameBoard() {
 
       {/* 设置主牌弹窗 */}
       <Modal
-        title="设置主牌"
+        title={t('trump.trump')}
         open={trumpModal}
         onCancel={() => setTrumpModal(false)}
         footer={null}
       >
         <div>
-          <Text strong>花色:</Text>
+          <Text strong>{t('trump.suit')}:</Text>
           <br />
           <Space wrap style={{ marginTop: 8, marginBottom: 16 }}>
-            <Button onClick={() => handleSetTrump('hearts', trumpRank || '2')}>♥ 红桃</Button>
-            <Button onClick={() => handleSetTrump('diamonds', trumpRank || '2')}>♦ 方块</Button>
-            <Button onClick={() => handleSetTrump('clubs', trumpRank || '2')}>♣ 梅花</Button>
-            <Button onClick={() => handleSetTrump('spades', trumpRank || '2')}>♠ 黑桃</Button>
-            <Button onClick={() => handleSetTrump('no_trump', trumpRank || '2')}>无主</Button>
+            <Button onClick={() => handleSetTrump('hearts', trumpRank || '2')}>♥ {t('trump.hearts')}</Button>
+            <Button onClick={() => handleSetTrump('diamonds', trumpRank || '2')}>♦ {t('trump.diamonds')}</Button>
+            <Button onClick={() => handleSetTrump('clubs', trumpRank || '2')}>♣ {t('trump.clubs')}</Button>
+            <Button onClick={() => handleSetTrump('spades', trumpRank || '2')}>♠ {t('trump.spades')}</Button>
+            <Button onClick={() => handleSetTrump('no_trump', trumpRank || '2')}>{t('trump.noTrump')}</Button>
           </Space>
           <br />
-          <Text strong>点数:</Text>
+          <Text strong>{t('trump.rank')}:</Text>
           <br />
           <Space wrap style={{ marginTop: 8 }}>
             {['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'].map(rank => (
@@ -1742,15 +1769,15 @@ export default function GameBoard() {
 
       {/* 房间设置弹窗 */}
       <Modal
-        title="房间设置"
+        title={t('room.roomSettings')}
         open={roomConfigModal}
         onOk={handleUpdateRoomConfig}
         onCancel={() => setRoomConfigModal(false)}
-        okText="保存"
-        cancelText="取消"
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
       >
         <div>
-          <Text strong>底牌数量:</Text>
+          <Text strong>{t('createRoomForm.bottomCardsLabel')}:</Text>
           <br />
           <InputNumber
             style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
@@ -1760,7 +1787,7 @@ export default function GameBoard() {
             onChange={setNewBottomCardsCount}
           />
           <br />
-          <Text strong>发牌间隔（毫秒）:</Text>
+          <Text strong>{t('createRoomForm.dealIntervalLabel')}:</Text>
           <br />
           <InputNumber
             style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
@@ -1772,42 +1799,42 @@ export default function GameBoard() {
           />
           <br />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text strong>自由模式:</Text>
+            <Text strong>{t('createRoomForm.freeMode')}:</Text>
             <Switch
               checked={newPlayMode === PlayModes.FREE}
               onChange={(checked) => setNewPlayMode(checked ? PlayModes.FREE : PlayModes.ORDERED)}
-              checkedChildren="开启"
-              unCheckedChildren="关闭"
+              checkedChildren={t('createRoomForm.freeModeOn')}
+              unCheckedChildren={t('createRoomForm.freeModeOff')}
             />
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级<br />
-            基础模式：按顺序出牌，完善的亮主、得分和升级规则
+            {t('createRoomForm.freeModeDesc')}<br />
+            {t('createRoomForm.basicModeDesc')}
           </Text>
           <br />
           <br />
-          <Text type="secondary">设置将在下一局游戏开始时生效</Text>
+          <Text type="secondary">{t('createRoomForm.settingsEffectNote')}</Text>
         </div>
       </Modal>
 
       {/* 修改昵称弹窗 */}
       <Modal
-        title="修改昵称"
+        title={t('nickname.modifyNickname')}
         open={renameModal}
         onOk={handleUpdatePlayerName}
         onCancel={() => {
           setRenameModal(false);
           setNewPlayerName('');
         }}
-        okText="保存"
-        cancelText="取消"
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
       >
         <div>
-          <Text strong>新昵称:</Text>
+          <Text strong>{t('nickname.newNickname')}</Text>
           <br />
           <Input
             style={{ width: '100%', marginTop: 8 }}
-            placeholder="请输入新昵称（最多20字符）"
+            placeholder={t('nickname.nicknamePlaceholder')}
             maxLength={20}
             value={newPlayerName}
             onChange={(e) => setNewPlayerName(e.target.value)}
@@ -1818,7 +1845,7 @@ export default function GameBoard() {
 
       {/* 聊天弹窗 */}
       <Modal
-        title="聊天"
+        title={t('chat.chat')}
         open={chatModal}
         onCancel={() => setChatModal(false)}
         footer={null}
@@ -1835,7 +1862,7 @@ export default function GameBoard() {
             padding: 8
           }}>
             {chatHistory.length === 0 ? (
-              <Text type="secondary">暂无聊天记录</Text>
+              <Text type="secondary">{t('chat.noChatHistory')}</Text>
             ) : (
               chatHistory.map((chat, idx) => (
                 <div key={idx} style={{ marginBottom: 8 }}>
@@ -1846,7 +1873,7 @@ export default function GameBoard() {
             )}
           </div>
 
-          <Divider style={{ margin: '12px 0' }}>快捷短语</Divider>
+          <Divider style={{ margin: '12px 0' }}>{t('chat.quickPhrases')}</Divider>
 
           {/* 快捷短语按钮 */}
           <Space wrap style={{ marginBottom: 12 }}>
@@ -1864,15 +1891,15 @@ export default function GameBoard() {
               type="dashed"
               onClick={() => setQuickPhraseModal(true)}
             >
-              管理快捷短语
+              {t('chat.manageQuickPhrases')}
             </Button>
           </Space>
 
-          <Divider style={{ margin: '12px 0' }}>发送消息</Divider>
+          <Divider style={{ margin: '12px 0' }}>{t('chat.sendMessage')}</Divider>
 
           {/* 消息输入 */}
           <Input.TextArea
-            placeholder="输入消息（最多200字符，支持emoji）"
+            placeholder={t('chat.messagePlaceholder')}
             maxLength={200}
             value={chatMessage}
             onChange={(e) => setChatMessage(e.target.value)}
@@ -1887,7 +1914,7 @@ export default function GameBoard() {
 
           {/* Emoji 选择器 */}
           <div style={{ marginTop: 8, marginBottom: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>常用表情：</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{t('chat.commonEmojis')}</Text>
             <div style={{ marginTop: 4 }}>
               <Space wrap>
                 {['😀', '😃', '😄', '😁', '😊', '😂', '🤣', '😍', '🥰', '😘', '😎', '🤔', '😮', '😢', '😭', '😡', '👍', '👎', '👏', '🙏', '💪', '🎉', '🎊', '❤️', '💯', '🔥', '✨', '⭐', '🌟', '💎'].map((emoji, idx) => (
@@ -1906,7 +1933,7 @@ export default function GameBoard() {
 
           <div style={{ marginTop: 8, textAlign: 'right' }}>
             <Button type="primary" onClick={() => handleSendChatMessage()}>
-              发送
+              {t('common.send')}
             </Button>
           </div>
         </div>
@@ -1914,7 +1941,7 @@ export default function GameBoard() {
 
       {/* 快捷短语管理弹窗 */}
       <Modal
-        title="管理快捷短语"
+        title={t('chat.manageQuickPhrases')}
         open={quickPhraseModal}
         onCancel={() => {
           setQuickPhraseModal(false);
@@ -1925,10 +1952,10 @@ export default function GameBoard() {
         <div>
           {/* 现有快捷短语 */}
           <div style={{ marginBottom: 12 }}>
-            <Text strong>现有快捷短语:</Text>
+            <Text strong>{t('chat.existingPhrases')}</Text>
             <div style={{ marginTop: 8 }}>
               {quickPhrases.length === 0 ? (
-                <Text type="secondary">暂无快捷短语</Text>
+                <Text type="secondary">{t('chat.noQuickPhrases')}</Text>
               ) : (
                 quickPhrases.map((phrase, idx) => (
                   <Tag
@@ -1944,11 +1971,11 @@ export default function GameBoard() {
             </div>
           </div>
 
-          <Divider style={{ margin: '12px 0' }}>添加新短语</Divider>
+          <Divider style={{ margin: '12px 0' }}>{t('chat.addNewPhrase')}</Divider>
 
           {/* 添加新快捷短语 */}
           <Input
-            placeholder="输入新的快捷短语（最多50字符）"
+            placeholder={t('chat.newPhrasePlaceholder')}
             maxLength={50}
             value={newQuickPhrase}
             onChange={(e) => setNewQuickPhrase(e.target.value)}
@@ -1956,7 +1983,7 @@ export default function GameBoard() {
           />
           <div style={{ marginTop: 8, textAlign: 'right' }}>
             <Button type="primary" onClick={handleAddQuickPhrase}>
-              添加
+              {t('common.add')}
             </Button>
           </div>
         </div>

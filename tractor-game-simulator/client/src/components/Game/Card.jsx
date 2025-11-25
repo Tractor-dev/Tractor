@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { isTrumpCard } from '../../utils/cardUtils';
+import { useI18n } from '../../locales/index.jsx';
 import './Card.css';
 
 const SUIT_SYMBOLS = {
@@ -18,24 +19,6 @@ const SUIT_COLORS = {
   joker: 'purple'
 };
 
-const RANK_DISPLAY = {
-  A: 'A',
-  '2': '2',
-  '3': '3',
-  '4': '4',
-  '5': '5',
-  '6': '6',
-  '7': '7',
-  '8': '8',
-  '9': '9',
-  '10': '10',
-  J: 'J',
-  Q: 'Q',
-  K: 'K',
-  small_joker: '小王',
-  big_joker: '大王'
-};
-
 export default function Card({
   card,
   selected = false,
@@ -50,12 +33,31 @@ export default function Card({
   trumpSuit = null,
   trumpRank = null
 }) {
+  const { t } = useI18n();
   const isJoker = card.suit === 'joker';
   const isTrump = isTrumpCard(card, trumpSuit, trumpRank);
 
+  const RANK_DISPLAY = useMemo(() => ({
+    A: 'A',
+    '2': '2',
+    '3': '3',
+    '4': '4',
+    '5': '5',
+    '6': '6',
+    '7': '7',
+    '8': '8',
+    '9': '9',
+    '10': '10',
+    J: 'J',
+    Q: 'Q',
+    K: 'K',
+    small_joker: t('card.smallJoker'),
+    big_joker: t('card.bigJoker')
+  }), [t]);
+
   const displayRank = useMemo(() => {
     return RANK_DISPLAY[card.rank] || card.rank;
-  }, [card.rank]);
+  }, [card.rank, RANK_DISPLAY]);
 
   const suitSymbol = SUIT_SYMBOLS[card.suit] || '';
   const color = SUIT_COLORS[card.suit] || 'black';

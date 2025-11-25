@@ -2,9 +2,11 @@ import { useState, useMemo } from 'react';
 import Card from './Card';
 import { getCardStrength, getEffectiveSuit } from '../../utils/cardPatternUtils';
 import { RANK_ORDER } from '../../utils/constants.js';
+import { useI18n } from '../../locales/index.jsx';
 import './Hand.css';
 
 export default function Hand({ cards, selectedCards = [], onCardClick, disabled = false, small = false, onReorder, trumpSuit = null, trumpRank = null }) {
+  const { t } = useI18n();
   const [draggedCard, setDraggedCard] = useState(null);
   const cardIndexMap = useMemo(() => {
     const map = new Map();
@@ -293,7 +295,7 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
                   textShadow: '0 0 2px white, 0 0 2px white'
                 }}
               >
-                拖拉机
+                {t('hand.tractor')}
               </div>
             )}
           </div>

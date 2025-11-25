@@ -330,7 +330,8 @@ export default {
     handCards: '手牌',
     cardCount: '手牌: {count}',
     tractor: '拖拉机',
-    show: '展示:'
+    show: '展示:',
+    myShow: '我的展示:'
   },
 
   // 卡牌显示

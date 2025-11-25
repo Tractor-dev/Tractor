@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Button, Input, List, Space, Typography, Divider, message } from 'antd';
 import { SearchOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { useI18n } from '../../locales/index.jsx';
 import './RuleSelector.css';
 
 const { Text, Title } = Typography;
@@ -14,6 +15,7 @@ const { TextArea } = Input;
  * @param {Function} props.onRuleSelected - 选择规则的回调，参数为 { name, content }
  */
 export default function RuleSelector({ visible, onClose, onRuleSelected }) {
+  const { t } = useI18n();
   const [rules, setRules] = useState([]);
   const [filteredRules, setFilteredRules] = useState([]);
   const [searchText, setSearchText] = useState('');
@@ -33,7 +35,7 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
         })
         .catch(err => {
           console.error('加载规则失败:', err);
-          messageApi.error('加载规则失败，请检查DLC.json文件');
+          messageApi.error(t('rules.loadRuleFailed'));
         });
     }
   }, [visible]);
@@ -53,20 +55,20 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
   // 随机选择规则
   const handleRandomSelect = () => {
     if (rules.length === 0) {
-      messageApi.warning('没有可用的规则');
+      messageApi.warning(t('rules.noRulesAvailable'));
       return;
     }
     const randomIndex = Math.floor(Math.random() * rules.length);
     const selectedRule = rules[randomIndex];
     onRuleSelected(selectedRule);
-    messageApi.success(`已随机选择规则: ${selectedRule.name}`);
+    messageApi.success(t('rules.ruleSelected', { name: selectedRule.name }));
     handleClose();
   };
 
   // 选择指定规则
   const handleSelectRule = (rule) => {
     onRuleSelected(rule);
-    messageApi.success(`已选择规则: ${rule.name}`);
+    messageApi.success(t('rules.ruleSelected', { name: rule.name }));
     handleClose();
   };
 
@@ -76,19 +78,19 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
     const trimmedContent = customRuleContent.trim();
 
     if (!trimmedName) {
-      messageApi.warning('规则名称不能为空');
+      messageApi.warning(t('rules.ruleNameEmpty'));
       return;
     }
     if (!trimmedContent) {
-      messageApi.warning('规则内容不能为空');
+      messageApi.warning(t('rules.ruleContentEmpty'));
       return;
     }
     if (trimmedName.length > 20) {
-      messageApi.warning('规则名称不能超过20个字符');
+      messageApi.warning(t('rules.ruleNameTooLong'));
       return;
     }
     if (trimmedContent.length > 200) {
-      messageApi.warning('规则内容不能超过200个字符');
+      messageApi.warning(t('rules.ruleContentTooLong'));
       return;
     }
 
@@ -98,7 +100,7 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
     };
 
     onRuleSelected(customRule);
-    messageApi.success(`已保存自定义规则: ${trimmedName}`);
+    messageApi.success(t('rules.customRuleSaved', { name: trimmedName }));
     handleClose();
   };
 
@@ -115,7 +117,7 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
     <>
       {contextHolder}
       <Modal
-        title="选择游戏规则"
+        title={t('rules.selectGameRule')}
         open={visible}
         onCancel={handleClose}
         footer={null}
@@ -132,20 +134,20 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
                   icon={<ReloadOutlined />}
                   onClick={handleRandomSelect}
                 >
-                  随机选择
+                  {t('rules.randomSelect')}
                 </Button>
                 <Button
                   icon={<EditOutlined />}
                   onClick={() => setShowCustomInput(true)}
                 >
-                  自定义规则
+                  {t('rules.customRule')}
                 </Button>
               </Space>
             </Space>
 
             {/* 搜索框 */}
             <Input
-              placeholder="搜索规则名称或内容..."
+              placeholder={t('rules.searchRule')}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -169,7 +171,7 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
                     />
                   </List.Item>
                 )}
-                locale={{ emptyText: '没有找到匹配的规则' }}
+                locale={{ emptyText: t('rules.noMatchingRules') }}
               />
             </div>
 
@@ -177,8 +179,8 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
 
             <div style={{ textAlign: 'center' }}>
               <Text type="secondary">
-                共 {filteredRules.length} 条规则
-                {searchText && ` (从 ${rules.length} 条中筛选)`}
+                {t('rules.totalRules', { count: filteredRules.length })}
+                {searchText && ` ${t('rules.filteredRules', { total: rules.length })}`}
               </Text>
             </div>
           </>
@@ -186,20 +188,20 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
           <>
             {/* 自定义规则输入 */}
             <div>
-              <Title level={5}>自定义规则</Title>
+              <Title level={5}>{t('rules.customRule')}</Title>
 
-              <Text strong>规则名称：</Text>
+              <Text strong>{t('rules.ruleName')}</Text>
               <Input
-                placeholder="请输入规则名称（最多20字符）"
+                placeholder={t('rules.ruleNamePlaceholder')}
                 maxLength={20}
                 value={customRuleName}
                 onChange={(e) => setCustomRuleName(e.target.value)}
                 style={{ marginTop: 8, marginBottom: 16 }}
               />
 
-              <Text strong>规则内容：</Text>
+              <Text strong>{t('rules.ruleContent')}</Text>
               <TextArea
-                placeholder="请输入规则内容（最多200字符）"
+                placeholder={t('rules.ruleContentPlaceholder')}
                 maxLength={200}
                 rows={6}
                 value={customRuleContent}
@@ -209,10 +211,10 @@ export default function RuleSelector({ visible, onClose, onRuleSelected }) {
 
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
                 <Button onClick={() => setShowCustomInput(false)}>
-                  返回
+                  {t('common.back')}
                 </Button>
                 <Button type="primary" onClick={handleSaveCustomRule}>
-                  确认
+                  {t('common.confirm')}
                 </Button>
               </Space>
             </div>

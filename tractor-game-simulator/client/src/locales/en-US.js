@@ -330,7 +330,8 @@ export default {
     handCards: 'Hand',
     cardCount: 'Cards: {count}',
     tractor: 'Tractor',
-    show: 'Shown:'
+    show: 'Shown:',
+    myShow: 'My Show:'
   },
 
   // Card display
