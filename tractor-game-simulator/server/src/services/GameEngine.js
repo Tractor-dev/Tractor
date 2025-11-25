@@ -107,6 +107,9 @@ export class GameEngine {
     this.drawingManager = new DrawingPhaseManager(this.room, this.io);
     this.drawingManager.start();
 
+    // 锁定当前局的游戏模式（防止游戏中途修改配置影响当前局）
+    this.room.gameState.playMode = this.room.config.playMode || PlayModes.ORDERED;
+
     // 广播开始发牌
     this.io.to(this.room.id).emit('start_drawing', {
       phase: GamePhases.DRAWING
@@ -174,9 +177,8 @@ export class GameEngine {
     // 进入出牌阶段
     this.room.gameState.phase = GamePhases.PLAYING;
 
-    // Use room config's playMode instead of hardcoding ORDERED
-    this.room.gameState.playMode = this.room.config.playMode || PlayModes.ORDERED;
-
+    // 使用游戏开始时锁定的playMode，而不是当前的room.config.playMode
+    // 这样确保游戏中途修改配置不会影响当前局
     const isFreeMode = this.room.gameState.playMode === PlayModes.FREE;
 
     if (isFreeMode) {
