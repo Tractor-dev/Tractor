@@ -640,6 +640,18 @@ export default function GameTable({
                   )}
                 </div>
               )}
+              {/* 我自己展示的牌区域 - 在手牌左侧 */}
+              {(() => {
+                const myShownCards = shownCards[positions.bottom.id];
+                const hasShownCards = myShownCards && myShownCards.cards && myShownCards.cards.length > 0;
+                if (!hasShownCards) return null;
+                return (
+                  <div className="bottom-shown-zone" style={{ marginRight: '16px' }}>
+                    <Text type="info" style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
+                    <Hand cards={myShownCards.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                  </div>
+                );
+              })()}
               {/* 手牌区域 */}
               <div className="my-hand">
                 <Hand

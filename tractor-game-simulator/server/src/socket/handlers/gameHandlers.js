@@ -286,6 +286,16 @@ export function registerGameHandlers(io, socket, roomManager) {
 
       const buryingPlayer = gameEngine.setBuryingPlayer(playerId);
 
+      // 如果是第一局（dealerPlayerIndex为null），同时设置dealerPlayerIndex
+      // 这样前端可以统一使用dealerPlayerIndex来判断庄家
+      if (room.gameState.dealerPlayerIndex === null) {
+        const dealerIndex = room.players.findIndex(p => p.id === playerId);
+        if (dealerIndex !== -1) {
+          room.gameState.dealerPlayerIndex = dealerIndex;
+          logger.info(`房间 ${room.id} 第一局设置庄家索引: ${dealerIndex}`);
+        }
+      }
+
       // 私密发送底牌给埋底玩家
       io.to(buryingPlayer.socketId).emit('bottom_cards_received', {
         bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
