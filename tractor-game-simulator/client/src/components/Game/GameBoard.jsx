@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag } from 'antd';
+import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch } from 'antd';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
@@ -50,6 +50,7 @@ export default function GameBoard() {
   const [roomConfigModal, setRoomConfigModal] = useState(false); // 房间设置弹窗
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8); // 新的底牌数量
   const [newDealInterval, setNewDealInterval] = useState(500); // 新的发牌间隔
+  const [newPlayMode, setNewPlayMode] = useState(PlayModes.ORDERED); // 新的出牌模式
   const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
   const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称
   const [chatModal, setChatModal] = useState(false); // 聊天弹窗
@@ -536,6 +537,7 @@ export default function GameBoard() {
     if (currentRoom?.config) {
       setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
       setNewDealInterval(currentRoom.config.dealInterval);
+      setNewPlayMode(currentRoom.config.playMode || PlayModes.ORDERED);
     }
   }, [currentRoom]);
 
@@ -547,6 +549,19 @@ export default function GameBoard() {
   // 玩家准备
   const handlePlayerReady = () => {
     socket.emit('player_ready', { roomId: currentRoom.id });
+  };
+
+  // 展示手牌（仅自由模式）
+  const handleShowCards = () => {
+    if (selectedCards.length === 0) {
+      messageApi.warning('请先选择要展示的牌');
+      return;
+    }
+    socket.emit(SOCKET_EVENTS.SHOW_CARDS, {
+      roomId: currentRoom.id,
+      cardIds: selectedCards
+    });
+    clearSelection();
   };
 
   // 亮主处理
@@ -757,7 +772,8 @@ export default function GameBoard() {
       roomId: currentRoom.id,
       config: {
         bottomCardsCount: newBottomCardsCount,
-        dealInterval: newDealInterval
+        dealInterval: newDealInterval,
+        playMode: newPlayMode
       }
     });
     setRoomConfigModal(false);
@@ -864,10 +880,12 @@ export default function GameBoard() {
   };
 
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
+  const currentPlayMode = gameState?.playMode || currentRoom?.config?.playMode || PlayModes.ORDERED;
 
-  // 渲染控制按钮区域 - 简化版,只保留核心功能按钮
+  // 渲染控制按钮区域
   const renderControlButtons = () => {
     const buttonStyle = { width: '100px', fontSize: '13px' };
+    const isFreeMode = currentPlayMode === PlayModes.FREE;
 
     switch (phase) {
       case GamePhases.WAITING:
@@ -900,8 +918,17 @@ export default function GameBoard() {
         return null;
 
       case GamePhases.DRAWING:
-        return (
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        if (isFreeMode) {
+          // 自由模式：展示牌、全选、指定埋底（房主）、修改昵称
+          const drawingButtons = [
+            <Button
+              key="show"
+              onClick={handleShowCards}
+              disabled={selectedCards.length === 0}
+              style={buttonStyle}
+            >
+              展示牌({selectedCards.length})
+            </Button>,
             <Button
               key="selectAll"
               onClick={handleSelectAllCards}
@@ -910,8 +937,47 @@ export default function GameBoard() {
             >
               全选
             </Button>
-          </div>
-        );
+          ];
+
+          if (isHost) {
+            drawingButtons.push(
+              <Button
+                key="setBurying"
+                type="primary"
+                onClick={() => setBuryingPlayerModal(true)}
+                style={buttonStyle}
+              >
+                指定埋底
+              </Button>
+            );
+          }
+
+          drawingButtons.push(
+            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+              改昵称
+            </Button>
+          );
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+              {drawingButtons}
+            </div>
+          );
+        } else {
+          // 基础模式：只保留全选
+          return (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <Button
+                key="selectAll"
+                onClick={handleSelectAllCards}
+                disabled={myCards.length === 0}
+                style={buttonStyle}
+              >
+                全选
+              </Button>
+            </div>
+          );
+        }
 
       case GamePhases.BURYING:
         const buryingButtons = [];
@@ -985,13 +1051,85 @@ export default function GameBoard() {
           }
         })();
 
-        const canPlay = isMyTurn && validateSelectedCards.valid;
+        const canPlay = isMyTurn && (isFreeMode || validateSelectedCards.valid);
         const playButtonTitle = !isMyTurn ? '还没轮到你出牌' :
-                               !validateSelectedCards.valid ? validateSelectedCards.message : '';
+                               (!isFreeMode && !validateSelectedCards.valid) ? validateSelectedCards.message : '';
 
-        // 右上角只保留: 出牌、撤回、聊天、全选
-        return (
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        if (isFreeMode) {
+          // 自由模式：出牌、撤回、聊天、看底牌（庄家）、全选、加减分按钮、加减级按钮、重新开始（房主）、修改昵称
+          const playingButtons = [];
+
+          if (gameState.buryingPlayerId) {
+            playingButtons.push(
+              <Button
+                key="play"
+                type="primary"
+                onClick={handlePlayCards}
+                disabled={selectedCards.length === 0}
+                style={buttonStyle}
+              >
+                出牌({selectedCards.length})
+              </Button>,
+              <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
+                聊天
+              </Button>,
+              <Button key="undo" onClick={handleUndoPlay} style={buttonStyle}>
+                撤回
+              </Button>
+            );
+
+            if (currentPlayer?.id === gameState.buryingPlayerId) {
+              playingButtons.push(
+                <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
+                  看底牌
+                </Button>
+              );
+            }
+
+            playingButtons.push(
+              <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
+                全选
+              </Button>,
+              <Button key="score-5" onClick={() => handleQuickAdjustScore(-5)} style={buttonStyle}>
+                -5分
+              </Button>,
+              <Button key="score+5" onClick={() => handleQuickAdjustScore(5)} style={buttonStyle}>
+                +5分
+              </Button>,
+              <Button key="score+10" onClick={() => handleQuickAdjustScore(10)} style={buttonStyle}>
+                +10分
+              </Button>,
+              <Button key="level-1" onClick={() => handleQuickAdjustLevel(-1)} style={buttonStyle}>
+                -1级
+              </Button>,
+              <Button key="level+1" onClick={() => handleQuickAdjustLevel(1)} style={buttonStyle}>
+                +1级
+              </Button>
+            );
+
+            if (isHost) {
+              playingButtons.push(
+                <Button key="restart" danger onClick={handleRestartGame} style={buttonStyle}>
+                  重新开始
+                </Button>
+              );
+            }
+
+            playingButtons.push(
+              <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+                改昵称
+              </Button>
+            );
+          }
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+              {playingButtons}
+            </div>
+          );
+        } else {
+          // 基础模式：出牌、撤回、聊天、全选、看底牌（庄家）、重新开始（房主）、修改昵称
+          const playingButtons = [
             <Button
               key="play"
               type="primary"
@@ -1001,7 +1139,7 @@ export default function GameBoard() {
               title={playButtonTitle}
             >
               出牌({selectedCards.length})
-            </Button>
+            </Button>,
             <Button
               key="undo"
               onClick={handleUndoPlay}
@@ -1010,15 +1148,46 @@ export default function GameBoard() {
               title={!canUndo ? '无法撤回' : ''}
             >
               撤回
-            </Button>
+            </Button>,
             <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
               聊天
-            </Button>
+            </Button>,
             <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
               全选
             </Button>
-          </div>
-        );
+          ];
+
+          // 看底牌（仅庄家）
+          if (currentPlayer?.id === gameState?.buryingPlayerId) {
+            playingButtons.push(
+              <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
+                看底牌
+              </Button>
+            );
+          }
+
+          // 重新开始（仅房主）
+          if (isHost) {
+            playingButtons.push(
+              <Button key="restart" onClick={handleRestartGame} style={buttonStyle}>
+                重新开始
+              </Button>
+            );
+          }
+
+          // 修改昵称
+          playingButtons.push(
+            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+              改昵称
+            </Button>
+          );
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+              {playingButtons}
+            </div>
+          );
+        }
 
       case GamePhases.REVEALING:
         return (
@@ -1045,6 +1214,8 @@ export default function GameBoard() {
 
   // 渲染游戏阶段内容
   const renderPhaseContent = () => {
+    const isFreeMode = currentPlayMode === PlayModes.FREE;
+
     switch (phase) {
       case GamePhases.WAITING:
         if (!currentRoom) {
@@ -1073,7 +1244,7 @@ export default function GameBoard() {
                 trumpSuit={trumpSuit}
                 trumpRank={trumpRank}
                 isHost={isHost}
-                onSetTrump={() => setTrumpModal(true)}
+                onSetTrump={isFreeMode ? () => setTrumpModal(true) : undefined}
                 selectedRule={selectedRule}
                 onSelectRule={() => setRuleSelectorModal(true)}
                 renderControls={renderControlButtons()}
@@ -1554,13 +1725,27 @@ export default function GameBoard() {
           <Text strong>发牌间隔（毫秒）:</Text>
           <br />
           <InputNumber
-            style={{ width: '100%', marginTop: 8 }}
+            style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
             min={10}
             max={5000}
             step={100}
             value={newDealInterval}
             onChange={setNewDealInterval}
           />
+          <br />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text strong>自由模式:</Text>
+            <Switch
+              checked={newPlayMode === PlayModes.FREE}
+              onChange={(checked) => setNewPlayMode(checked ? PlayModes.FREE : PlayModes.ORDERED)}
+              checkedChildren="开启"
+              unCheckedChildren="关闭"
+            />
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级<br />
+            基础模式：按顺序出牌，完善的亮主、得分和升级规则
+          </Text>
           <br />
           <br />
           <Text type="secondary">设置将在下一局游戏开始时生效</Text>

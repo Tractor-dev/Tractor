@@ -92,7 +92,8 @@ export const DEFAULT_CONFIG = {
   customTurnOrder: [0, 1, 2, 3],
   minPlayers: 2,
   maxPlayers: 4,
-  botType: BotTypes.SIMPLE  // 默认使用简单bot
+  botType: BotTypes.SIMPLE,  // 默认使用简单bot
+  playMode: PlayModes.ORDERED  // 默认使用基础模式（有序出牌）
 };
 
 // 默认玩家属性
