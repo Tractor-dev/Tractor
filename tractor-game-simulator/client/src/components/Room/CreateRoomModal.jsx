@@ -1,4 +1,7 @@
-import { Modal, Form, Input, InputNumber } from 'antd';
+import { Modal, Form, Input, InputNumber, Switch, Typography } from 'antd';
+import { PlayModes } from '../../utils/constants';
+
+const { Text } = Typography;
 
 export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
   const [form] = Form.useForm();
@@ -26,7 +29,8 @@ export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
           roomName: '我的房间',
           playerName: '玩家1',
           bottomCardsCount: 8,
-          dealInterval: 500
+          dealInterval: 500,
+          playMode: PlayModes.ORDERED
         }}
       >
         <Form.Item
@@ -59,6 +63,27 @@ export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
           rules={[{ required: true, message: '请输入发牌间隔' }]}
         >
           <InputNumber min={10} max={5000} step={100} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item
+          label="游戏模式"
+          name="playMode"
+        >
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text strong>自由模式:</Text>
+              <Form.Item name="playMode" noStyle valuePropName="checked" getValueFromEvent={(checked) => checked ? PlayModes.FREE : PlayModes.ORDERED}>
+                <Switch
+                  checkedChildren="开启"
+                  unCheckedChildren="关闭"
+                />
+              </Form.Item>
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级<br />
+              基础模式：按顺序出牌，完善的亮主、得分和升级规则
+            </Text>
+          </div>
         </Form.Item>
       </Form>
     </Modal>
