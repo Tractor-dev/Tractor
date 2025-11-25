@@ -29,8 +29,8 @@ export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
           roomName: '我的房间',
           playerName: '玩家1',
           bottomCardsCount: 8,
-          dealInterval: 500,
-          playMode: PlayModes.ORDERED
+          dealInterval: 100,
+          isFreeMode: false
         }}
       >
         <Form.Item
@@ -65,14 +65,11 @@ export default function CreateRoomModal({ visible, onClose, onCreateRoom }) {
           <InputNumber min={10} max={5000} step={100} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item
-          label="游戏模式"
-          name="playMode"
-        >
+        <Form.Item label="游戏模式">
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text strong>自由模式:</Text>
-              <Form.Item name="playMode" noStyle valuePropName="checked" getValueFromEvent={(checked) => checked ? PlayModes.FREE : PlayModes.ORDERED}>
+              <Form.Item name="isFreeMode" noStyle valuePropName="checked">
                 <Switch
                   checkedChildren="开启"
                   unCheckedChildren="关闭"

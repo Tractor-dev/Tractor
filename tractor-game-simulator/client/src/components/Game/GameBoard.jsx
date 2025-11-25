@@ -49,7 +49,7 @@ export default function GameBoard() {
   const [trumpModal, setTrumpModal] = useState(false); // 设置主牌弹窗
   const [roomConfigModal, setRoomConfigModal] = useState(false); // 房间设置弹窗
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8); // 新的底牌数量
-  const [newDealInterval, setNewDealInterval] = useState(500); // 新的发牌间隔
+  const [newDealInterval, setNewDealInterval] = useState(100); // 新的发牌间隔
   const [newPlayMode, setNewPlayMode] = useState(PlayModes.ORDERED); // 新的出牌模式
   const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
   const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称

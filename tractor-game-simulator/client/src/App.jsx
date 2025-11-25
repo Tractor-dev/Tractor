@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
@@ -10,7 +10,7 @@ import { SOCKET_EVENTS, GamePhases } from './utils/constants';
 import './styles/App.css';
 
 const { Header, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
@@ -21,7 +21,8 @@ function App() {
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8);
-  const [newDealInterval, setNewDealInterval] = useState(500);
+  const [newDealInterval, setNewDealInterval] = useState(100);
+  const [newIsFreeMode, setNewIsFreeMode] = useState(false);
 
   useEffect(() => {
     // 连接Socket
@@ -132,7 +133,8 @@ function App() {
       playerName: values.playerName,
       config: {
         bottomCardsCount: values.bottomCardsCount,
-        dealInterval: values.dealInterval
+        dealInterval: values.dealInterval,
+        playMode: values.isFreeMode ? 'free' : 'ordered'
       }
     });
   };
@@ -197,7 +199,8 @@ function App() {
       roomId: currentRoom.id,
       config: {
         bottomCardsCount: newBottomCardsCount,
-        dealInterval: newDealInterval
+        dealInterval: newDealInterval,
+        playMode: newIsFreeMode ? 'free' : 'ordered'
       }
     });
     setShowConfigModal(false);
@@ -215,6 +218,7 @@ function App() {
     if (currentRoom?.config) {
       setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
       setNewDealInterval(currentRoom.config.dealInterval);
+      setNewIsFreeMode(currentRoom.config.playMode === 'free');
     }
   }, [currentRoom]);
 
@@ -265,6 +269,7 @@ function App() {
               <Title level={4}>房间配置:</Title>
               <p>底牌数量: {currentRoom.config.bottomCardsCount} 张</p>
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
+              <p>游戏模式: {currentRoom.config.playMode === 'free' ? '自由模式' : '基础模式'}</p>
             </div>
 
             {/* Bot管理区域 - 仅房主可见 */}
@@ -333,7 +338,7 @@ function App() {
           cancelText="取消"
         >
           <div>
-            <Typography.Text strong>底牌数量:</Typography.Text>
+            <Text strong>底牌数量:</Text>
             <br />
             <InputNumber
               style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
@@ -343,10 +348,10 @@ function App() {
               onChange={setNewBottomCardsCount}
             />
             <br />
-            <Typography.Text strong>发牌间隔（毫秒）:</Typography.Text>
+            <Text strong>发牌间隔（毫秒）:</Text>
             <br />
             <InputNumber
-              style={{ width: '100%', marginTop: 8 }}
+              style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
               min={10}
               max={5000}
               step={100}
@@ -354,8 +359,22 @@ function App() {
               onChange={setNewDealInterval}
             />
             <br />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text strong>自由模式:</Text>
+              <Switch
+                checked={newIsFreeMode}
+                onChange={setNewIsFreeMode}
+                checkedChildren="开启"
+                unCheckedChildren="关闭"
+              />
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级<br />
+              基础模式：按顺序出牌，完善的亮主、得分和升级规则
+            </Text>
             <br />
-            <Typography.Text type="secondary">设置将在下一局游戏开始时生效</Typography.Text>
+            <br />
+            <Text type="secondary">设置将在下一局游戏开始时生效</Text>
           </div>
         </Modal>
       </Layout>

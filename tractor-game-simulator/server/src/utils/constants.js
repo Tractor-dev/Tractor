@@ -86,7 +86,7 @@ export const BotTypes = {
 // 默认配置
 export const DEFAULT_CONFIG = {
   bottomCardsCount: 8,
-  dealInterval: 500,
+  dealInterval: 100,
   minDealInterval: 10,
   turnOrder: TurnOrders.COUNTER_CLOCKWISE,
   customTurnOrder: [0, 1, 2, 3],
