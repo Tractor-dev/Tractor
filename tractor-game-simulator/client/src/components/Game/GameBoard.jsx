@@ -885,9 +885,42 @@ export default function GameBoard() {
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
   const currentPlayMode = gameState?.playMode || currentRoom?.config?.playMode || PlayModes.ORDERED;
 
+  // 通用按钮样式
+  const buttonStyle = { width: '100px', fontSize: '13px' };
+
+  // 通用按钮组件 - 房间设置（仅房主可见）
+  const renderSettingsButton = () => {
+    if (!isHost) return null;
+    return (
+      <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
+        房间设置
+      </Button>
+    );
+  };
+
+  // 通用按钮组件 - 修改昵称
+  const renderRenameButton = () => (
+    <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
+      改昵称
+    </Button>
+  );
+
+  // 通用按钮组件 - 聊天
+  const renderChatButton = () => (
+    <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
+      聊天
+    </Button>
+  );
+
+  // 通用按钮组件 - 全选
+  const renderSelectAllButton = () => (
+    <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
+      全选
+    </Button>
+  );
+
   // 渲染控制按钮区域
   const renderControlButtons = () => {
-    const buttonStyle = { width: '100px', fontSize: '13px' };
     const isFreeMode = currentPlayMode === PlayModes.FREE;
 
     switch (phase) {
@@ -932,14 +965,7 @@ export default function GameBoard() {
             >
               展示牌({selectedCards.length})
             </Button>,
-            <Button
-              key="selectAll"
-              onClick={handleSelectAllCards}
-              disabled={myCards.length === 0}
-              style={buttonStyle}
-            >
-              全选
-            </Button>
+            renderSelectAllButton()
           ];
 
           if (isHost) {
@@ -955,19 +981,9 @@ export default function GameBoard() {
             );
           }
 
-          drawingButtons.push(
-            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-              改昵称
-            </Button>
-          );
-
-          if (isHost) {
-            drawingButtons.push(
-              <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-                房间设置
-              </Button>
-            );
-          }
+          drawingButtons.push(renderRenameButton());
+          const settingsBtn = renderSettingsButton();
+          if (settingsBtn) drawingButtons.push(settingsBtn);
 
           return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
@@ -976,24 +992,9 @@ export default function GameBoard() {
           );
         } else {
           // 基础模式：只保留全选和房间设置（房主）
-          const drawingButtons = [
-            <Button
-              key="selectAll"
-              onClick={handleSelectAllCards}
-              disabled={myCards.length === 0}
-              style={buttonStyle}
-            >
-              全选
-            </Button>
-          ];
-
-          if (isHost) {
-            drawingButtons.push(
-              <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-                房间设置
-              </Button>
-            );
-          }
+          const drawingButtons = [renderSelectAllButton()];
+          const settingsBtn = renderSettingsButton();
+          if (settingsBtn) drawingButtons.push(settingsBtn);
 
           return (
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1025,12 +1026,9 @@ export default function GameBoard() {
           );
         }
 
-        if (isHost) {
-          buryingButtons.push(
-            <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-              房间设置
-            </Button>
-          );
+        {
+          const settingsBtn = renderSettingsButton();
+          if (settingsBtn) buryingButtons.push(settingsBtn);
         }
 
         return (
@@ -1101,9 +1099,7 @@ export default function GameBoard() {
               >
                 出牌({selectedCards.length})
               </Button>,
-              <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
-                聊天
-              </Button>,
+              renderChatButton(),
               <Button key="undo" onClick={handleUndoPlay} style={buttonStyle}>
                 撤回
               </Button>
@@ -1118,9 +1114,7 @@ export default function GameBoard() {
             }
 
             playingButtons.push(
-              <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
-                全选
-              </Button>,
+              renderSelectAllButton(),
               <Button key="score-5" onClick={() => handleQuickAdjustScore(-5)} style={buttonStyle}>
                 -5分
               </Button>,
@@ -1146,19 +1140,9 @@ export default function GameBoard() {
               );
             }
 
-            playingButtons.push(
-              <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-                改昵称
-              </Button>
-            );
-
-            if (isHost) {
-              playingButtons.push(
-                <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-                  房间设置
-                </Button>
-              );
-            }
+            playingButtons.push(renderRenameButton());
+            const settingsBtn = renderSettingsButton();
+            if (settingsBtn) playingButtons.push(settingsBtn);
           }
 
           return (
@@ -1188,12 +1172,8 @@ export default function GameBoard() {
             >
               撤回
             </Button>,
-            <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
-              聊天
-            </Button>,
-            <Button key="selectAll" onClick={handleSelectAllCards} disabled={myCards.length === 0} style={buttonStyle}>
-              全选
-            </Button>
+            renderChatButton(),
+            renderSelectAllButton()
           ];
 
           // 看底牌（仅庄家）
@@ -1215,19 +1195,12 @@ export default function GameBoard() {
           }
 
           // 修改昵称
-          playingButtons.push(
-            <Button key="rename" onClick={handleOpenRenameModal} style={buttonStyle}>
-              改昵称
-            </Button>
-          );
+          playingButtons.push(renderRenameButton());
 
           // 房间设置（仅房主）
-          if (isHost) {
-            playingButtons.push(
-              <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-                房间设置
-              </Button>
-            );
+          {
+            const settingsBtn = renderSettingsButton();
+            if (settingsBtn) playingButtons.push(settingsBtn);
           }
 
           return (
@@ -1250,12 +1223,9 @@ export default function GameBoard() {
           </Button>
         ];
 
-        if (isHost) {
-          revealingButtons.push(
-            <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-              房间设置
-            </Button>
-          );
+        {
+          const settingsBtn = renderSettingsButton();
+          if (settingsBtn) revealingButtons.push(settingsBtn);
         }
 
         return (
@@ -1265,17 +1235,15 @@ export default function GameBoard() {
         );
 
       case GamePhases.FINISHED:
-        if (!isHost) {
-          return null;
+        {
+          const settingsBtn = renderSettingsButton();
+          if (!settingsBtn) return null;
+          return (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              {settingsBtn}
+            </div>
+          );
         }
-
-        return (
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <Button key="settings" onClick={() => setRoomConfigModal(true)} style={buttonStyle}>
-              房间设置
-            </Button>
-          </div>
-        );
 
       default:
         return null;
