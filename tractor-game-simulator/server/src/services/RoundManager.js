@@ -9,6 +9,7 @@ export class RoundManager {
 
   /**
    * 玩家出牌后调用
+   * 只负责记录出牌和移动到下一个玩家，轮次结束由 GameEngine 处理
    */
   onPlayerPlayed(playerIndex) {
     const mode = this.gameState.playMode;
@@ -19,8 +20,11 @@ export class RoundManager {
 
       // 检查本轮是否所有人都出过牌
       if (this.gameState.playersPlayedThisRound.size === this.room.players.length) {
-        // 本轮结束，进入自由出牌阶段
-        return this.enterFreeMode();
+        // 本轮结束，由 GameEngine 处理获胜者和下一轮
+        return {
+          type: 'round_ended',
+          round: this.gameState.currentRound
+        };
       } else {
         // 移动到下一个玩家
         this.moveToNextPlayer(playerIndex);
@@ -29,11 +33,9 @@ export class RoundManager {
           currentPlayerIndex: this.gameState.currentPlayerIndex
         };
       }
-    } else if (mode === PlayModes.FREE) {
-      // 自由模式：第一个出牌的人触发新一轮
-      // 该玩家的出牌直接算作新一轮的首发出牌
-      return this.startNewRound(playerIndex);
     }
+
+    return null;
   }
 
   /**

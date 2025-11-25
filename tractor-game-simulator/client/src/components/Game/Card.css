@@ -102,3 +102,34 @@
 .card.small .joker-text {
   font-size: 14px;
 }
+
+/* 主牌星标 */
+.trump-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  z-index: 10;
+}
+
+.trump-star {
+  font-size: 16px;
+  color: #ffd700;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  display: inline-block;
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.card.small .trump-star {
+  font-size: 12px;
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}

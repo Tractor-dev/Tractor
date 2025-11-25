@@ -1,0 +1,84 @@
+.trump-declaration {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.declaration-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  min-width: 60px;
+}
+
+.declaration-slots {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+}
+
+.declaration-slot {
+  flex: 1;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: default;
+  transition: all 0.3s ease;
+  position: relative;
+  user-select: none;
+}
+
+.declaration-slot .slot-label {
+  font-size: 24px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 可以亮主的格子 */
+.declaration-slot.active {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #ffd700;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.declaration-slot.active .slot-label {
+  color: #333;
+}
+
+.declaration-slot.active:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.8);
+}
+
+/* 脉动动画 */
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+  }
+}
+
+/* 红桃和方片使用红色 */
+.declaration-slot:nth-child(3) .slot-label,
+.declaration-slot:nth-child(5) .slot-label {
+  color: rgba(255, 100, 100, 0.8);
+}
+
+.declaration-slot.active:nth-child(3) .slot-label,
+.declaration-slot.active:nth-child(5) .slot-label {
+  color: #e74c3c;
+}

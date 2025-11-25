@@ -1,5 +1,5 @@
 import { GameEngine } from '../../services/GameEngine.js';
-import { GamePhases, normalizeRank } from '../../utils/constants.js';
+import { GamePhases } from '../../utils/constants.js';
 import BotService from '../../services/BotService.js';
 import logger from '../../utils/logger.js';
 
@@ -20,10 +20,10 @@ export function getBotServices() {
 }
 
 /**
- * 触发当前轮到的Bot自动出牌
+ * 触发所有bot自动出牌（自由出牌模式）
  */
-async function triggerBotPlay(io, room, gameEngine) {
-  logger.info(`=== 检查是否需要触发Bot出牌 ===`);
+async function triggerAllBotsPlay(io, room, gameEngine) {
+  logger.info(`=== 开始触发Bot出牌流程 ===`);
   logger.info(`房间ID: ${room.id}, 游戏阶段: ${room.gameState.phase}`);
 
   // 检查游戏状态
@@ -32,32 +32,18 @@ async function triggerBotPlay(io, room, gameEngine) {
     return;
   }
 
-  // 获取当前应该出牌的玩家
-  const currentPlayerIndex = room.gameState.currentPlayerIndex;
-  if (currentPlayerIndex === null || currentPlayerIndex === undefined) {
-    logger.info('当前没有指定出牌玩家（自由模式），跳过bot出牌');
+  // 找出所有还有手牌的bot
+  const botsWithCards = room.players.filter(p => p.isBot && p.cards.length > 0);
+
+  logger.info(`找到 ${botsWithCards.length} 个有手牌的bot`);
+  botsWithCards.forEach(bot => {
+    logger.info(`  - Bot ${bot.name} (ID: ${bot.id}): ${bot.cards.length} 张牌`);
+  });
+
+  if (botsWithCards.length === 0) {
+    logger.info('没有bot有手牌，结束出牌流程');
     return;
   }
-
-  const currentPlayer = room.players[currentPlayerIndex];
-  if (!currentPlayer) {
-    logger.warn(`找不到索引为 ${currentPlayerIndex} 的玩家`);
-    return;
-  }
-
-  // 检查当前玩家是否是Bot
-  if (!currentPlayer.isBot) {
-    logger.info(`当前玩家 ${currentPlayer.name} 不是Bot，等待真人玩家出牌`);
-    return;
-  }
-
-  // 检查Bot是否还有手牌
-  if (currentPlayer.cards.length === 0) {
-    logger.info(`Bot ${currentPlayer.name} 已经没有手牌了`);
-    return;
-  }
-
-  logger.info(`\n--- 轮到Bot ${currentPlayer.name} 出牌 ---`);
 
   // 获取或创建bot服务
   let botService = botServices.get(room.id);
@@ -67,111 +53,126 @@ async function triggerBotPlay(io, room, gameEngine) {
     botServices.set(room.id, botService);
   }
 
-  try {
-    logger.info(`触发Bot ${currentPlayer.name} 自动出牌`);
-    logger.info(`Bot ${currentPlayer.name} 当前手牌数: ${currentPlayer.cards.length}`);
+  // 依次让每个bot出一次牌
+  for (const bot of botsWithCards) {
+    logger.info(`\n--- 轮到Bot ${bot.name} 出牌 ---`);
 
-    // 延迟一小段时间，模拟思考过程
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // 调用bot获取决策
-    logger.info(`开始调用BotService.getBotAction...`);
-    const cardIds = await botService.getBotAction(
-      room.gameState,
-      currentPlayer.cards,
-      currentPlayerIndex,
-      room
-    );
-
-    logger.info(`Bot ${currentPlayer.name} 决策完成，选择出牌: ${cardIds.length} 张，卡牌IDs: ${JSON.stringify(cardIds)}`);
-
-    // 执行出牌
-    logger.info(`执行Bot ${currentPlayer.name} 出牌操作...`);
-    const result = gameEngine.playCards(currentPlayer.id, cardIds);
-    logger.info(`Bot ${currentPlayer.name} 出牌成功，剩余 ${result.remainingCount} 张牌`);
-
-    // 广播甩牌失败消息
-    if (result.throwFailed) {
-      io.to(room.id).emit('throw_failed', {
-        playerId: currentPlayer.id,
-        playerName: currentPlayer.name,
-        message: result.throwFailed.message,
-        attemptedCards: result.throwFailed.attemptedCards,
-        attemptedCardObjects: result.throwFailed.attemptedCardObjects,
-        forcedCards: result.throwFailed.forcedCards
-      });
+    // 再次检查游戏是否已结束
+    if (room.gameState.phase !== GamePhases.PLAYING) {
+      logger.warn('游戏已不在PLAYING阶段，停止bot出牌');
+      break;
     }
 
-    // 广播bot出牌
-    io.to(room.id).emit('cards_played', {
-      playerId: currentPlayer.id,
-      playerName: currentPlayer.name,
-      cards: result.playedCards,
-      remainingCount: result.remainingCount
-    });
+    try {
+      logger.info(`触发Bot ${bot.name} 自动出牌`);
+      logger.info(`Bot ${bot.name} 当前手牌数: ${bot.cards.length}`);
 
-    // 广播毙牌动作
-    if (result.trumpAction) {
-      io.to(room.id).emit('trump_action', {
-        type: result.trumpAction.type,
-        playerId: result.trumpAction.playerId,
-        playerName: result.trumpAction.playerName
-      });
-    }
+      // 延迟一小段时间，模拟思考过程
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // 广播回合状态更新
-    if (result.roundUpdate) {
-      io.to(room.id).emit('round_updated', result.roundUpdate);
-    }
+      // 获取bot在玩家列表中的索引
+      const botIndex = room.getPlayerIndex(bot.id);
+      logger.info(`Bot ${bot.name} 索引: ${botIndex}`);
 
-    // 检查是否有玩家打完牌
-    if (result.remainingCount === 0) {
-      logger.info(`Bot ${currentPlayer.name} 已打完所有牌`);
-      io.to(room.id).emit('player_finished', {
-        playerId: currentPlayer.id,
-        playerName: currentPlayer.name
-      });
-    }
+      // 调用bot获取决策
+      logger.info(`开始调用BotService.getBotAction...`);
+      const cardIds = await botService.getBotAction(
+        room.gameState,
+        bot.cards,
+        botIndex,
+        room
+      );
 
-    // 游戏结束
-    if (result.gameFinished) {
-      logger.info('游戏结束，揭示底牌');
-      // 发送底牌和得分结果
-      io.to(room.id).emit('bottom_revealed', {
-        bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
-        bottomScoreResult: room.gameState.bottomScoreResult,
-        upgradeResult: room.gameState.upgradeResult
+      logger.info(`Bot ${bot.name} 决策完成，选择出牌: ${cardIds.length} 张，卡牌IDs: ${JSON.stringify(cardIds)}`);
+
+      // 执行出牌
+      logger.info(`执行Bot ${bot.name} 出牌操作...`);
+      const result = gameEngine.playCards(bot.id, cardIds);
+      logger.info(`Bot ${bot.name} 出牌成功，剩余 ${result.remainingCount} 张牌`);
+
+      // 广播bot出牌
+      io.to(room.id).emit('cards_played', {
+        playerId: bot.id,
+        playerName: bot.name,
+        cards: result.playedCards,
+        remainingCount: result.remainingCount
       });
 
-      io.to(room.id).emit('phase_changed', {
-        phase: 'revealing',
-        message: '所有玩家已出完牌，查看底牌'
-      });
-    }
+      // 广播回合状态更新
+      if (result.roundUpdate) {
+        io.to(room.id).emit('round_updated', result.roundUpdate);
+      }
 
-    // 广播房间状态更新
-    io.to(room.id).emit('room_updated', {
-      room: room.toJSON()
-    });
-
-    // 如果游戏未结束且下一位也是Bot，继续触发
-    if (!result.gameFinished && room.gameState.phase === GamePhases.PLAYING) {
-      logger.info('检查下一位玩家是否是Bot...');
-      // 延迟后递归调用，检查下一位玩家
-      setTimeout(() => {
-        triggerBotPlay(io, room, gameEngine).catch(err => {
-          logger.error('触发下一位bot出牌失败:', err);
-          logger.error('错误堆栈:', err.stack);
+      // 检查是否有玩家打完牌
+      if (result.remainingCount === 0) {
+        logger.info(`Bot ${bot.name} 已打完所有牌`);
+        io.to(room.id).emit('player_finished', {
+          playerId: bot.id,
+          playerName: bot.name
         });
-      }, 1000);
-    } else {
-      logger.info('=== Bot出牌流程结束 ===');
-    }
+      }
 
-  } catch (error) {
-    logger.error(`Bot ${currentPlayer.name} 出牌失败:`, error);
-    logger.error('错误堆栈:', error.stack);
-    logger.info(`Bot ${currentPlayer.name} 出牌失败，跳过这一轮`);
+      // 游戏结束
+      if (result.gameFinished) {
+        logger.info('游戏结束，揭示底牌');
+        io.to(room.id).emit('bottom_revealed', {
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
+        });
+
+        io.to(room.id).emit('phase_changed', {
+          phase: 'revealing',
+          message: '所有玩家已出完牌，查看底牌'
+        });
+      }
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      // 如果游戏结束，停止循环
+      if (result.gameFinished) {
+        logger.info('游戏已结束，停止bot出牌循环');
+        break;
+      }
+
+    } catch (error) {
+      logger.error(`Bot ${bot.name} 出牌失败:`, error);
+      logger.error('错误堆栈:', error.stack);
+      // Bot出牌失败，跳过这个bot
+      try {
+        logger.info(`Bot ${bot.name} 出牌失败，尝试跳过...`);
+        const result = gameEngine.playCards(bot.id, []);
+        io.to(room.id).emit('turn_passed', {
+          playerId: bot.id,
+          playerName: bot.name
+        });
+        io.to(room.id).emit('room_updated', {
+          room: room.toJSON()
+        });
+        logger.info(`Bot ${bot.name} 跳过成功`);
+      } catch (skipError) {
+        logger.error(`Bot ${bot.name} 跳过也失败:`, skipError);
+        logger.error('跳过错误堆栈:', skipError.stack);
+      }
+    }
+  }
+
+  // 如果还有bot有牌，继续下一轮
+  const stillHasCards = room.players.some(p => p.isBot && p.cards.length > 0);
+  logger.info(`\n检查是否需要继续下一轮: stillHasCards=${stillHasCards}, phase=${room.gameState.phase}`);
+
+  if (stillHasCards && room.gameState.phase === GamePhases.PLAYING) {
+    logger.info('还有bot有牌，2秒后继续下一轮出牌');
+    // 延迟后继续让bot出牌
+    setTimeout(() => {
+      triggerAllBotsPlay(io, room, gameEngine).catch(err => {
+        logger.error('触发bot继续出牌失败:', err);
+        logger.error('错误堆栈:', err.stack);
+      });
+    }, 2000);
+  } else {
+    logger.info('=== Bot出牌流程结束 ===');
   }
 }
 
@@ -355,11 +356,6 @@ export function registerGameHandlers(io, socket, roomManager) {
         room: room.toJSON()
       });
 
-      // 触发bot自动出牌
-      triggerBotPlay(io, room, gameEngine).catch(err => {
-        logger.error('触发bot出牌失败:', err);
-      });
-
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('埋底失败:', error);
@@ -404,7 +400,7 @@ export function registerGameHandlers(io, socket, roomManager) {
       logger.info(`房间 ${room.id} 首发玩家: ${firstPlayer.name}`);
 
       // 触发bot自动出牌
-      triggerBotPlay(io, room, gameEngine).catch(err => {
+      triggerAllBotsPlay(io, room, gameEngine).catch(err => {
         logger.error('触发bot出牌失败:', err);
       });
 
@@ -428,15 +424,14 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error('只有房主可以设置主牌');
       }
 
-      // 设置主牌（规范化 rank 确保类型一致）
-      const normalizedRank = normalizeRank(rank);
+      // 设置主牌
       room.gameState.trumpSuit = suit;
-      room.gameState.trumpRank = normalizedRank;
+      room.gameState.trumpRank = rank;
 
       // 广播主牌更新
       io.to(room.id).emit('trump_updated', {
         trumpSuit: suit,
-        trumpRank: normalizedRank
+        trumpRank: rank
       });
 
       // 广播房间状态更新
@@ -474,18 +469,6 @@ export function registerGameHandlers(io, socket, roomManager) {
 
       const result = gameEngine.playCards(player.id, cardIds);
 
-      // 广播甩牌失败消息
-      if (result.throwFailed) {
-        io.to(room.id).emit('throw_failed', {
-          playerId: player.id,
-          playerName: player.name,
-          message: result.throwFailed.message,
-          attemptedCards: result.throwFailed.attemptedCards,
-          attemptedCardObjects: result.throwFailed.attemptedCardObjects,
-          forcedCards: result.throwFailed.forcedCards
-        });
-      }
-
       // 广播出牌
       io.to(room.id).emit('cards_played', {
         playerId: player.id,
@@ -493,15 +476,6 @@ export function registerGameHandlers(io, socket, roomManager) {
         cards: result.playedCards,
         remainingCount: result.remainingCount
       });
-
-      // 广播毙牌动作
-      if (result.trumpAction) {
-        io.to(room.id).emit('trump_action', {
-          type: result.trumpAction.type,
-          playerId: result.trumpAction.playerId,
-          playerName: result.trumpAction.playerName
-        });
-      }
 
       // 广播回合状态更新
       if (result.roundUpdate) {
@@ -518,11 +492,8 @@ export function registerGameHandlers(io, socket, roomManager) {
 
       // 游戏结束
       if (result.gameFinished) {
-        // 发送底牌和得分结果
         io.to(room.id).emit('bottom_revealed', {
-          bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
-          bottomScoreResult: room.gameState.bottomScoreResult,
-          upgradeResult: room.gameState.upgradeResult
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
         });
 
         io.to(room.id).emit('phase_changed', {
@@ -535,13 +506,6 @@ export function registerGameHandlers(io, socket, roomManager) {
       io.to(room.id).emit('room_updated', {
         room: room.toJSON()
       });
-
-      // 触发下一位bot自动出牌
-      if (!result.gameFinished) {
-        triggerBotPlay(io, room, gameEngine).catch(err => {
-          logger.error('触发下一位bot出牌失败:', err);
-        });
-      }
 
     } catch (error) {
       socket.emit('error', { message: error.message });
@@ -581,9 +545,7 @@ export function registerGameHandlers(io, socket, roomManager) {
       // 游戏结束检查
       if (result.gameFinished) {
         io.to(room.id).emit('bottom_revealed', {
-          bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
-          bottomScoreResult: room.gameState.bottomScoreResult,
-          upgradeResult: room.gameState.upgradeResult
+          bottomCards: room.gameState.bottomCards.map(c => c.toJSON())
         });
 
         io.to(room.id).emit('phase_changed', {
@@ -678,9 +640,9 @@ export function registerGameHandlers(io, socket, roomManager) {
   });
 
   /**
-   * 准备开始下一局
+   * 确认查看底牌
    */
-  socket.on('ready_for_next_game', ({ roomId }) => {
+  socket.on('confirm_reveal', ({ roomId }) => {
     try {
       const room = roomManager.getRoom(roomId);
       if (!room) {
@@ -697,26 +659,35 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error('游戏未开始');
       }
 
-      const allReady = gameEngine.readyForNextGame(player.id);
+      const allConfirmed = gameEngine.confirmReveal(player.id);
 
-      // 广播准备状态
-      const readyCount = room.players.filter(p => p.isReadyForNext).length;
-      io.to(room.id).emit('player_ready_for_next', {
+      // 广播确认状态
+      const confirmedCount = room.players.filter(p => p.hasConfirmedReveal).length;
+      io.to(room.id).emit('player_confirmed_reveal', {
         playerId: player.id,
         playerName: player.name,
-        readyCount,
+        confirmedCount,
         totalCount: room.players.length
       });
 
-      // 所有人准备好后会自动开始下一局（在 readyForNextGame 中处理）
-      // 这里只需要广播房间状态更新
-      io.to(room.id).emit('room_updated', {
-        room: room.toJSON()
-      });
+      // 所有人确认后进入finished阶段
+      if (allConfirmed) {
+        const duration = (room.gameState.endTime - room.gameState.startTime) / 1000;
+        io.to(room.id).emit('game_finished', {
+          players: room.players.map(p => p.toJSON()),
+          duration,
+          totalRounds: room.gameState.currentRound
+        });
+
+        // 广播房间状态更新
+        io.to(room.id).emit('room_updated', {
+          room: room.toJSON()
+        });
+      }
 
     } catch (error) {
       socket.emit('error', { message: error.message });
-      logger.error('准备下一局失败:', error);
+      logger.error('确认查看底牌失败:', error);
     }
   });
 

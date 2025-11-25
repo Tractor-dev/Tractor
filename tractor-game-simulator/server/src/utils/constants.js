@@ -92,7 +92,8 @@ export const DEFAULT_CONFIG = {
   customTurnOrder: [0, 1, 2, 3],
   minPlayers: 2,
   maxPlayers: 4,
-  botType: BotTypes.SIMPLE  // 默认使用简单bot
+  botType: BotTypes.SIMPLE,  // 默认使用简单bot
+  playMode: PlayModes.ORDERED  // 默认使用基础模式（有序出牌）
 };
 
 // 默认玩家属性
@@ -100,3 +101,57 @@ export const DEFAULT_PLAYER = {
   score: 0,
   level: 2
 };
+
+/**
+ * 将等级转换为牌面值
+ * @param {number} level - 玩家等级 (2-14)
+ * @returns {string} 对应的牌面值
+ */
+export function levelToRank(level) {
+  const levelMap = {
+    2: Ranks.TWO,
+    3: Ranks.THREE,
+    4: Ranks.FOUR,
+    5: Ranks.FIVE,
+    6: Ranks.SIX,
+    7: Ranks.SEVEN,
+    8: Ranks.EIGHT,
+    9: Ranks.NINE,
+    10: Ranks.TEN,
+    11: Ranks.JACK,
+    12: Ranks.QUEEN,
+    13: Ranks.KING,
+    14: Ranks.ACE
+  };
+  return levelMap[level] || Ranks.TWO;
+}
+
+/**
+ * 规范化牌面值，确保返回正确的 Ranks 常量
+ * @param {number|string} rank - 牌面值（可能是数字或字符串）
+ * @returns {string} 规范化后的牌面值
+ */
+export function normalizeRank(rank) {
+  // 如果已经是有效的 Ranks 常量值，直接返回
+  const validRanks = Object.values(Ranks);
+  if (validRanks.includes(rank)) {
+    return rank;
+  }
+
+  // 如果是数字，使用 levelToRank 转换
+  const numRank = Number(rank);
+  if (!isNaN(numRank) && numRank >= 2 && numRank <= 14) {
+    return levelToRank(numRank);
+  }
+
+  // 字符串形式的数字 "2"-"10"
+  if (typeof rank === 'string' && /^\d+$/.test(rank)) {
+    const num = parseInt(rank, 10);
+    if (num >= 2 && num <= 10) {
+      return levelToRank(num);
+    }
+  }
+
+  // 默认返回 2
+  return Ranks.TWO;
+}

@@ -1,7 +1,6 @@
 .game-table {
   width: 100%;
-  height: calc(100vh - 200px);
-  min-height: 600px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -13,11 +12,13 @@
 
 /* 上方玩家区域 */
 .position-top {
-  flex: 0 0 120px;
+  flex: 0 0 auto;
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 10px;
+  gap: 8px;
 }
 
 /* 中间区域（左、中央、右） */
@@ -31,10 +32,12 @@
 }
 
 .position-left {
-  flex: 0 0 350px;
+  flex: 0 0 auto;
   display: flex;
+  flex-direction: row;
   justify-content: flex-start;
   align-items: center;
+  gap: 8px;
 }
 
 .table-center {
@@ -49,19 +52,23 @@
 }
 
 .position-right {
-  flex: 0 0 350px;
+  flex: 0 0 auto;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
   align-items: center;
+  gap: 8px;
 }
 
 /* 下方玩家区域（自己） */
 .position-bottom {
   flex: 0 0 auto;
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   margin-top: 10px;
+  gap: 8px;
 }
 
 /* 玩家区域通用样式 */
@@ -105,52 +112,84 @@
   color: white;
 }
 
-/* 玩家牌区域 */
+/* 玩家牌区域 - 固定高度，防止出牌时布局变化 */
 .player-cards-area {
-  min-height: 80px;
+  min-height: 120px; /* 固定最小高度 */
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.played-cards,
+/* 亮主区域 - 其他玩家的亮主在这里居中显示 */
+.declared-trump-zone {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* 出牌区域 - 在玩家框和桌面中央之间，固定高度防止布局变化 */
+.played-cards-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  height: 130px; /* 固定高度，即使没有牌也占据空间 */
+  flex-shrink: 0; /* 防止收缩 */
+}
+
 .shown-cards {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.played-cards .ant-typography,
 .shown-cards .ant-typography {
   color: white;
   font-size: 12px;
 }
 
-/* 自己的出牌区域 */
-.my-play-area {
-  margin-top: 10px;
-  min-height: 60px;
+/* 自己的手牌容器 - 包含亮主区和手牌区 */
+.my-hand-container {
   display: flex;
+  align-items: flex-start;
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  justify-content: center; /* 默认居中 */
 }
 
-.my-played-cards,
-.my-shown-cards {
+/* 当没有亮主时，手牌区域居中 */
+.my-hand-container > .my-hand:only-child {
+  margin: 0 auto;
+}
+
+/* 自己的亮主区域 - 在手牌左侧 */
+.bottom-trump-zone {
+  flex: 0 0 auto;
+  min-width: 100px;
+  max-width: 180px;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px;
+  box-sizing: border-box;
 }
 
-.my-played-cards .ant-typography,
-.my-shown-cards .ant-typography {
-  color: white;
-  font-size: 12px;
+/* 当有亮主时，手牌区域占用剩余空间 */
+.bottom-trump-zone ~ .my-hand {
+  flex: 1 1 auto;
+  margin: 0;
 }
 
-/* 底部玩家区域的头部（玩家信息 + 出牌区 + 控制按钮） */
+/* 底部玩家区域的头部（玩家信息 + 控制按钮） */
 .bottom-player-header {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 10px;
@@ -162,22 +201,7 @@
   margin-bottom: 0;
 }
 
-/* 内联出牌区域 - 玩家信息和控制按钮之间 */
-.my-play-area-inline {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.my-played-cards-inline,
-.my-shown-cards-inline {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-/* 内联控制区域 - 出牌区右边，靠右对齐 */
+/* 控制区域 - 右侧对齐 */
 .inline-controls {
   flex: 0 1 auto;
   max-width: 650px;
@@ -190,32 +214,36 @@
 
 /* 自己的手牌区域 - 居中显示 */
 .my-hand {
-  margin-top: 10px;
+  flex: 1 1 auto;
   padding: 10px 20px;
-  margin-left: 20px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   min-height: 120px;
   display: flex;
   justify-content: center;
-  margin-right: 20px;
-  width: auto;
+  min-width: 0; /* 允许flex收缩 */
+  box-sizing: border-box;
 }
 
-/* 不同位置的样式调整 */
+/* 不同位置的样式调整 - 固定尺寸防止布局变化 */
 .player-top {
   width: 500px;
   max-width: 600px;
+  min-width: 400px;
+  /* 不设置固定高度，让内容自然撑开 */
 }
 
 .player-left,
 .player-right {
-  width: 320px;
+  width: 350px;
+  min-width: 350px;
+  /* 不设置固定高度，让内容自然撑开 */
 }
 
 .player-bottom {
   width: 100%;
   max-width: 1400px; /* 增加最大宽度 */
+  /* bottom不设置固定高度，因为包含手牌区域 */
 }
 
 /* 响应式调整 */
@@ -247,4 +275,30 @@
     width: auto;
     font-size: 12px;
   }
+}
+
+/* 亮主条wrapper */
+.trump-declaration-wrapper {
+  margin: 12px 0;
+  padding: 0;
+}
+
+
+/* 自定义滚动条样式（用于闲家得分框） */
+.game-table ::-webkit-scrollbar {
+  height: 6px;
+}
+
+.game-table ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.game-table ::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.6);
+  border-radius: 3px;
+}
+
+.game-table ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.8);
 }
