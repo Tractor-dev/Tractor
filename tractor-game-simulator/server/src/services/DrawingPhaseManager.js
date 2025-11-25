@@ -1,4 +1,4 @@
-import { GamePhases } from '../utils/constants.js';
+import { GamePhases, PlayModes } from '../utils/constants.js';
 import { DeckService } from './DeckService.js';
 import logger from '../utils/logger.js';
 
@@ -107,19 +107,38 @@ export class DrawingPhaseManager {
 
   /**
    * 结束摸牌阶段 - 发完牌后等待10秒自动指定庄家
+   * 自由模式：不自动指定庄家，由房主手动指定埋底玩家
    */
   finish() {
     this.stop();
 
-    logger.info(`房间 ${this.room.id} 发牌完成，10秒后自动指定庄家`);
+    // 检查是否为自由模式
+    const isFreeMode = this.room.config.playMode === PlayModes.FREE;
 
-    // 广播发牌完成
-    this.io.to(this.room.id).emit('drawing_complete', {
-      message: '发牌完成，10秒后自动指定庄家'
-    });
+    if (isFreeMode) {
+      // 自由模式：不自动指定庄家，等待房主手动指定埋底玩家
+      logger.info(`房间 ${this.room.id} 发牌完成（自由模式），等待房主指定埋底玩家`);
 
-    // 开始庄家倒计时
-    this.startDealerCountdown();
+      // 广播发牌完成 - 自由模式特殊消息
+      this.io.to(this.room.id).emit('drawing_complete', {
+        message: '发牌完成，请房主指定埋底玩家',
+        isFreeMode: true
+      });
+
+      // 不启动倒计时，等待房主手动设置
+    } else {
+      // 基础模式：自动指定庄家
+      logger.info(`房间 ${this.room.id} 发牌完成，10秒后自动指定庄家`);
+
+      // 广播发牌完成
+      this.io.to(this.room.id).emit('drawing_complete', {
+        message: '发牌完成，10秒后自动指定庄家',
+        isFreeMode: false
+      });
+
+      // 开始庄家倒计时
+      this.startDealerCountdown();
+    }
   }
 
   /**
