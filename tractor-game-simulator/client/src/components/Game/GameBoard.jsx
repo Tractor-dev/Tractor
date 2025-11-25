@@ -1405,7 +1405,7 @@ export default function GameBoard() {
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
-              onSetTrump={() => setTrumpModal(true)}
+              onSetTrump={isFreeMode ? () => setTrumpModal(true) : undefined}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
@@ -1437,7 +1437,7 @@ export default function GameBoard() {
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
-              onSetTrump={() => setTrumpModal(true)}
+              onSetTrump={isFreeMode ? () => setTrumpModal(true) : undefined}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
@@ -1475,7 +1475,7 @@ export default function GameBoard() {
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
-              onSetTrump={() => setTrumpModal(true)}
+              onSetTrump={isFreeMode ? () => setTrumpModal(true) : undefined}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
               renderControls={renderControlButtons()}
@@ -1511,7 +1511,7 @@ export default function GameBoard() {
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
-              onSetTrump={() => setTrumpModal(true)}
+              onSetTrump={isFreeMode ? () => setTrumpModal(true) : undefined}
               revealedBottomCards={revealedBottomCards}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
@@ -1549,7 +1549,7 @@ export default function GameBoard() {
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
               isHost={isHost}
-              onSetTrump={() => setTrumpModal(true)}
+              onSetTrump={isFreeMode ? () => setTrumpModal(true) : undefined}
               revealedBottomCards={revealedBottomCards}
               selectedRule={selectedRule}
               onSelectRule={() => setRuleSelectorModal(true)}
