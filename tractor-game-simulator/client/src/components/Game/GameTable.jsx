@@ -476,7 +476,7 @@ export default function GameTable({
                   ) : (
                     <Text type="secondary">未设置</Text>
                   )}
-                  {isHost && (
+                  {isHost && onSetTrump && (
                     <Button size="small" onClick={onSetTrump}>
                       {trumpSuit && trumpRank ? '修改' : '设置'}
                     </Button>
