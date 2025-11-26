@@ -1,29 +1,34 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import zhCN from './zh-CN';
 import enUS from './en-US';
+import jaJP from './ja-JP';
 
 // Available languages
 export const LANGUAGES = {
   ZH_CN: 'zh-CN',
-  EN_US: 'en-US'
+  EN_US: 'en-US',
+  JA_JP: 'ja-JP'
 };
 
-// Language display names
+// Language display names (shown in dropdown menu)
 export const LANGUAGE_NAMES = {
   [LANGUAGES.ZH_CN]: '中文',
-  [LANGUAGES.EN_US]: 'English'
+  [LANGUAGES.EN_US]: 'English',
+  [LANGUAGES.JA_JP]: '日本語'
 };
 
-// Target language names (for switch button - shows what you will switch TO)
-export const TARGET_LANGUAGE_NAMES = {
-  [LANGUAGES.ZH_CN]: 'English',  // When in Chinese, button shows "English"
-  [LANGUAGES.EN_US]: '中文'      // When in English, button shows "中文"
-};
+// Language list for dropdown menu
+export const LANGUAGE_LIST = [
+  { key: LANGUAGES.ZH_CN, label: '中文' },
+  { key: LANGUAGES.EN_US, label: 'English' },
+  { key: LANGUAGES.JA_JP, label: '日本語' }
+];
 
 // Language data
 const translations = {
   [LANGUAGES.ZH_CN]: zhCN,
-  [LANGUAGES.EN_US]: enUS
+  [LANGUAGES.EN_US]: enUS,
+  [LANGUAGES.JA_JP]: jaJP
 };
 
 // Storage key
