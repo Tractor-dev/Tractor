@@ -6,7 +6,7 @@ import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
 import { detectAvailableDeclarations } from '../../utils/trumpUtils';
 import { validateLeadingPlay, validateFollowingPlay } from '../../utils/cardPatternUtils';
-import { useI18n, LANGUAGE_NAMES } from '../../locales/index.jsx';
+import { useI18n, LANGUAGE_NAMES, TARGET_LANGUAGE_NAMES } from '../../locales/index.jsx';
 import Hand from './Hand';
 import GameTable from './GameTable';
 import RuleSelector from './RuleSelector';
@@ -927,7 +927,7 @@ export default function GameBoard() {
   // 通用按钮组件 - 切换语言
   const renderLanguageButton = () => (
     <Button key="language" icon={<GlobalOutlined />} onClick={toggleLanguage} style={buttonStyle}>
-      {LANGUAGE_NAMES[language]}
+      {TARGET_LANGUAGE_NAMES[language]}
     </Button>
   );
 
@@ -1371,7 +1371,7 @@ export default function GameBoard() {
                   {t('nickname.modifyNickname')}
                 </Button>
                 <Button icon={<GlobalOutlined />} onClick={toggleLanguage}>
-                  {LANGUAGE_NAMES[language]}
+                  {TARGET_LANGUAGE_NAMES[language]}
                 </Button>
               </Space>
             </Space>

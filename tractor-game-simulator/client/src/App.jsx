@@ -3,7 +3,7 @@ import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, 
 import { GlobalOutlined } from '@ant-design/icons';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
-import { useI18n, LANGUAGES, LANGUAGE_NAMES } from './locales/index.jsx';
+import { useI18n, LANGUAGES, LANGUAGE_NAMES, TARGET_LANGUAGE_NAMES } from './locales/index.jsx';
 import CreateRoomModal from './components/Room/CreateRoomModal';
 import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
@@ -248,7 +248,7 @@ function App() {
             style={{ color: 'white', borderColor: 'white' }}
             ghost
           >
-            {LANGUAGE_NAMES[language]}
+            {TARGET_LANGUAGE_NAMES[language]}
           </Button>
         </Header>
         <Content style={{ padding: '24px' }}>
@@ -410,7 +410,7 @@ function App() {
             style={{ color: 'white', borderColor: 'white' }}
             ghost
           >
-            {LANGUAGE_NAMES[language]}
+            {TARGET_LANGUAGE_NAMES[language]}
           </Button>
         </div>
       </Header>

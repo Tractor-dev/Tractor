@@ -14,6 +14,12 @@ export const LANGUAGE_NAMES = {
   [LANGUAGES.EN_US]: 'English'
 };
 
+// Target language names (for switch button - shows what you will switch TO)
+export const TARGET_LANGUAGE_NAMES = {
+  [LANGUAGES.ZH_CN]: 'English',  // When in Chinese, button shows "English"
+  [LANGUAGES.EN_US]: '中文'      // When in English, button shows "中文"
+};
+
 // Language data
 const translations = {
   [LANGUAGES.ZH_CN]: zhCN,
