@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Tooltip } from 'antd';
 import { Suits } from '../../utils/constants';
+import { useI18n } from '../../locales/index.jsx';
 import './TrumpDeclaration.css';
 
 /**
@@ -11,15 +12,16 @@ import './TrumpDeclaration.css';
  * @param {Object} props.currentTrump - 当前主牌 {suit: string, declarationType: 'single'|'pair'|'pair_joker'}
  */
 export default function TrumpDeclaration({ availableDeclarations = [], onDeclare, currentTrump }) {
+  const { t } = useI18n();
   const [hoveredSlot, setHoveredSlot] = useState(null);
 
   // 定义五个格子：王、♠、♥、♣、♦
   const slots = [
-    { type: 'joker', label: '王', suit: Suits.JOKER },
-    { type: 'spades', label: '♠', suit: Suits.SPADES },
-    { type: 'hearts', label: '♥', suit: Suits.HEARTS },
-    { type: 'clubs', label: '♣', suit: Suits.CLUBS },
-    { type: 'diamonds', label: '♦', suit: Suits.DIAMONDS }
+    { type: 'joker', label: t('suits.joker'), suit: Suits.JOKER },
+    { type: 'spades', label: t('suits.spades'), suit: Suits.SPADES },
+    { type: 'hearts', label: t('suits.hearts'), suit: Suits.HEARTS },
+    { type: 'clubs', label: t('suits.clubs'), suit: Suits.CLUBS },
+    { type: 'diamonds', label: t('suits.diamonds'), suit: Suits.DIAMONDS }
   ];
 
   // 获取某个格子的可用亮主选项
@@ -88,7 +90,7 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
 
   return (
     <div className="trump-declaration">
-      <div className="declaration-label">亮主：</div>
+      <div className="declaration-label">{t('trump.declareTrump')}</div>
       <div className="declaration-slots">
         {slots.map(slot => {
           const isActive = isSlotActive(slot.type);

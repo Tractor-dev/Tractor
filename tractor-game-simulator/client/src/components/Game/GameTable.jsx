@@ -1,6 +1,7 @@
 import { Typography, Button } from 'antd';
 import Hand from './Hand';
 import { sortCards } from '../../utils/cardUtils';
+import { useI18n } from '../../locales/index.jsx';
 import './GameTable.css';
 
 const { Text } = Typography;
@@ -67,6 +68,8 @@ export default function GameTable({
   team2Level = 2,
   dealerPlayerIndex = null
 }) {
+  const { t } = useI18n();
+
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
     if (!currentPlayer || !players || players.length === 0) {
@@ -120,8 +123,8 @@ export default function GameTable({
       diamonds: '♦',
       clubs: '♣',
       spades: '♠',
-      joker: '王',
-      no_trump: '无主'
+      joker: t('suits.joker'),
+      no_trump: t('trump.noTrump')
     };
     return symbols[suit] || suit;
   };
@@ -165,7 +168,7 @@ export default function GameTable({
                 marginLeft: '4px',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}>
-                庄
+                {t('common.dealer')}
               </span>
             )}
             {isWaitingForReady && player.isReady !== undefined && (
@@ -180,11 +183,11 @@ export default function GameTable({
               </Text>
             )}
           </div>
-          {isCurrentTurn && <Text type="warning"> (出牌中)</Text>}
+          {isCurrentTurn && <Text type="warning"> ({t('play.myTurn')})</Text>}
           <br />
-          <Text type="secondary">手牌: {player.cardsCount || 0}</Text>
+          <Text type="secondary">{t('hand.cardCount', { count: player.cardsCount || 0 })}</Text>
           <br />
-          <Text type="secondary">分数: {player.score || 0} | 等级: {player.level || 2}</Text>
+          <Text type="secondary">{t('common.score')}: {player.score || 0} | {t('common.level')}: {player.level || 2}</Text>
         </div>
 
         <div className="player-cards-area">
@@ -197,7 +200,7 @@ export default function GameTable({
 
           {shown && shown.cards && shown.cards.length > 0 && (
             <div className="shown-cards">
-              <Text type="info">展示:</Text>
+              <Text type="info">{t('hand.show')}</Text>
               <Hand cards={shown.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
             </div>
           )}
@@ -209,12 +212,12 @@ export default function GameTable({
   // 判断我方队伍（索引0和2是队伍1，索引1和3是队伍2）
   const getTeamLabels = () => {
     if (!currentPlayer || !players || players.length === 0) {
-      return { myTeamLabel: '我方', opponentTeamLabel: '对方', myTeamLevel: team1Level, opponentTeamLevel: team2Level };
+      return { myTeamLabel: t('team.myTeam'), opponentTeamLabel: t('team.opponentTeam'), myTeamLevel: team1Level, opponentTeamLevel: team2Level };
     }
 
     const myIndex = players.findIndex(p => p.id === currentPlayer.id);
     if (myIndex === -1) {
-      return { myTeamLabel: '我方', opponentTeamLabel: '对方', myTeamLevel: team1Level, opponentTeamLevel: team2Level };
+      return { myTeamLabel: t('team.myTeam'), opponentTeamLabel: t('team.opponentTeam'), myTeamLevel: team1Level, opponentTeamLevel: team2Level };
     }
 
     // 索引0和2是队伍1，索引1和3是队伍2
@@ -222,15 +225,15 @@ export default function GameTable({
 
     if (myTeam === 1) {
       return {
-        myTeamLabel: '我方',
-        opponentTeamLabel: '对方',
+        myTeamLabel: t('team.myTeam'),
+        opponentTeamLabel: t('team.opponentTeam'),
         myTeamLevel: team1Level,
         opponentTeamLevel: team2Level
       };
     } else {
       return {
-        myTeamLabel: '我方',
-        opponentTeamLabel: '对方',
+        myTeamLabel: t('team.myTeam'),
+        opponentTeamLabel: t('team.opponentTeam'),
         myTeamLevel: team2Level,
         opponentTeamLevel: team1Level
       };
@@ -277,17 +280,17 @@ export default function GameTable({
           borderBottom: '1px solid rgba(255, 215, 0, 0.3)'
         }}>
           <div style={{ textAlign: 'center', flex: 1 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.myTeamLabel}等级</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.myTeamLabel} {t('team.teamLevel')}</Text>
             <Text strong style={{ color: '#52c41a', fontSize: '18px' }}>{teamLabels.myTeamLevel}</Text>
           </div>
           <div style={{ textAlign: 'center', flex: 1 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.opponentTeamLabel}等级</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.opponentTeamLabel} {t('team.teamLevel')}</Text>
             <Text strong style={{ color: '#ff4d4f', fontSize: '18px' }}>{teamLabels.opponentTeamLevel}</Text>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <Text strong style={{ color: '#ffd700', fontSize: '14px' }}>闲家得分</Text>
+          <Text strong style={{ color: '#ffd700', fontSize: '14px' }}>{t('bottom.attackerScore')}</Text>
         </div>
         <div style={{
           fontSize: '24px',
@@ -296,14 +299,14 @@ export default function GameTable({
           textAlign: 'center',
           marginBottom: '8px'
         }}>
-          {attackerScore} 分
+          {attackerScore} {t('common.points')}
         </div>
         <div style={{
           height: '100px',
           position: 'relative'
         }}>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block', marginBottom: '4px' }}>
-            分数牌 ({collectedPointCards.length}):
+            {t('bottom.pointCards')} ({collectedPointCards.length}):
           </Text>
           {collectedPointCards.length > 0 ? (
             <div style={{
@@ -327,7 +330,7 @@ export default function GameTable({
               ))}
             </div>
           ) : (
-            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>暂无</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>{t('common.none')}</Text>
           )}
         </div>
       </div>
@@ -357,7 +360,7 @@ export default function GameTable({
             {revealedBottomCards && revealedBottomCards.length > 0 ? (
               <div style={{ textAlign: 'center' }}>
                 <Text strong style={{ fontSize: '18px', color: 'white', display: 'block', marginBottom: '12px' }}>
-                  底牌：
+                  {t('bottom.bottomCards')}:
                 </Text>
                 <Hand
                   cards={revealedBottomCards}
@@ -382,16 +385,16 @@ export default function GameTable({
                       display: 'block',
                       marginBottom: '8px'
                     }}>
-                      {bottomScoreResult.resultText}
+                      {bottomScoreResult.attackerWonBottom ? t('bottom.attackerWonBottom') : t('bottom.dealerKeptBottom')}
                     </Text>
                     {bottomScoreResult.attackerWonBottom && (
                       <Text style={{ color: 'white', fontSize: '14px' }}>
-                        底牌 {bottomScoreResult.bottomPoints} 分 × {bottomScoreResult.bottomMultiplier} 倍 = {bottomScoreResult.bottomScoreGained} 分
+                        {t('bottom.bottomPoints', { points: bottomScoreResult.bottomPoints, multiplier: bottomScoreResult.bottomMultiplier, gained: bottomScoreResult.bottomScoreGained })}
                       </Text>
                     )}
                     <div style={{ marginTop: '8px' }}>
                       <Text strong style={{ color: '#ffd700', fontSize: '16px' }}>
-                        闲家总分：{bottomScoreResult.totalScore} 分
+                        {t('bottom.totalScore', { score: bottomScoreResult.totalScore })}
                       </Text>
                     </div>
                   </div>
@@ -413,7 +416,7 @@ export default function GameTable({
                       marginBottom: '12px',
                       textAlign: 'center'
                     }}>
-                      {upgradeResult.attackerWon ? '🎉 闲家获胜！' : '👑 庄家获胜！'}
+                      {upgradeResult.attackerWon ? t('bottom.attackerWins') : t('bottom.dealerWins')}
                     </Text>
 
                     <div style={{
@@ -424,24 +427,24 @@ export default function GameTable({
                       borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
                     }}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>庄家队伍</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>{t('bottom.dealerTeam')}</Text>
                         <Text style={{ color: 'white', fontSize: '16px' }}>
                           {upgradeResult.oldDealerLevel} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{upgradeResult.newDealerLevel}</Text>
                         </Text>
                         {upgradeResult.dealerLevelUp > 0 && (
                           <Text style={{ color: '#52c41a', fontSize: '14px', display: 'block' }}>
-                            ↑ 升{upgradeResult.dealerLevelUp}级
+                            {t('bottom.levelUp', { count: upgradeResult.dealerLevelUp })}
                           </Text>
                         )}
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>闲家队伍</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>{t('bottom.attackerTeam')}</Text>
                         <Text style={{ color: 'white', fontSize: '16px' }}>
                           {upgradeResult.oldAttackerLevel} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{upgradeResult.newAttackerLevel}</Text>
                         </Text>
                         {upgradeResult.attackerLevelUp > 0 && (
                           <Text style={{ color: '#52c41a', fontSize: '14px', display: 'block' }}>
-                            ↑ 升{upgradeResult.attackerLevelUp}级
+                            {t('bottom.levelUp', { count: upgradeResult.attackerLevelUp })}
                           </Text>
                         )}
                       </div>
@@ -449,10 +452,10 @@ export default function GameTable({
 
                     <div style={{ textAlign: 'center' }}>
                       <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
-                        下一局庄家
+                        {t('bottom.nextDealer')}
                       </Text>
                       <Text strong style={{ color: '#ffd700', fontSize: '16px' }}>
-                        {upgradeResult.nextDealerName} (等级 {upgradeResult.nextDealerLevel})
+                        {upgradeResult.nextDealerName} ({t('bottom.level')} {upgradeResult.nextDealerLevel})
                       </Text>
                     </div>
                   </div>
@@ -462,7 +465,7 @@ export default function GameTable({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
                 {/* 主牌显示 */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <Text strong style={{ fontSize: '16px' }}>主牌：</Text>
+                  <Text strong style={{ fontSize: '16px' }}>{t('trump.trump')}:</Text>
                   {trumpSuit && trumpRank ? (
                     <Text
                       style={{
@@ -474,11 +477,11 @@ export default function GameTable({
                       {getSuitSymbol(trumpSuit)} {trumpRank}
                     </Text>
                   ) : (
-                    <Text type="secondary">未设置</Text>
+                    <Text type="secondary">{t('trump.notSet')}</Text>
                   )}
                   {isHost && onSetTrump && (
                     <Button size="small" onClick={onSetTrump}>
-                      {trumpSuit && trumpRank ? '修改' : '设置'}
+                      {trumpSuit && trumpRank ? t('trump.modifyTrump') : t('trump.setTrump')}
                     </Button>
                   )}
                 </div>
@@ -499,7 +502,7 @@ export default function GameTable({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '32px' }}>⏰</span>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <Text strong style={{ fontSize: '14px', color: '#ffd700' }}>指定庄家倒计时</Text>
+                        <Text strong style={{ fontSize: '14px', color: '#ffd700' }}>{t('trump.dealerCountdown')}</Text>
                         <Text style={{
                           fontSize: '36px',
                           fontWeight: 'bold',
@@ -511,7 +514,7 @@ export default function GameTable({
                       </div>
                     </div>
                     <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
-                      {currentTrumpDeclaration ? '有人亮主，倒计时已重置' : '无人亮主将随机指定'}
+                      {currentTrumpDeclaration ? t('trump.countdownReset') : t('trump.randomDealer')}
                     </Text>
                   </div>
                 )}
@@ -529,9 +532,9 @@ export default function GameTable({
                   maxWidth: '400px'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Text strong style={{ fontSize: '16px', color: 'white' }}>规则：</Text>
+                    <Text strong style={{ fontSize: '16px', color: 'white' }}>{t('rules.rule')}:</Text>
                     <Button size="small" onClick={onSelectRule}>
-                      {selectedRule ? '更换' : '选择'}规则
+                      {selectedRule ? t('rules.changeRule') : t('rules.selectRule')}
                     </Button>
                   </div>
                   {selectedRule ? (
@@ -545,7 +548,7 @@ export default function GameTable({
                     </div>
                   ) : (
                     <Text type="secondary" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                      未选择规则
+                      {t('rules.noRuleSelected')}
                     </Text>
                   )}
                 </div>
@@ -574,7 +577,7 @@ export default function GameTable({
             <div className="bottom-player-header">
               <div className="player-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Text strong>{positions.bottom.name} (我)</Text>
+                  <Text strong>{positions.bottom.name} ({t('common.me')})</Text>
                   {(() => {
                     // 检查是否是庄家 - 使用和其他位置相同的判断逻辑
                     let isDealer = false;
@@ -596,7 +599,7 @@ export default function GameTable({
                         marginLeft: '4px',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                       }}>
-                        庄
+                        {t('common.dealer')}
                       </span>
                     ) : null;
                   })()}
@@ -608,11 +611,11 @@ export default function GameTable({
                         color: positions.bottom.isReady ? '#52c41a' : '#d9d9d9'
                       }}
                     >
-                      {positions.bottom.isReady ? '✓ 已准备' : '○ 未准备'}
+                      {positions.bottom.isReady ? `✓ ${t('common.readied')}` : `○ ${t('common.notReady')}`}
                     </Text>
                   )}
                 </div>
-                <Text type="secondary">分数: {positions.bottom.score || 0} | 等级: {positions.bottom.level || 2}</Text>
+                <Text type="secondary">{t('common.score')}: {positions.bottom.score || 0} | {t('common.level')}: {positions.bottom.level || 2}</Text>
               </div>
 
               {/* 控制按钮区域 - 右侧 */}
@@ -647,7 +650,7 @@ export default function GameTable({
                 if (!hasShownCards) return null;
                 return (
                   <div className="bottom-shown-zone" style={{ marginRight: '16px' }}>
-                    <Text type="info" style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>我的展示:</Text>
+                    <Text type="info" style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>{t('hand.myShow')}</Text>
                     <Hand cards={myShownCards.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
                   </div>
                 );

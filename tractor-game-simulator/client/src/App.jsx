@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch } from 'antd';
+import { GlobalOutlined } from '@ant-design/icons';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
+import { useI18n, LANGUAGES, LANGUAGE_NAMES } from './locales/index.jsx';
 import CreateRoomModal from './components/Room/CreateRoomModal';
 import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
@@ -15,6 +17,7 @@ const { Title, Text } = Typography;
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
   const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, roomList, setRoomList } = useGameStore();
+  const { t, language, toggleLanguage } = useI18n();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -30,23 +33,23 @@ function App() {
 
     socket.on('connect', () => {
       setIsConnected(true);
-      messageApi.success('已连接到服务器');
+      messageApi.success(t('connection.connectedToServer'));
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
-      messageApi.warning('与服务器断开连接');
+      messageApi.warning(t('connection.disconnectedFromServer'));
     });
 
     socket.on('error', (error) => {
-      messageApi.error(error.message || '发生错误');
+      messageApi.error(error.message || t('messages.errorOccurred'));
     });
 
     // 监听房间创建成功
     socket.on('room_created', ({ room, player }) => {
       console.log('收到房间创建成功事件:', { room, player });
       console.log('🎮 创建时 gameState.trumpRank =', room?.gameState?.trumpRank);
-      messageApi.success('房间创建成功！');
+      messageApi.success(t('room.roomCreated'));
       setCurrentRoom(room);
       setCurrentPlayer(player);
       setShowCreateModal(false);
@@ -54,12 +57,12 @@ function App() {
 
     // 监听其他玩家加入
     socket.on('player_joined', ({ player }) => {
-      messageApi.info(`${player.name} 加入了房间`);
+      messageApi.info(t('messages.playerJoined', { name: player.name }));
     });
 
     // 监听玩家离开
     socket.on('player_left', ({ playerName }) => {
-      messageApi.warning(`${playerName} 离开了房间`);
+      messageApi.warning(t('messages.playerLeft', { name: playerName }));
     });
 
     // 监听房间状态更新
@@ -73,7 +76,7 @@ function App() {
     // 监听加入房间成功
     socket.on('room_joined', ({ room, player }) => {
       console.log('加入房间成功:', { room, player });
-      messageApi.success('加入房间成功！');
+      messageApi.success(t('room.joinedRoom'));
       setCurrentRoom(room);
       setCurrentPlayer(player);
       setShowJoinModal(false);
@@ -88,17 +91,17 @@ function App() {
 
     // Bot添加
     socket.on('bot_added', ({ player }) => {
-      messageApi.success(`Bot ${player.name} 已加入房间`);
+      messageApi.success(t('messages.botAdded', { name: player.name }));
     });
 
     // Bot移除
     socket.on('bot_removed', ({ playerName }) => {
-      messageApi.info(`Bot ${playerName} 已离开房间`);
+      messageApi.info(t('messages.botRemoved', { name: playerName }));
     });
 
     // 配置更新
     socket.on('config_updated', ({ config }) => {
-      messageApi.success('房间设置已更新，将在下一局游戏生效');
+      messageApi.success(t('messages.configUpdated'));
     });
 
     // 游戏开始 - 进入准备等待
@@ -108,12 +111,12 @@ function App() {
 
     // 玩家准备状态更新
     socket.on('player_ready_status', ({ playerId, playerName, isReady }) => {
-      messageApi.info(`${playerName} ${isReady ? '已准备' : '取消准备'}`);
+      messageApi.info(isReady ? t('messages.playerReady', { name: playerName }) : t('messages.playerCancelReady', { name: playerName }));
     });
 
     // 所有玩家准备完毕
     socket.on('all_players_ready', ({ message }) => {
-      messageApi.success(message);
+      messageApi.success(t('messages.allPlayersReady'));
     });
 
     // 开始发牌
@@ -165,7 +168,7 @@ function App() {
     });
     setCurrentRoom(null);
     setCurrentPlayer(null);
-    messageApi.info('已离开房间');
+    messageApi.info(t('room.leftRoom'));
   };
 
   const handleAddBot = () => {
@@ -187,11 +190,11 @@ function App() {
 
   const handleUpdateConfig = () => {
     if (newBottomCardsCount < 1 || newBottomCardsCount > 20) {
-      messageApi.warning('底牌数量必须在1-20之间');
+      messageApi.warning(t('createRoomForm.bottomCardsValidation'));
       return;
     }
     if (newDealInterval < 10 || newDealInterval > 5000) {
-      messageApi.warning('发牌间隔必须在10-5000毫秒之间');
+      messageApi.warning(t('createRoomForm.dealIntervalValidation'));
       return;
     }
     const socket = socketService.socket;
@@ -235,10 +238,18 @@ function App() {
     return (
       <Layout style={{ minHeight: '100vh' }}>
         {contextHolder}
-        <Header style={{ background: '#001529', padding: '0 24px' }}>
+        <Header style={{ background: '#001529', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Title level={3} style={{ color: 'white', margin: '16px 0' }}>
-            拖拉机纸牌游戏模拟器 - {currentRoom.name}
+            {t('app.title')} - {currentRoom.name}
           </Title>
+          <Button
+            icon={<GlobalOutlined />}
+            onClick={toggleLanguage}
+            style={{ color: 'white', borderColor: 'white' }}
+            ghost
+          >
+            {LANGUAGE_NAMES[language]}
+          </Button>
         </Header>
         <Content style={{ padding: '24px' }}>
           <div style={{
@@ -246,36 +257,36 @@ function App() {
             padding: '48px',
             borderRadius: '8px'
           }}>
-            <Title level={2}>房间: {currentRoom.name}</Title>
+            <Title level={2}>{t('room.roomName')}: {currentRoom.name}</Title>
             <p style={{ fontSize: '16px', marginBottom: '24px' }}>
-              房间ID: {currentRoom.id}
+              {t('room.roomId')}: {currentRoom.id}
             </p>
             <p style={{ fontSize: '16px', marginBottom: '24px' }}>
-              玩家数: {currentRoom.playerCount} / {currentRoom.maxPlayers}
+              {t('room.playerCount')}: {currentRoom.playerCount} / {currentRoom.maxPlayers}
             </p>
             <div style={{ marginBottom: '24px' }}>
-              <Title level={4}>玩家列表:</Title>
+              <Title level={4}>{t('room.playerList')}:</Title>
               {currentRoom.players.map((player, index) => (
                 <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px' }}>
                   {index + 1}. {player.isBot && '🤖 '}{player.name}
-                  {player.socketId === currentRoom.hostId && ' (房主)'}
-                  {player.id === currentPlayer?.id && ' (你)'}
-                  {player.isBot && ' (Bot)'}
-                  {' - '} 分数: {player.score} - 等级: {player.level}
+                  {player.socketId === currentRoom.hostId && ` (${t('common.host')})`}
+                  {player.id === currentPlayer?.id && ` (${t('common.you')})`}
+                  {player.isBot && ` (${t('common.bot')})`}
+                  {' - '} {t('common.score')}: {player.score} - {t('common.level')}: {player.level}
                 </div>
               ))}
             </div>
             <div style={{ marginBottom: '24px' }}>
-              <Title level={4}>房间配置:</Title>
-              <p>底牌数量: {currentRoom.config.bottomCardsCount} 张</p>
-              <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
-              <p>游戏模式: {currentRoom.config.playMode === 'free' ? '自由模式' : '基础模式'}</p>
+              <Title level={4}>{t('room.roomConfig')}:</Title>
+              <p>{t('game.bottomCards')}: {currentRoom.config.bottomCardsCount} {t('common.cards')}</p>
+              <p>{t('game.dealInterval')}: {currentRoom.config.dealInterval} ms</p>
+              <p>{t('game.gameMode')}: {currentRoom.config.playMode === 'free' ? t('game.freeMode') : t('game.basicMode')}</p>
             </div>
 
             {/* Bot管理区域 - 仅房主可见 */}
             {currentPlayer?.socketId === currentRoom.hostId && currentRoom.players.some(p => p.isBot) && (
               <div style={{ marginBottom: '24px' }}>
-                <Divider>房间内的Bot</Divider>
+                <Divider>{t('game.botsInRoom')}</Divider>
                 <Space wrap>
                   {currentRoom.players.filter(p => p.isBot).map(bot => (
                     <Tag
@@ -304,25 +315,25 @@ function App() {
                     }}
                     disabled={currentRoom.playerCount < 2}
                   >
-                    开始游戏
+                    {t('game.startGame')}
                   </Button>
                   <Button
                     size="large"
                     onClick={handleAddBot}
                     disabled={currentRoom.playerCount >= currentRoom.maxPlayers}
                   >
-                    添加Bot
+                    {t('game.addBot')}
                   </Button>
                   <Button
                     size="large"
                     onClick={() => setShowConfigModal(true)}
                   >
-                    修改设置
+                    {t('room.modifySettings')}
                   </Button>
                 </>
               )}
               <Button type="default" onClick={handleLeaveRoom}>
-                离开房间
+                {t('room.leaveRoom')}
               </Button>
             </Space>
           </div>
@@ -330,15 +341,15 @@ function App() {
 
         {/* 房间设置弹窗 */}
         <Modal
-          title="房间设置"
+          title={t('room.roomSettings')}
           open={showConfigModal}
           onOk={handleUpdateConfig}
           onCancel={() => setShowConfigModal(false)}
-          okText="保存"
-          cancelText="取消"
+          okText={t('common.save')}
+          cancelText={t('common.cancel')}
         >
           <div>
-            <Text strong>底牌数量:</Text>
+            <Text strong>{t('createRoomForm.bottomCardsLabel')}:</Text>
             <br />
             <InputNumber
               style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
@@ -348,7 +359,7 @@ function App() {
               onChange={setNewBottomCardsCount}
             />
             <br />
-            <Text strong>发牌间隔（毫秒）:</Text>
+            <Text strong>{t('createRoomForm.dealIntervalLabel')}:</Text>
             <br />
             <InputNumber
               style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
@@ -360,21 +371,21 @@ function App() {
             />
             <br />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text strong>自由模式:</Text>
+              <Text strong>{t('createRoomForm.freeMode')}:</Text>
               <Switch
                 checked={newIsFreeMode}
                 onChange={setNewIsFreeMode}
-                checkedChildren="开启"
-                unCheckedChildren="关闭"
+                checkedChildren={t('createRoomForm.freeModeOn')}
+                unCheckedChildren={t('createRoomForm.freeModeOff')}
               />
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级<br />
-              基础模式：按顺序出牌，完善的亮主、得分和升级规则
+              {t('createRoomForm.freeModeDesc')}<br />
+              {t('createRoomForm.basicModeDesc')}
             </Text>
             <br />
             <br />
-            <Text type="secondary">设置将在下一局游戏开始时生效</Text>
+            <Text type="secondary">{t('createRoomForm.settingsEffectNote')}</Text>
           </div>
         </Modal>
       </Layout>
@@ -387,10 +398,20 @@ function App() {
       {contextHolder}
       <Header style={{ background: '#001529', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={3} style={{ color: 'white', margin: '16px 0' }}>
-          拖拉机纸牌游戏模拟器
+          {t('app.title')}
         </Title>
-        <div style={{ color: 'white' }}>
-          连接状态: {isConnected ? '✅ 已连接' : '❌ 未连接'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ color: 'white' }}>
+            {t('connection.connectionStatus')}: {isConnected ? `✅ ${t('connection.connected')}` : `❌ ${t('connection.disconnected')}`}
+          </div>
+          <Button
+            icon={<GlobalOutlined />}
+            onClick={toggleLanguage}
+            style={{ color: 'white', borderColor: 'white' }}
+            ghost
+          >
+            {LANGUAGE_NAMES[language]}
+          </Button>
         </div>
       </Header>
       <Content style={{ padding: '24px' }}>
@@ -401,9 +422,9 @@ function App() {
           marginBottom: '24px'
         }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <Title level={2}>欢迎来到拖拉机纸牌游戏</Title>
+            <Title level={2}>{t('app.welcome')}</Title>
             <p style={{ color: '#666', marginBottom: '24px' }}>
-              在线多人拖拉机纸牌游戏模拟器
+              {t('app.subtitle')}
             </p>
             <Space size="large">
               <Button
@@ -412,7 +433,7 @@ function App() {
                 disabled={!isConnected}
                 onClick={() => setShowCreateModal(true)}
               >
-                创建房间
+                {t('room.createRoom')}
               </Button>
               <Button
                 size="large"
@@ -422,7 +443,7 @@ function App() {
                   setShowJoinModal(true);
                 }}
               >
-                加入房间
+                {t('room.joinRoom')}
               </Button>
             </Space>
           </div>

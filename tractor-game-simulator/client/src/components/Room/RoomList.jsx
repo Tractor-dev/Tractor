@@ -1,59 +1,62 @@
 import { useEffect } from 'react';
 import { Table, Button, Tag, Space } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import { useI18n } from '../../locales/index.jsx';
 import './RoomList.css';
 
 export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false }) {
+  const { t } = useI18n();
+
   const columns = [
     {
-      title: '房间名称',
+      title: t('room.roomName'),
       dataIndex: 'name',
       key: 'name',
       render: (text) => <strong>{text}</strong>
     },
     {
-      title: '房间ID',
+      title: t('room.roomId'),
       dataIndex: 'id',
       key: 'id',
       render: (text) => <code style={{ fontSize: '14px', fontWeight: 'bold' }}>{text}</code>
     },
     {
-      title: '玩家',
+      title: t('room.players'),
       key: 'players',
       render: (_, record) => (
         <span>
           {record.playerCount} / {record.maxPlayers}
           {record.playerCount >= record.maxPlayers && (
-            <Tag color="red" style={{ marginLeft: 8 }}>已满</Tag>
+            <Tag color="red" style={{ marginLeft: 8 }}>{t('room.full')}</Tag>
           )}
         </span>
       )
     },
     {
-      title: '状态',
+      title: t('connection.connectionStatus'),
       dataIndex: 'gameState',
       key: 'status',
       render: (gameState) => {
         const phase = gameState?.phase || 'waiting';
         const statusMap = {
-          waiting: { text: '等待中', color: 'blue' },
-          drawing: { text: '摸牌中', color: 'orange' },
-          burying: { text: '埋底中', color: 'purple' },
-          playing: { text: '游戏中', color: 'green' },
-          revealing: { text: '揭底中', color: 'cyan' },
-          finished: { text: '已结束', color: 'default' }
+          waiting: { text: t('roomStatus.waiting'), color: 'blue' },
+          drawing: { text: t('roomStatus.drawing'), color: 'orange' },
+          burying: { text: t('roomStatus.burying'), color: 'purple' },
+          playing: { text: t('roomStatus.playing'), color: 'green' },
+          revealing: { text: t('roomStatus.revealing'), color: 'cyan' },
+          finished: { text: t('roomStatus.finished'), color: 'default' }
         };
         const status = statusMap[phase] || { text: phase, color: 'default' };
         return <Tag color={status.color}>{status.text}</Tag>;
       }
     },
     {
-      title: '底牌',
+      title: t('game.bottomCards'),
       key: 'bottomCards',
-      render: (_, record) => `${record.config?.bottomCardsCount || 8} 张`
+      render: (_, record) => `${record.config?.bottomCardsCount || 8} ${t('common.cards')}`
     },
     {
-      title: '操作',
+      title: '',
       key: 'action',
       render: (_, record) => {
         const isFull = record.playerCount >= record.maxPlayers;
@@ -68,7 +71,7 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
             onClick={() => onJoinRoom(record.id)}
             disabled={!canJoin}
           >
-            {isFull ? '已满' : isPlaying ? '游戏中' : '加入'}
+            {isFull ? t('room.full') : isPlaying ? t('room.inGame') : t('common.join')}
           </Button>
         );
       }
@@ -78,13 +81,13 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
   return (
     <div className="room-list">
       <div className="room-list-header">
-        <h3>房间列表</h3>
+        <h3>{t('room.roomList')}</h3>
         <Button
           icon={<ReloadOutlined />}
           onClick={onRefresh}
           loading={loading}
         >
-          刷新
+          {t('common.refresh')}
         </Button>
       </div>
       <Table
@@ -94,10 +97,10 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
         loading={loading}
         pagination={{
           pageSize: 10,
-          showTotal: (total) => `共 ${total} 个房间`
+          showTotal: (total) => t('room.totalRooms', { count: total })
         }}
         locale={{
-          emptyText: '暂无房间，点击上方"创建房间"开始游戏'
+          emptyText: t('room.noRooms')
         }}
       />
     </div>
