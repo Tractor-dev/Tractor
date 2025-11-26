@@ -66,12 +66,6 @@ export function I18nProvider({ children }) {
     }
   }, []);
 
-  // Toggle between languages
-  const toggleLanguage = useCallback(() => {
-    const newLang = language === LANGUAGES.ZH_CN ? LANGUAGES.EN_US : LANGUAGES.ZH_CN;
-    setLanguage(newLang);
-  }, [language, setLanguage]);
-
   // Get translation function
   const t = useCallback((key, params = {}) => {
     const keys = key.split('.');
@@ -100,11 +94,11 @@ export function I18nProvider({ children }) {
   const value = useMemo(() => ({
     language,
     setLanguage,
-    toggleLanguage,
     t,
     isZhCN: language === LANGUAGES.ZH_CN,
-    isEnUS: language === LANGUAGES.EN_US
-  }), [language, setLanguage, toggleLanguage, t]);
+    isEnUS: language === LANGUAGES.EN_US,
+    isJaJP: language === LANGUAGES.JA_JP
+  }), [language, setLanguage, t]);
 
   return (
     <I18nContext.Provider value={value}>
