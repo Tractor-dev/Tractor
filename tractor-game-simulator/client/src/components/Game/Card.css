@@ -278,3 +278,119 @@
     right: 3px;
   }
 }
+
+/* Mobile Landscape Mode - Compact cards for limited vertical space */
+@media (orientation: landscape) and (max-height: 500px) {
+  .card {
+    width: 42px;
+    height: 59px;
+    margin: 0 -6px;
+    border-radius: 4px;
+    border-width: 1px;
+  }
+
+  .card.small {
+    width: 32px;
+    height: 45px;
+    margin: 0 -4px;
+  }
+
+  .card-rank {
+    font-size: 11px;
+  }
+
+  .card.small .card-rank {
+    font-size: 8px;
+  }
+
+  .card-suit {
+    font-size: 9px;
+  }
+
+  .card.small .card-suit {
+    font-size: 6px;
+  }
+
+  .suit-symbol {
+    font-size: 24px;
+  }
+
+  .card.small .suit-symbol {
+    font-size: 16px;
+  }
+
+  .joker-text {
+    font-size: 10px;
+  }
+
+  .card.small .joker-text {
+    font-size: 8px;
+  }
+
+  .trump-star {
+    font-size: 8px;
+  }
+
+  .card.small .trump-star {
+    font-size: 6px;
+  }
+
+  .trump-badge {
+    bottom: 2px;
+    left: 2px;
+  }
+
+  .card.selected {
+    transform: translateY(-15px);
+    border-width: 2px;
+  }
+
+  .card-corner.top-left {
+    top: 1px;
+    left: 2px;
+  }
+
+  .card-corner.bottom-right {
+    bottom: 1px;
+    right: 2px;
+  }
+}
+
+/* Extra small landscape */
+@media (orientation: landscape) and (max-height: 400px) {
+  .card {
+    width: 36px;
+    height: 50px;
+    margin: 0 -5px;
+  }
+
+  .card.small {
+    width: 28px;
+    height: 39px;
+    margin: 0 -3px;
+  }
+
+  .card-rank {
+    font-size: 10px;
+  }
+
+  .card.small .card-rank {
+    font-size: 7px;
+  }
+
+  .card-suit {
+    font-size: 8px;
+  }
+
+  .suit-symbol {
+    font-size: 20px;
+  }
+
+  .joker-text {
+    font-size: 9px;
+  }
+
+  .card.selected {
+    transform: translateY(-12px);
+  }
+}

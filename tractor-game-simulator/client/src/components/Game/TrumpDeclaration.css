@@ -154,3 +154,56 @@
     font-size: 16px;
   }
 }
+
+/* Mobile Landscape Mode */
+@media (orientation: landscape) and (max-height: 500px) {
+  .trump-declaration {
+    flex-direction: row;
+    gap: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-radius: 5px;
+  }
+
+  .declaration-label {
+    font-size: 11px;
+    min-width: 40px;
+  }
+
+  .declaration-slots {
+    gap: 4px;
+  }
+
+  .declaration-slot {
+    height: 32px;
+    border-radius: 4px;
+    min-width: 32px;
+  }
+
+  .declaration-slot .slot-label {
+    font-size: 14px;
+  }
+}
+
+/* Extra small landscape */
+@media (orientation: landscape) and (max-height: 400px) {
+  .trump-declaration {
+    gap: 6px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+
+  .declaration-label {
+    font-size: 10px;
+    min-width: 35px;
+  }
+
+  .declaration-slot {
+    height: 28px;
+    min-width: 28px;
+  }
+
+  .declaration-slot .slot-label {
+    font-size: 12px;
+  }
+}

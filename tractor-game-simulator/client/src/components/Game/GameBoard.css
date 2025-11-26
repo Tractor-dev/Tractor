@@ -213,3 +213,90 @@
     min-width: 60px !important;
   }
 }
+
+/* Mobile Landscape Mode Optimizations */
+@media (orientation: landscape) and (max-height: 500px) {
+  .phase-content {
+    padding: 10px;
+    margin: 5px;
+    border-radius: 6px;
+  }
+
+  .phase-content.playing-phase {
+    padding: 2px;
+    margin: 0;
+  }
+
+  .game-controls {
+    bottom: 5px;
+    right: 5px;
+    padding: 6px;
+    min-width: 100px;
+    max-width: 140px;
+  }
+
+  .game-info {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+
+  .trump-animation {
+    padding: 12px 20px;
+  }
+
+  .trump-animation span:first-child {
+    font-size: 32px !important;
+  }
+
+  .trump-animation span:last-child {
+    font-size: 12px !important;
+  }
+
+  /* Compact button grid for landscape */
+  .responsive-button-grid {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 4px;
+  }
+
+  .responsive-button-grid .ant-btn {
+    font-size: 10px !important;
+    padding: 2px 4px !important;
+    min-width: 55px !important;
+    height: auto !important;
+    min-height: 28px;
+  }
+
+  .responsive-flex-buttons {
+    gap: 4px;
+  }
+
+  .responsive-flex-buttons .ant-btn {
+    font-size: 10px !important;
+    padding: 2px 5px !important;
+    min-width: 50px !important;
+    min-height: 28px;
+  }
+}
+
+/* Extra small landscape */
+@media (orientation: landscape) and (max-height: 400px) {
+  .phase-content {
+    padding: 6px;
+    margin: 3px;
+  }
+
+  .phase-content.playing-phase {
+    padding: 1px;
+  }
+
+  .trump-animation span:first-child {
+    font-size: 28px !important;
+  }
+
+  .responsive-button-grid .ant-btn,
+  .responsive-flex-buttons .ant-btn {
+    font-size: 9px !important;
+    min-height: 24px;
+    min-width: 45px !important;
+  }
+}
