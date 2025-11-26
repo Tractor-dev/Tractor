@@ -260,30 +260,14 @@ export default function GameTable({
   return (
     <div className="game-table">
       {/* 左上角得分和等级显示 - 始终显示 */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        left: '10px',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        border: '2px solid #ffd700',
-        zIndex: 100,
-        width: '300px'
-      }}>
+      <div className="score-panel">
         {/* 队伍等级显示 */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginBottom: '12px',
-          paddingBottom: '8px',
-          borderBottom: '1px solid rgba(255, 215, 0, 0.3)'
-        }}>
-          <div style={{ textAlign: 'center', flex: 1 }}>
+        <div className="score-panel-teams">
+          <div className="score-panel-team">
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.myTeamLabel} {t('team.teamLevel')}</Text>
             <Text strong style={{ color: '#52c41a', fontSize: '18px' }}>{teamLabels.myTeamLevel}</Text>
           </div>
-          <div style={{ textAlign: 'center', flex: 1 }}>
+          <div className="score-panel-team">
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.opponentTeamLabel} {t('team.teamLevel')}</Text>
             <Text strong style={{ color: '#ff4d4f', fontSize: '18px' }}>{teamLabels.opponentTeamLevel}</Text>
           </div>
@@ -292,31 +276,15 @@ export default function GameTable({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Text strong style={{ color: '#ffd700', fontSize: '14px' }}>{t('bottom.attackerScore')}</Text>
         </div>
-        <div style={{
-          fontSize: '24px',
-          fontWeight: 'bold',
-          color: '#fff',
-          textAlign: 'center',
-          marginBottom: '8px'
-        }}>
+        <div className="score-panel-score">
           {attackerScore} {t('common.points')}
         </div>
-        <div style={{
-          height: '100px',
-          position: 'relative'
-        }}>
+        <div className="score-panel-cards">
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block', marginBottom: '4px' }}>
             {t('bottom.pointCards')} ({collectedPointCards.length}):
           </Text>
           {collectedPointCards.length > 0 ? (
-            <div style={{
-              display: 'flex',
-              flexWrap: 'nowrap',
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              maxHeight: '80px',
-              paddingBottom: '8px'
-            }}>
+            <div className="score-panel-cards-list">
               {collectedPointCards.map((card, index) => (
                 <div
                   key={card.id || index}

@@ -2,3 +2,57 @@
 .app-container {
   min-height: 100vh;
 }
+
+/* Mobile responsive for Ant Design Layout */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 12px !important;
+  }
+  
+  .ant-layout-content {
+    padding: 12px !important;
+  }
+  
+  .ant-layout-header .ant-typography {
+    font-size: 16px !important;
+  }
+  
+  /* Make buttons more touch-friendly on mobile */
+  .ant-btn-lg {
+    padding: 6px 15px !important;
+    height: auto !important;
+    font-size: 14px !important;
+  }
+  
+  .ant-space {
+    gap: 8px !important;
+  }
+  
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px !important;
+  }
+  
+  .ant-modal-content {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .ant-layout-header {
+    padding: 0 8px !important;
+    flex-wrap: wrap;
+    height: auto !important;
+    min-height: 56px;
+  }
+  
+  .ant-layout-content {
+    padding: 8px !important;
+  }
+  
+  .ant-btn-lg {
+    padding: 5px 12px !important;
+    font-size: 13px !important;
+  }
+}

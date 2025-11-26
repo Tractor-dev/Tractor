@@ -35,6 +35,9 @@
   transition: all 0.3s ease;
   position: relative;
   user-select: none;
+  /* Touch optimization */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .declaration-slot .slot-label {
@@ -62,6 +65,18 @@
   box-shadow: 0 4px 16px rgba(255, 215, 0, 0.8);
 }
 
+/* Touch devices: adjust hover behavior */
+@media (hover: none) {
+  .declaration-slot.active:hover {
+    transform: none;
+  }
+  
+  .declaration-slot.active:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.6);
+  }
+}
+
 /* 脉动动画 */
 @keyframes pulse {
   0%, 100% {
@@ -81,4 +96,61 @@
 .declaration-slot.active:nth-child(3) .slot-label,
 .declaration-slot.active:nth-child(5) .slot-label {
   color: #e74c3c;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .trump-declaration {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .declaration-label {
+    font-size: 14px;
+    min-width: auto;
+    text-align: center;
+  }
+
+  .declaration-slots {
+    gap: 6px;
+    width: 100%;
+  }
+
+  .declaration-slot {
+    height: 48px;
+    border-radius: 5px;
+  }
+
+  .declaration-slot .slot-label {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .trump-declaration {
+    gap: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+  }
+
+  .declaration-label {
+    font-size: 12px;
+  }
+
+  .declaration-slots {
+    gap: 4px;
+  }
+
+  .declaration-slot {
+    height: 40px;
+    border-radius: 4px;
+    min-width: 40px;
+  }
+
+  .declaration-slot .slot-label {
+    font-size: 16px;
+  }
 }

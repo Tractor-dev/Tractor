@@ -246,6 +246,54 @@
   /* bottom不设置固定高度，因为包含手牌区域 */
 }
 
+/* Score panel styles */
+.score-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid #ffd700;
+  z-index: 100;
+  width: 300px;
+}
+
+.score-panel-teams {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.score-panel-team {
+  text-align: center;
+  flex: 1;
+}
+
+.score-panel-score {
+  font-size: 24px;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.score-panel-cards {
+  height: 100px;
+  position: relative;
+}
+
+.score-panel-cards-list {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: 80px;
+  padding-bottom: 8px;
+}
+
 /* 响应式调整 */
 @media (max-width: 1200px) {
   .position-left,
@@ -261,19 +309,200 @@
 
 @media (max-width: 768px) {
   .game-table {
-    height: calc(100vh - 150px);
-    padding: 10px;
+    height: 100%;
+    padding: 8px;
+    border-radius: 8px;
   }
 
   .position-middle {
-    gap: 10px;
+    gap: 8px;
+    min-height: 120px;
+  }
+
+  .position-top,
+  .position-bottom {
+    margin: 5px 0;
   }
 
   .player-top,
   .player-left,
   .player-right {
     width: auto;
-    font-size: 12px;
+    min-width: auto;
+    max-width: none;
+    font-size: 11px;
+  }
+
+  .player-left,
+  .player-right {
+    width: 100px;
+    min-width: 100px;
+  }
+
+  .player-area {
+    padding: 8px;
+    border-radius: 6px;
+  }
+
+  .player-info {
+    margin-bottom: 4px;
+  }
+
+  .player-info .ant-typography {
+    font-size: 11px !important;
+  }
+
+  .player-cards-area {
+    min-height: 80px;
+  }
+
+  .declared-trump-zone {
+    min-height: 60px;
+  }
+
+  .played-cards-area {
+    height: 80px;
+    padding: 4px;
+  }
+
+  .table-center {
+    min-height: 100px;
+    max-width: 280px;
+    padding: 8px;
+  }
+
+  .my-hand {
+    padding: 6px 10px;
+    min-height: 80px;
+  }
+
+  .my-hand-container {
+    gap: 8px;
+  }
+
+  .bottom-trump-zone {
+    min-width: 60px;
+    max-width: 100px;
+    min-height: 80px;
+    padding: 4px;
+  }
+
+  .bottom-player-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .bottom-player-header .player-info {
+    text-align: center;
+  }
+
+  .inline-controls {
+    max-width: 100%;
+    margin-left: 0;
+    padding: 8px;
+  }
+
+  /* Score panel on mobile */
+  .score-panel {
+    width: 200px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .score-panel-cards {
+    height: 60px;
+  }
+
+  .score-panel-score {
+    font-size: 18px;
+  }
+
+  .score-panel-team .ant-typography {
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-table {
+    padding: 5px;
+    border-radius: 6px;
+  }
+
+  .position-middle {
+    gap: 5px;
+    min-height: 100px;
+  }
+
+  .player-left,
+  .player-right {
+    width: 80px;
+    min-width: 80px;
+  }
+
+  .player-area {
+    padding: 5px;
+  }
+
+  .player-info .ant-typography {
+    font-size: 10px !important;
+  }
+
+  .player-cards-area {
+    min-height: 60px;
+  }
+
+  .declared-trump-zone {
+    min-height: 50px;
+  }
+
+  .played-cards-area {
+    height: 60px;
+  }
+
+  .table-center {
+    min-height: 80px;
+    max-width: 200px;
+    padding: 5px;
+  }
+
+  .my-hand {
+    padding: 4px 6px;
+    min-height: 60px;
+  }
+
+  .bottom-trump-zone {
+    min-width: 50px;
+    max-width: 80px;
+    min-height: 60px;
+  }
+
+  .inline-controls {
+    padding: 6px;
+  }
+
+  /* Further reduce score panel on small screens */
+  .score-panel {
+    width: 160px;
+    padding: 6px 8px;
+    top: 5px;
+    left: 5px;
+  }
+
+  .score-panel-cards {
+    height: 50px;
+  }
+
+  .score-panel-score {
+    font-size: 16px;
+  }
+
+  .score-panel-cards-list > div {
+    margin-left: -15px;
+  }
+
+  .score-panel-cards-list > div:first-child {
+    margin-left: 0;
   }
 }
 

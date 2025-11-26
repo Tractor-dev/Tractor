@@ -81,3 +81,122 @@
   pointer-events: none;
   z-index: 11;
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .hand {
+    --card-width: 60px;
+    --card-overlap: 20px;
+    padding: 6px 4px;
+    min-height: 100px;
+  }
+
+  .hand.compact-1 {
+    --card-overlap: 25px;
+  }
+
+  .hand.compact-2 {
+    --card-overlap: 32px;
+  }
+
+  .hand.compact-3 {
+    --card-overlap: 38px;
+  }
+
+  .hand.compact-4 {
+    --card-overlap: 42px;
+  }
+
+  .hand.small {
+    --card-width: 40px;
+    --card-overlap: 14px;
+    padding: 6px;
+    min-height: 70px;
+  }
+
+  .hand.small.compact-1 {
+    --card-overlap: 20px;
+  }
+
+  .hand.small.compact-2 {
+    --card-overlap: 25px;
+  }
+
+  .hand.small.compact-3 {
+    --card-overlap: 28px;
+  }
+
+  .hand.small.compact-4 {
+    --card-overlap: 32px;
+  }
+
+  .card-wrapper {
+    width: var(--card-width, 60px);
+  }
+
+  .tractor-label {
+    font-size: 8px !important;
+    bottom: -14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hand {
+    --card-width: 48px;
+    --card-overlap: 18px;
+    padding: 4px 3px;
+    min-height: 80px;
+  }
+
+  .hand.compact-1 {
+    --card-overlap: 22px;
+  }
+
+  .hand.compact-2 {
+    --card-overlap: 28px;
+  }
+
+  .hand.compact-3 {
+    --card-overlap: 34px;
+  }
+
+  .hand.compact-4 {
+    --card-overlap: 38px;
+  }
+
+  .hand.small {
+    --card-width: 35px;
+    --card-overlap: 12px;
+    padding: 4px;
+    min-height: 55px;
+  }
+
+  .hand.small.compact-1 {
+    --card-overlap: 16px;
+  }
+
+  .hand.small.compact-2 {
+    --card-overlap: 20px;
+  }
+
+  .hand.small.compact-3 {
+    --card-overlap: 24px;
+  }
+
+  .hand.small.compact-4 {
+    --card-overlap: 28px;
+  }
+
+  .card-wrapper {
+    width: var(--card-width, 48px);
+  }
+
+  .tractor-label {
+    font-size: 7px !important;
+    bottom: -12px !important;
+  }
+
+  .tractor-line {
+    height: 2px !important;
+  }
+}
