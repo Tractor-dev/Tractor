@@ -890,8 +890,17 @@ export default function GameBoard() {
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
   const currentPlayMode = gameState?.playMode || currentRoom?.config?.playMode || PlayModes.ORDERED;
 
-  // 通用按钮样式
-  const buttonStyle = { width: '100px', fontSize: '13px' };
+  // 通用按钮样式 - 响应式设计
+  const buttonStyle = { 
+    minWidth: '80px',
+    maxWidth: '120px',
+    width: 'auto',
+    fontSize: '13px',
+    padding: '4px 8px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  };
 
   // 通用按钮组件 - 房间设置（仅房主可见）
   const renderSettingsButton = () => {
@@ -938,7 +947,7 @@ export default function GameBoard() {
       }}
       trigger={['click']}
     >
-      <Button icon={<GlobalOutlined />} style={buttonStyle} />
+      <Button icon={<GlobalOutlined />} style={{ ...buttonStyle, minWidth: '44px' }} />
     </Dropdown>
   );
 
@@ -971,7 +980,7 @@ export default function GameBoard() {
           buttons.push(renderLanguageButton());
 
           return (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="responsive-flex-buttons">
               {buttons}
             </div>
           );
@@ -1012,7 +1021,7 @@ export default function GameBoard() {
           if (settingsBtn) drawingButtons.push(settingsBtn);
 
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            <div className="responsive-button-grid">
               {drawingButtons}
             </div>
           );
@@ -1023,7 +1032,7 @@ export default function GameBoard() {
           if (settingsBtn) drawingButtons.push(settingsBtn);
 
           return (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="responsive-flex-buttons">
               {drawingButtons}
             </div>
           );
@@ -1039,14 +1048,14 @@ export default function GameBoard() {
               type="primary"
               onClick={handleBuryCards}
               disabled={selectedCards.length !== currentRoom.config.bottomCardsCount}
-              style={{ ...buttonStyle, width: '150px' }}
+              style={{ ...buttonStyle, minWidth: '120px' }}
             >
               {t('play.bury')}({selectedCards.length}/{currentRoom.config.bottomCardsCount})
             </Button>
           );
         } else {
           buryingButtons.push(
-            <Button key="waiting" disabled style={{ ...buttonStyle, width: '150px' }}>
+            <Button key="waiting" disabled style={{ ...buttonStyle, minWidth: '120px' }}>
               {t('play.waitingBury')}
             </Button>
           );
@@ -1059,7 +1068,7 @@ export default function GameBoard() {
         buryingButtons.push(renderLanguageButton());
 
         return (
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <div className="responsive-flex-buttons">
             {buryingButtons}
           </div>
         );
@@ -1174,7 +1183,7 @@ export default function GameBoard() {
           }
 
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            <div className="responsive-button-grid">
               {playingButtons}
             </div>
           );
@@ -1233,7 +1242,7 @@ export default function GameBoard() {
           }
 
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
+            <div className="responsive-button-grid">
               {playingButtons}
             </div>
           );
@@ -1259,7 +1268,7 @@ export default function GameBoard() {
         revealingButtons.push(renderLanguageButton());
 
         return (
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <div className="responsive-flex-buttons">
             {revealingButtons}
           </div>
         );
@@ -1272,7 +1281,7 @@ export default function GameBoard() {
           buttons.push(renderLanguageButton());
           if (buttons.length === 0) return null;
           return (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="responsive-flex-buttons">
               {buttons}
             </div>
           );
