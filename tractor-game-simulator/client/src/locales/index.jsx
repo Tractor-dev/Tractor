@@ -1,23 +1,34 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import zhCN from './zh-CN';
 import enUS from './en-US';
+import jaJP from './ja-JP';
 
 // Available languages
 export const LANGUAGES = {
   ZH_CN: 'zh-CN',
-  EN_US: 'en-US'
+  EN_US: 'en-US',
+  JA_JP: 'ja-JP'
 };
 
-// Language display names
+// Language display names (shown in dropdown menu)
 export const LANGUAGE_NAMES = {
   [LANGUAGES.ZH_CN]: '中文',
-  [LANGUAGES.EN_US]: 'English'
+  [LANGUAGES.EN_US]: 'English',
+  [LANGUAGES.JA_JP]: '日本語'
 };
+
+// Language list for dropdown menu
+export const LANGUAGE_LIST = [
+  { key: LANGUAGES.ZH_CN, label: '中文' },
+  { key: LANGUAGES.EN_US, label: 'English' },
+  { key: LANGUAGES.JA_JP, label: '日本語' }
+];
 
 // Language data
 const translations = {
   [LANGUAGES.ZH_CN]: zhCN,
-  [LANGUAGES.EN_US]: enUS
+  [LANGUAGES.EN_US]: enUS,
+  [LANGUAGES.JA_JP]: jaJP
 };
 
 // Storage key
@@ -55,12 +66,6 @@ export function I18nProvider({ children }) {
     }
   }, []);
 
-  // Toggle between languages
-  const toggleLanguage = useCallback(() => {
-    const newLang = language === LANGUAGES.ZH_CN ? LANGUAGES.EN_US : LANGUAGES.ZH_CN;
-    setLanguage(newLang);
-  }, [language, setLanguage]);
-
   // Get translation function
   const t = useCallback((key, params = {}) => {
     const keys = key.split('.');
@@ -89,11 +94,11 @@ export function I18nProvider({ children }) {
   const value = useMemo(() => ({
     language,
     setLanguage,
-    toggleLanguage,
     t,
     isZhCN: language === LANGUAGES.ZH_CN,
-    isEnUS: language === LANGUAGES.EN_US
-  }), [language, setLanguage, toggleLanguage, t]);
+    isEnUS: language === LANGUAGES.EN_US,
+    isJaJP: language === LANGUAGES.JA_JP
+  }), [language, setLanguage, t]);
 
   return (
     <I18nContext.Provider value={value}>

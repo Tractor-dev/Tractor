@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch, Dropdown } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
-import { useI18n, LANGUAGES, LANGUAGE_NAMES } from './locales/index.jsx';
+import { useI18n, LANGUAGES, LANGUAGE_NAMES, LANGUAGE_LIST } from './locales/index.jsx';
 import CreateRoomModal from './components/Room/CreateRoomModal';
 import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
@@ -17,7 +17,7 @@ const { Title, Text } = Typography;
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
   const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, roomList, setRoomList } = useGameStore();
-  const { t, language, toggleLanguage } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -242,14 +242,23 @@ function App() {
           <Title level={3} style={{ color: 'white', margin: '16px 0' }}>
             {t('app.title')} - {currentRoom.name}
           </Title>
-          <Button
-            icon={<GlobalOutlined />}
-            onClick={toggleLanguage}
-            style={{ color: 'white', borderColor: 'white' }}
-            ghost
+          <Dropdown
+            menu={{
+              items: LANGUAGE_LIST.map(lang => ({
+                key: lang.key,
+                label: lang.label,
+              })),
+              onClick: ({ key }) => setLanguage(key),
+              selectedKeys: [language],
+            }}
+            trigger={['click']}
           >
-            {LANGUAGE_NAMES[language]}
-          </Button>
+            <Button
+              icon={<GlobalOutlined />}
+              style={{ color: 'white', borderColor: 'white' }}
+              ghost
+            />
+          </Dropdown>
         </Header>
         <Content style={{ padding: '24px' }}>
           <div style={{
@@ -404,14 +413,23 @@ function App() {
           <div style={{ color: 'white' }}>
             {t('connection.connectionStatus')}: {isConnected ? `✅ ${t('connection.connected')}` : `❌ ${t('connection.disconnected')}`}
           </div>
-          <Button
-            icon={<GlobalOutlined />}
-            onClick={toggleLanguage}
-            style={{ color: 'white', borderColor: 'white' }}
-            ghost
+          <Dropdown
+            menu={{
+              items: LANGUAGE_LIST.map(lang => ({
+                key: lang.key,
+                label: lang.label,
+              })),
+              onClick: ({ key }) => setLanguage(key),
+              selectedKeys: [language],
+            }}
+            trigger={['click']}
           >
-            {LANGUAGE_NAMES[language]}
-          </Button>
+            <Button
+              icon={<GlobalOutlined />}
+              style={{ color: 'white', borderColor: 'white' }}
+              ghost
+            />
+          </Dropdown>
         </div>
       </Header>
       <Content style={{ padding: '24px' }}>

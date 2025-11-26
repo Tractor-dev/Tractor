@@ -351,6 +351,7 @@ export default {
   language: {
     switch: '切换语言',
     chinese: '中文',
-    english: 'English'
+    english: 'English',
+    japanese: '日本語'
   }
 };

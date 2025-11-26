@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch } from 'antd';
+import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch, Dropdown } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
 import { detectAvailableDeclarations } from '../../utils/trumpUtils';
 import { validateLeadingPlay, validateFollowingPlay } from '../../utils/cardPatternUtils';
-import { useI18n, LANGUAGE_NAMES } from '../../locales/index.jsx';
+import { useI18n, LANGUAGE_NAMES, LANGUAGE_LIST } from '../../locales/index.jsx';
 import Hand from './Hand';
 import GameTable from './GameTable';
 import RuleSelector from './RuleSelector';
@@ -31,7 +31,7 @@ export default function GameBoard() {
     setTrumpInfo
   } = useGameStore();
 
-  const { t, language, toggleLanguage } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const [messageApi, contextHolder] = message.useMessage();
   const [buryingPlayerModal, setBuryingPlayerModal] = useState(false);
   const [firstPlayerModal, setFirstPlayerModal] = useState(false);
@@ -926,9 +926,20 @@ export default function GameBoard() {
 
   // 通用按钮组件 - 切换语言
   const renderLanguageButton = () => (
-    <Button key="language" icon={<GlobalOutlined />} onClick={toggleLanguage} style={buttonStyle}>
-      {LANGUAGE_NAMES[language]}
-    </Button>
+    <Dropdown
+      key="language"
+      menu={{
+        items: LANGUAGE_LIST.map(lang => ({
+          key: lang.key,
+          label: lang.label,
+        })),
+        onClick: ({ key }) => setLanguage(key),
+        selectedKeys: [language],
+      }}
+      trigger={['click']}
+    >
+      <Button icon={<GlobalOutlined />} style={buttonStyle} />
+    </Dropdown>
   );
 
   // 渲染控制按钮区域
@@ -1370,9 +1381,19 @@ export default function GameBoard() {
                 <Button onClick={handleOpenRenameModal}>
                   {t('nickname.modifyNickname')}
                 </Button>
-                <Button icon={<GlobalOutlined />} onClick={toggleLanguage}>
-                  {LANGUAGE_NAMES[language]}
-                </Button>
+                <Dropdown
+                  menu={{
+                    items: LANGUAGE_LIST.map(lang => ({
+                      key: lang.key,
+                      label: lang.label,
+                    })),
+                    onClick: ({ key }) => setLanguage(key),
+                    selectedKeys: [language],
+                  }}
+                  trigger={['click']}
+                >
+                  <Button icon={<GlobalOutlined />} />
+                </Dropdown>
               </Space>
             </Space>
           </div>
