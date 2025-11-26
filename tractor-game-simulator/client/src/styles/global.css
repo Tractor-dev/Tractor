@@ -55,3 +55,11 @@ html {
     min-width: 44px;
   }
 }
+
+/* Mobile landscape mode - reduce touch target size for better fit */
+@media (orientation: landscape) and (max-height: 500px) {
+  button, .ant-btn {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}

@@ -200,3 +200,106 @@
     height: 2px !important;
   }
 }
+
+/* Mobile Landscape Mode - Compact hand layout */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hand {
+    --card-width: 42px;
+    --card-overlap: 16px;
+    padding: 3px 4px;
+    min-height: 65px;
+  }
+
+  .hand.compact-1 {
+    --card-overlap: 20px;
+  }
+
+  .hand.compact-2 {
+    --card-overlap: 26px;
+  }
+
+  .hand.compact-3 {
+    --card-overlap: 30px;
+  }
+
+  .hand.compact-4 {
+    --card-overlap: 34px;
+  }
+
+  .hand.small {
+    --card-width: 32px;
+    --card-overlap: 10px;
+    padding: 3px;
+    min-height: 50px;
+  }
+
+  .hand.small.compact-1 {
+    --card-overlap: 14px;
+  }
+
+  .hand.small.compact-2 {
+    --card-overlap: 18px;
+  }
+
+  .hand.small.compact-3 {
+    --card-overlap: 22px;
+  }
+
+  .hand.small.compact-4 {
+    --card-overlap: 26px;
+  }
+
+  .card-wrapper {
+    width: var(--card-width, 42px);
+  }
+
+  .tractor-label {
+    font-size: 6px !important;
+    bottom: -10px !important;
+  }
+
+  .tractor-line {
+    height: 2px !important;
+  }
+}
+
+/* Extra small landscape */
+@media (orientation: landscape) and (max-height: 400px) {
+  .hand {
+    --card-width: 36px;
+    --card-overlap: 14px;
+    padding: 2px 3px;
+    min-height: 55px;
+  }
+
+  .hand.compact-1 {
+    --card-overlap: 18px;
+  }
+
+  .hand.compact-2 {
+    --card-overlap: 22px;
+  }
+
+  .hand.compact-3 {
+    --card-overlap: 26px;
+  }
+
+  .hand.compact-4 {
+    --card-overlap: 30px;
+  }
+
+  .hand.small {
+    --card-width: 28px;
+    --card-overlap: 8px;
+    min-height: 42px;
+  }
+
+  .card-wrapper {
+    width: var(--card-width, 36px);
+  }
+
+  .tractor-label {
+    font-size: 5px !important;
+    bottom: -8px !important;
+  }
+}

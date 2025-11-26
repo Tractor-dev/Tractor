@@ -531,3 +531,213 @@
 .game-table ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 215, 0, 0.8);
 }
+
+/* ============================================
+   Mobile Landscape Mode Optimizations
+   Targets devices in landscape with limited height
+   ============================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .game-table {
+    padding: 5px;
+    border-radius: 4px;
+  }
+
+  /* Reduce vertical spacing in middle section */
+  .position-middle {
+    gap: 5px;
+    min-height: 80px;
+  }
+
+  .position-top,
+  .position-bottom {
+    margin: 2px 0;
+  }
+
+  /* Compact player areas for landscape */
+  .player-area {
+    padding: 4px 6px;
+    border-radius: 4px;
+  }
+
+  .player-info {
+    margin-bottom: 2px;
+  }
+
+  .player-info .ant-typography {
+    font-size: 10px !important;
+    line-height: 1.2;
+  }
+
+  /* Reduce player card areas height */
+  .player-cards-area {
+    min-height: 50px;
+  }
+
+  .declared-trump-zone {
+    min-height: 40px;
+  }
+
+  .played-cards-area {
+    height: 55px;
+    padding: 2px;
+  }
+
+  /* Compact left/right player areas */
+  .player-left,
+  .player-right {
+    width: 70px;
+    min-width: 70px;
+  }
+
+  /* Smaller table center */
+  .table-center {
+    min-height: 60px;
+    max-width: 180px;
+    padding: 4px;
+  }
+
+  .center-content {
+    font-size: 11px;
+  }
+
+  /* Bottom player area optimizations */
+  .my-hand {
+    padding: 3px 5px;
+    min-height: 50px;
+  }
+
+  .my-hand-container {
+    gap: 4px;
+  }
+
+  .bottom-trump-zone {
+    min-width: 40px;
+    max-width: 60px;
+    min-height: 50px;
+    padding: 2px;
+  }
+
+  .bottom-player-header {
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .bottom-player-header .player-info {
+    flex: 0 0 auto;
+    text-align: left;
+  }
+
+  .inline-controls {
+    padding: 4px 6px;
+    max-width: none;
+    flex: 1;
+  }
+
+  /* Score panel - make it more compact and repositioned */
+  .score-panel {
+    width: 140px;
+    padding: 4px 6px;
+    font-size: 9px;
+    top: 3px;
+    left: 3px;
+  }
+
+  .score-panel-teams {
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+  }
+
+  .score-panel-team .ant-typography {
+    font-size: 9px !important;
+  }
+
+  .score-panel-team strong {
+    font-size: 14px !important;
+  }
+
+  .score-panel-score {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .score-panel-cards {
+    height: 40px;
+  }
+
+  .score-panel-cards-list > div {
+    margin-left: -12px;
+  }
+
+  /* Trump declaration wrapper */
+  .trump-declaration-wrapper {
+    margin: 4px 0;
+  }
+}
+
+/* Extra small landscape (very short screens like some phones) */
+@media (orientation: landscape) and (max-height: 400px) {
+  .game-table {
+    padding: 3px;
+  }
+
+  .position-middle {
+    min-height: 60px;
+    gap: 3px;
+  }
+
+  .player-left,
+  .player-right {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  .player-area {
+    padding: 3px 4px;
+  }
+
+  .player-info .ant-typography {
+    font-size: 9px !important;
+  }
+
+  .player-cards-area {
+    min-height: 40px;
+  }
+
+  .declared-trump-zone {
+    min-height: 35px;
+  }
+
+  .played-cards-area {
+    height: 45px;
+  }
+
+  .table-center {
+    min-height: 50px;
+    max-width: 150px;
+  }
+
+  .my-hand {
+    min-height: 45px;
+    padding: 2px 4px;
+  }
+
+  .bottom-trump-zone {
+    min-height: 45px;
+  }
+
+  .score-panel {
+    width: 120px;
+    padding: 3px 5px;
+    font-size: 8px;
+  }
+
+  .score-panel-score {
+    font-size: 12px;
+  }
+
+  .score-panel-cards {
+    height: 35px;
+  }
+}
