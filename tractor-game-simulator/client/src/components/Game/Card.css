@@ -1,7 +1,7 @@
 .card {
   position: relative;
-  width: 80px;
-  height: 112px;
+  width: min(80px, 10vh);
+  height: min(112px, 14vh);
   background: white;
   border: 2px solid #d9d9d9;
   border-radius: 8px;
@@ -17,8 +17,8 @@
 }
 
 .card.small {
-  width: 50px;
-  height: 70px;
+  width: min(50px, 8vh);
+  height: min(70px, 11vh);
   margin: 0 -6px;
 }
 
@@ -41,7 +41,7 @@
 }
 
 .card.selected {
-  transform: translateY(-37px);
+  transform: translateY(-30%);
   border-color: #1890ff;
   border-width: 3px;
   box-shadow: 0 6px 12px rgba(24, 144, 255, 0.4);
