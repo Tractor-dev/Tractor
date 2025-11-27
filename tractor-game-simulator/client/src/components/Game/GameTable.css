@@ -1,13 +1,15 @@
 .game-table {
   width: 100%;
   height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   border-radius: 12px;
-  padding: 20px;
+  padding: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
 /* 上方玩家区域 */
@@ -17,18 +19,19 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  margin-bottom: 10px;
-  gap: 8px;
+  margin-bottom: 5px;
+  gap: 4px;
 }
 
 /* 中间区域（左、中央、右） */
 .position-middle {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 30px;
-  min-height: 200px;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .position-left {
@@ -47,8 +50,9 @@
   align-items: center;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  min-height: 150px;
+  min-height: 0;
   max-width: 400px;
+  overflow: hidden;
 }
 
 .position-right {
@@ -65,17 +69,17 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
-  margin-top: 10px;
-  gap: 8px;
+  margin-top: 5px;
+  gap: 4px;
 }
 
 /* 玩家区域通用样式 */
 .player-area {
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 6px;
+  padding: 8px;
   backdrop-filter: blur(10px);
   border: 2px solid transparent;
   transition: all 0.3s ease;
@@ -83,16 +87,16 @@
 
 .player-area.current-turn {
   border-color: #ffd700;
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
   animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
   }
   50% {
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
   }
 }
 
@@ -103,7 +107,7 @@
 
 /* 玩家信息 */
 .player-info {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   text-align: center;
   color: white;
 }
@@ -112,31 +116,31 @@
   color: white;
 }
 
-/* 玩家牌区域 - 固定高度，防止出牌时布局变化 */
+/* 玩家牌区域 - 不设置固定高度，让内容自然撑开 */
 .player-cards-area {
-  min-height: 120px; /* 固定最小高度 */
+  min-height: 60px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 /* 亮主区域 - 其他玩家的亮主在这里居中显示 */
 .declared-trump-zone {
-  min-height: 100px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
 }
 
-/* 出牌区域 - 在玩家框和桌面中央之间，固定高度防止布局变化 */
+/* 出牌区域 - 在玩家框和桌面中央之间 */
 .played-cards-area {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  height: 130px; /* 固定高度，即使没有牌也占据空间 */
-  flex-shrink: 0; /* 防止收缩 */
+  padding: 4px;
+  min-height: 60px;
+  flex-shrink: 0;
 }
 
 .shown-cards {
@@ -153,12 +157,13 @@
 /* 自己的手牌容器 - 包含亮主区和手牌区 */
 .my-hand-container {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  justify-content: center; /* 默认居中 */
+  justify-content: center;
+  min-height: 0;
 }
 
 /* 当没有亮主时，手牌区域居中 */
@@ -169,14 +174,14 @@
 /* 自己的亮主区域 - 在手牌左侧 */
 .bottom-trump-zone {
   flex: 0 0 auto;
-  min-width: 100px;
-  max-width: 180px;
-  min-height: 120px;
+  min-width: 60px;
+  max-width: 120px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding: 8px;
+  justify-content: center;
+  padding: 4px;
   box-sizing: border-box;
 }
 
@@ -190,9 +195,9 @@
 .bottom-player-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .bottom-player-header .player-info {
@@ -204,10 +209,10 @@
 /* 控制区域 - 右侧对齐 */
 .inline-controls {
   flex: 0 1 auto;
-  max-width: 650px;
+  max-width: 600px;
   background: rgba(255, 255, 255, 0.15);
-  padding: 12px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   backdrop-filter: blur(10px);
   margin-left: auto;
 }
@@ -215,55 +220,56 @@
 /* 自己的手牌区域 - 居中显示 */
 .my-hand {
   flex: 1 1 auto;
-  padding: 10px 20px;
+  padding: 6px 10px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  min-height: 120px;
+  min-height: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
   min-width: 0; /* 允许flex收缩 */
   box-sizing: border-box;
+  overflow: visible;
 }
 
-/* 不同位置的样式调整 - 固定尺寸防止布局变化 */
+/* 不同位置的样式调整 */
 .player-top {
-  width: 500px;
-  max-width: 600px;
-  min-width: 400px;
-  /* 不设置固定高度，让内容自然撑开 */
+  width: auto;
+  max-width: 500px;
+  min-width: 200px;
 }
 
 .player-left,
 .player-right {
-  width: 350px;
-  min-width: 350px;
-  /* 不设置固定高度，让内容自然撑开 */
+  width: auto;
+  min-width: 100px;
+  max-width: 250px;
 }
 
 .player-bottom {
   width: 100%;
-  max-width: 1400px; /* 增加最大宽度 */
-  /* bottom不设置固定高度，因为包含手牌区域 */
+  max-width: 1400px;
 }
 
 /* Score panel styles */
 .score-panel {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 5px;
+  left: 5px;
   background-color: rgba(0, 0, 0, 0.8);
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
   border: 2px solid #ffd700;
   z-index: 100;
-  width: 300px;
+  max-width: 200px;
+  font-size: 11px;
 }
 
 .score-panel-teams {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(255, 215, 0, 0.3);
 }
 
@@ -273,16 +279,17 @@
 }
 
 .score-panel-score {
-  font-size: 24px;
+  font-size: 16px;
   font-weight: bold;
   color: #fff;
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .score-panel-cards {
-  height: 100px;
+  max-height: 60px;
   position: relative;
+  overflow: hidden;
 }
 
 .score-panel-cards-list {
@@ -290,8 +297,8 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
-  max-height: 80px;
-  padding-bottom: 8px;
+  max-height: 50px;
+  padding-bottom: 4px;
 }
 
 /* 响应式调整 */
@@ -508,7 +515,7 @@
 
 /* 亮主条wrapper */
 .trump-declaration-wrapper {
-  margin: 12px 0;
+  margin: 4px 0;
   padding: 0;
 }
 

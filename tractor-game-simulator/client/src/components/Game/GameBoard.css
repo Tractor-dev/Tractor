@@ -1,7 +1,10 @@
 .game-board {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
   flex: 1;
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   color: white;
@@ -13,30 +16,35 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: 100%;
   overflow: hidden;
 }
 
 .phase-content {
   flex: 1;
   background: rgba(255, 255, 255, 0.95);
-  padding: 40px;
+  padding: 20px;
   border-radius: 16px;
   text-align: center;
   color: #333;
-  margin: 20px;
+  margin: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow-y: auto;
+  min-height: 0;
 }
 
 /* 出牌阶段特殊布局 */
 .phase-content.playing-phase {
   position: relative;
-  padding: 10px;
+  padding: 0;
   background: transparent;
   box-shadow: none;
   height: 100%;
+  max-height: 100%;
   margin: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 游戏控制面板 - 右下角 */

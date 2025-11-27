@@ -1,17 +1,17 @@
 .hand {
-  --card-width: 80px;
+  --card-width: min(80px, 10vh);
   --card-overlap: 25px;
   display: flex;
   flex-direction: row;
-  justify-content: center; /* 改为居中对齐 */
+  justify-content: center;
   align-items: flex-end;
-  padding: 10px 5px; /* 减小内边距，增加可用空间 */
-  min-height: 150px;
+  padding: 5px;
+  min-height: 0;
   flex-wrap: nowrap;
-  width: 100%; /* 添加100%宽度 */
+  width: 100%;
   max-width: 100%;
-  box-sizing: border-box; /* 添加box-sizing */
-  overflow-x: visible; /* 允许溢出可见，而不是滚动 */
+  box-sizing: border-box;
+  overflow-x: visible;
 }
 
 /* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */
@@ -41,10 +41,10 @@
 }
 
 .hand.small {
-  --card-width: 50px;
+  --card-width: min(50px, 8vh);
   --card-overlap: 18px;
-  padding: 10px;
-  min-height: 90px;
+  padding: 5px;
+  min-height: 0;
   flex-wrap: nowrap;
 }
 
