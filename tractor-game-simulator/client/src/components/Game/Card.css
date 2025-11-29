@@ -1,7 +1,7 @@
 .card {
   position: relative;
-  width: min(80px, 10vh);
-  height: min(112px, 14vh);
+  width: clamp(36px, 10vh, 80px);
+  height: clamp(50px, 14vh, 112px);
   background: white;
   border: 2px solid #d9d9d9;
   border-radius: 8px;
@@ -17,8 +17,8 @@
 }
 
 .card.small {
-  width: min(50px, 8vh);
-  height: min(70px, 11vh);
+  width: clamp(28px, 8vh, 50px);
+  height: clamp(39px, 11vh, 70px);
   margin: 0 -6px;
 }
 
@@ -392,5 +392,76 @@
 
   .card.selected {
     transform: translateY(-12px);
+  }
+}
+
+/* Extra small screens (width < 360px) */
+@media (max-width: 360px) {
+  .card {
+    width: 40px;
+    height: 56px;
+    margin: 0 -6px;
+    border-radius: 4px;
+    border-width: 1.5px;
+  }
+
+  .card.small {
+    width: 30px;
+    height: 42px;
+    margin: 0 -4px;
+  }
+
+  .card-rank {
+    font-size: 10px;
+  }
+
+  .card.small .card-rank {
+    font-size: 8px;
+  }
+
+  .card-suit {
+    font-size: 9px;
+  }
+
+  .card.small .card-suit {
+    font-size: 6px;
+  }
+
+  .suit-symbol {
+    font-size: 24px;
+  }
+
+  .card.small .suit-symbol {
+    font-size: 16px;
+  }
+
+  .joker-text {
+    font-size: 10px;
+  }
+
+  .card.small .joker-text {
+    font-size: 8px;
+  }
+
+  .trump-star {
+    font-size: 9px;
+  }
+
+  .card.small .trump-star {
+    font-size: 7px;
+  }
+
+  .card.selected {
+    transform: translateY(-16px);
+  }
+
+  .card-corner.top-left {
+    top: 2px;
+    left: 2px;
+  }
+
+  .card-corner.bottom-right {
+    bottom: 2px;
+    right: 2px;
   }
 }

@@ -21,7 +21,7 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Mobile viewport height fix for iOS Safari */

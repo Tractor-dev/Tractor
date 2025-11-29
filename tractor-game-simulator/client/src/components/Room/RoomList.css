@@ -1,5 +1,7 @@
 .room-list {
   width: 100%;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .room-list-header {
@@ -15,8 +17,34 @@
   font-weight: 600;
 }
 
+/* Table scroll wrapper for mobile */
+.room-list :global(.ant-table-wrapper) {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.room-list :global(.ant-table) {
+  min-width: 600px;
+}
+
+.room-list :global(.ant-table-container) {
+  overflow-x: auto;
+}
+
 /* Mobile responsive styles */
 @media (max-width: 768px) {
+  .room-list {
+    max-height: 65vh;
+  }
+
+  .room-list :global(.ant-table-wrapper) {
+    max-height: 55vh;
+  }
+
+  .room-list :global(.ant-table) {
+    min-width: 500px;
+  }
+
   .room-list-header {
     flex-direction: column;
     gap: 12px;
@@ -30,7 +58,31 @@
 }
 
 @media (max-width: 480px) {
+  .room-list {
+    max-height: 60vh;
+  }
+
+  .room-list :global(.ant-table-wrapper) {
+    max-height: 50vh;
+  }
+
+  .room-list :global(.ant-table) {
+    min-width: 400px;
+    font-size: 12px;
+  }
+
   .room-list-header h3 {
     font-size: 14px;
+  }
+}
+
+/* Mobile landscape mode */
+@media (orientation: landscape) and (max-height: 500px) {
+  .room-list {
+    max-height: 50vh;
+  }
+
+  .room-list :global(.ant-table-wrapper) {
+    max-height: 40vh;
   }
 }
