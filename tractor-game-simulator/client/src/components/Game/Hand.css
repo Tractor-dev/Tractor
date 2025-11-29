@@ -6,6 +6,7 @@
   justify-content: flex-start;
   align-items: flex-end;
   padding: 5px;
+  padding-top: clamp(30px, 5vh, 45px); /* 给选中卡牌向上移动留出空间 */
   min-height: 0;
   flex-wrap: nowrap;
   width: 100%;
@@ -111,6 +112,7 @@
     --card-width: 60px;
     --card-overlap: 20px;
     padding: 6px 4px;
+    padding-top: 35px;
     min-height: 100px;
   }
 
@@ -169,6 +171,7 @@
     --card-width: 48px;
     --card-overlap: 18px;
     padding: 4px 3px;
+    padding-top: 30px;
     min-height: 80px;
   }
 
@@ -231,6 +234,7 @@
     --card-width: 38px;
     --card-overlap: 14px;
     padding: 2px 3px;
+    padding-top: 20px;
     min-height: 55px;
   }
 
@@ -293,6 +297,7 @@
     --card-width: 32px;
     --card-overlap: 12px;
     padding: 2px;
+    padding-top: 18px;
     min-height: 48px;
   }
 
@@ -334,6 +339,7 @@
     --card-width: 40px;
     --card-overlap: 16px;
     padding: 3px 2px;
+    padding-top: 25px;
     min-height: 70px;
   }
 
