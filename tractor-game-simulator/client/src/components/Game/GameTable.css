@@ -73,6 +73,7 @@
   align-items: center;
   margin-top: 5px;
   gap: 4px;
+  overflow: visible;
 }
 
 /* 玩家区域通用样式 */
@@ -83,6 +84,7 @@
   backdrop-filter: blur(10px);
   border: 2px solid transparent;
   transition: all 0.3s ease;
+  overflow: visible;
 }
 
 .player-area.current-turn {
@@ -164,6 +166,7 @@
   box-sizing: border-box;
   justify-content: center;
   min-height: 0;
+  overflow: visible;
 }
 
 /* 当没有亮主时，手牌区域居中 */
@@ -232,6 +235,7 @@
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
+  padding-top: 40px; /* 给选中卡牌向上移动留出空间 */
 }
 
 /* Custom scrollbar for my-hand */
@@ -402,6 +406,7 @@
 
   .my-hand {
     padding: 6px 10px;
+    padding-top: 35px; /* 移动端竖屏模式 */
     min-height: 80px;
   }
 
@@ -498,6 +503,7 @@
 
   .my-hand {
     padding: 4px 6px;
+    padding-top: 30px; /* 小屏手机竖屏模式 */
     min-height: 60px;
   }
 
@@ -634,6 +640,7 @@
   /* Bottom player area optimizations */
   .my-hand {
     padding: 2px 4px;
+    padding-top: 25px; /* 横屏模式下给选中卡牌留出较小空间 */
     min-height: 0;
   }
 
@@ -753,6 +760,7 @@
   .my-hand {
     min-height: 0;
     padding: 2px 3px;
+    padding-top: 20px; /* 超短横屏模式下给选中卡牌留出最小空间 */
   }
 
   .bottom-trump-zone {
@@ -814,6 +822,7 @@
 
   .my-hand {
     padding: 3px 5px;
+    padding-top: 25px; /* 极小屏幕 */
     min-height: 55px;
   }
 
