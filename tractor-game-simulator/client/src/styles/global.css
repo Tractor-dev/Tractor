@@ -21,7 +21,7 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Mobile viewport height fix for iOS Safari */
@@ -36,13 +36,15 @@ html {
   font-size: 16px;
 }
 
-@media (max-width: 768px) {
+/* Portrait phones and tablets (aspect ratio < 0.75) */
+@media (max-aspect-ratio: 3/4) {
   html {
     font-size: 14px;
   }
 }
 
-@media (max-width: 480px) {
+/* Smaller phones (very tall aspect ratio < 0.55) */
+@media (max-aspect-ratio: 11/20) {
   html {
     font-size: 13px;
   }
@@ -57,7 +59,7 @@ html {
 }
 
 /* Mobile landscape mode - reduce touch target size for better fit */
-@media (orientation: landscape) and (max-height: 500px) {
+@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   button, .ant-btn {
     min-height: 32px;
     min-width: 32px;

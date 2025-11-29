@@ -9,7 +9,7 @@
   border-radius: 12px;
   padding: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* 上方玩家区域 */
@@ -229,7 +229,28 @@
   align-items: center;
   min-width: 0; /* 允许flex收缩 */
   box-sizing: border-box;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar for my-hand */
+.my-hand::-webkit-scrollbar {
+  height: 6px;
+}
+
+.my-hand::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.my-hand::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.6);
+  border-radius: 3px;
+}
+
+.my-hand::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.8);
 }
 
 /* 不同位置的样式调整 */
@@ -301,7 +322,7 @@
   padding-bottom: 4px;
 }
 
-/* 响应式调整 */
+/* 响应式调整 - Tablets and smaller desktops */
 @media (max-width: 1200px) {
   .position-left,
   .position-right {
@@ -314,7 +335,8 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Portrait phones and tablets (aspect ratio < 0.75) */
+@media (max-aspect-ratio: 3/4) {
   .game-table {
     height: 100%;
     padding: 8px;
@@ -430,7 +452,8 @@
   }
 }
 
-@media (max-width: 480px) {
+/* Smaller phones (very tall aspect ratio < 0.55) */
+@media (max-aspect-ratio: 11/20) {
   .game-table {
     padding: 5px;
     border-radius: 6px;
@@ -541,9 +564,9 @@
 
 /* ============================================
    Mobile Landscape Mode Optimizations
-   Targets devices in landscape with limited height
+   Wide aspect ratio (> 1.6) OR limited height
    ============================================ */
-@media (orientation: landscape) and (max-height: 500px) {
+@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .game-table {
     padding: 5px;
     border-radius: 4px;
@@ -683,8 +706,8 @@
   }
 }
 
-/* Extra small landscape (very short screens like some phones) */
-@media (orientation: landscape) and (max-height: 400px) {
+/* Extra wide landscape (ultra-wide or very short screens) */
+@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .game-table {
     padding: 3px;
   }
@@ -746,5 +769,78 @@
 
   .score-panel-cards {
     height: 35px;
+  }
+}
+
+/* Extra small screens (width < 360px) */
+@media (max-width: 360px) {
+  .game-table {
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  .position-middle {
+    gap: 4px;
+    min-height: 90px;
+  }
+
+  .position-top,
+  .position-bottom {
+    margin: 3px 0;
+  }
+
+  .player-area {
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  .player-info .ant-typography {
+    font-size: 9px !important;
+  }
+
+  .player-left,
+  .player-right {
+    width: 70px;
+    min-width: 70px;
+  }
+
+  .table-center {
+    min-height: 75px;
+    max-width: 180px;
+    padding: 4px;
+  }
+
+  .my-hand {
+    padding: 3px 5px;
+    min-height: 55px;
+  }
+
+  .my-hand-container {
+    gap: 5px;
+  }
+
+  .bottom-trump-zone {
+    min-width: 45px;
+    max-width: 75px;
+    min-height: 55px;
+    padding: 3px;
+  }
+
+  .inline-controls {
+    padding: 5px;
+  }
+
+  .score-panel {
+    width: 140px;
+    padding: 4px 6px;
+    font-size: 8px;
+  }
+
+  .score-panel-score {
+    font-size: 14px;
+  }
+
+  .score-panel-cards {
+    height: 45px;
   }
 }

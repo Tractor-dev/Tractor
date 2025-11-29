@@ -1,9 +1,9 @@
 .hand {
-  --card-width: min(80px, 10vh);
-  --card-overlap: 25px;
+  --card-width: clamp(36px, 10vh, 80px);
+  --card-overlap: clamp(14px, 3vw, 25px);
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-end;
   padding: 5px;
   min-height: 0;
@@ -11,7 +11,30 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  overflow-x: visible;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 215, 0, 0.6) rgba(0, 0, 0, 0.3);
+}
+
+/* Custom scrollbar for hand */
+.hand::-webkit-scrollbar {
+  height: 6px;
+}
+
+.hand::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.hand::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.6);
+  border-radius: 3px;
+}
+
+.hand::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.8);
 }
 
 /* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */
@@ -82,8 +105,8 @@
   z-index: 11;
 }
 
-/* Mobile responsive styles */
-@media (max-width: 768px) {
+/* Mobile responsive styles - Portrait phones (aspect ratio < 0.75) */
+@media (max-aspect-ratio: 3/4) {
   .hand {
     --card-width: 60px;
     --card-overlap: 20px;
@@ -140,7 +163,8 @@
   }
 }
 
-@media (max-width: 480px) {
+/* Smaller phones (very tall aspect ratio < 0.55) */
+@media (max-aspect-ratio: 11/20) {
   .hand {
     --card-width: 48px;
     --card-overlap: 18px;
@@ -201,8 +225,8 @@
   }
 }
 
-/* Mobile Landscape Mode - Compact hand layout */
-@media (orientation: landscape) and (max-height: 500px) {
+/* Mobile Landscape Mode - Wide aspect ratio (> 1.6) OR limited height */
+@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .hand {
     --card-width: 42px;
     --card-overlap: 16px;
@@ -263,8 +287,8 @@
   }
 }
 
-/* Extra small landscape */
-@media (orientation: landscape) and (max-height: 400px) {
+/* Extra wide landscape (ultra-wide or very short) */
+@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .hand {
     --card-width: 36px;
     --card-overlap: 14px;
@@ -301,5 +325,67 @@
   .tractor-label {
     font-size: 5px !important;
     bottom: -8px !important;
+  }
+}
+
+/* Extra small screens (width < 360px) */
+@media (max-width: 360px) {
+  .hand {
+    --card-width: 40px;
+    --card-overlap: 16px;
+    padding: 3px 2px;
+    min-height: 70px;
+  }
+
+  .hand.compact-1 {
+    --card-overlap: 20px;
+  }
+
+  .hand.compact-2 {
+    --card-overlap: 26px;
+  }
+
+  .hand.compact-3 {
+    --card-overlap: 32px;
+  }
+
+  .hand.compact-4 {
+    --card-overlap: 36px;
+  }
+
+  .hand.small {
+    --card-width: 30px;
+    --card-overlap: 10px;
+    padding: 3px;
+    min-height: 50px;
+  }
+
+  .hand.small.compact-1 {
+    --card-overlap: 14px;
+  }
+
+  .hand.small.compact-2 {
+    --card-overlap: 18px;
+  }
+
+  .hand.small.compact-3 {
+    --card-overlap: 22px;
+  }
+
+  .hand.small.compact-4 {
+    --card-overlap: 26px;
+  }
+
+  .card-wrapper {
+    width: var(--card-width, 40px);
+  }
+
+  .tractor-label {
+    font-size: 6px !important;
+    bottom: -10px !important;
+  }
+
+  .tractor-line {
+    height: 2px !important;
   }
 }
