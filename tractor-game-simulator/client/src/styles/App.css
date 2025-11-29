@@ -3,8 +3,8 @@
   min-height: 100vh;
 }
 
-/* Mobile responsive for Ant Design Layout */
-@media (max-width: 768px) {
+/* Mobile responsive for Ant Design Layout - Portrait phones and tablets (aspect ratio < 0.75) */
+@media (max-aspect-ratio: 3/4) {
   .ant-layout-header {
     padding: 0 12px !important;
   }
@@ -39,7 +39,8 @@
   }
 }
 
-@media (max-width: 480px) {
+/* Smaller phones (very tall aspect ratio < 0.55) */
+@media (max-aspect-ratio: 11/20) {
   .ant-layout-header {
     padding: 0 8px !important;
     flex-wrap: wrap;
@@ -59,8 +60,9 @@
 
 /* ============================================
    Mobile Landscape Mode Optimizations
+   Wide aspect ratio (> 1.6) OR limited height
    ============================================ */
-@media (orientation: landscape) and (max-height: 500px) {
+@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .ant-layout-header {
     padding: 0 8px !important;
     height: 40px !important;
@@ -143,8 +145,8 @@
   }
 }
 
-/* Extra small landscape */
-@media (orientation: landscape) and (max-height: 400px) {
+/* Extra wide landscape (ultra-wide or very short) */
+@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .ant-layout-header {
     height: 36px !important;
     min-height: 36px !important;

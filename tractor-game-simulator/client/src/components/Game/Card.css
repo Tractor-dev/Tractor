@@ -150,8 +150,8 @@
   }
 }
 
-/* Mobile responsive card sizes */
-@media (max-width: 768px) {
+/* Mobile responsive card sizes - Portrait phones (aspect ratio < 0.75) */
+@media (max-aspect-ratio: 3/4) {
   .card {
     width: 60px;
     height: 84px;
@@ -210,7 +210,8 @@
   }
 }
 
-@media (max-width: 480px) {
+/* Smaller phones (very tall aspect ratio < 0.55) */
+@media (max-aspect-ratio: 11/20) {
   .card {
     width: 48px;
     height: 67px;
@@ -279,8 +280,8 @@
   }
 }
 
-/* Mobile Landscape Mode - Compact cards for limited vertical space */
-@media (orientation: landscape) and (max-height: 500px) {
+/* Mobile Landscape Mode - Wide aspect ratio (> 1.6) OR limited height */
+@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .card {
     width: 42px;
     height: 59px;
@@ -356,8 +357,8 @@
   }
 }
 
-/* Extra small landscape */
-@media (orientation: landscape) and (max-height: 400px) {
+/* Extra wide landscape (ultra-wide or very short) */
+@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .card {
     width: 36px;
     height: 50px;

@@ -322,7 +322,7 @@
   padding-bottom: 4px;
 }
 
-/* 响应式调整 */
+/* 响应式调整 - Tablets and smaller desktops */
 @media (max-width: 1200px) {
   .position-left,
   .position-right {
@@ -335,7 +335,8 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Portrait phones and tablets (aspect ratio < 0.75) */
+@media (max-aspect-ratio: 3/4) {
   .game-table {
     height: 100%;
     padding: 8px;
@@ -451,7 +452,8 @@
   }
 }
 
-@media (max-width: 480px) {
+/* Smaller phones (very tall aspect ratio < 0.55) */
+@media (max-aspect-ratio: 11/20) {
   .game-table {
     padding: 5px;
     border-radius: 6px;
@@ -562,9 +564,9 @@
 
 /* ============================================
    Mobile Landscape Mode Optimizations
-   Targets devices in landscape with limited height
+   Wide aspect ratio (> 1.6) OR limited height
    ============================================ */
-@media (orientation: landscape) and (max-height: 500px) {
+@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .game-table {
     padding: 5px;
     border-radius: 4px;
@@ -704,8 +706,8 @@
   }
 }
 
-/* Extra small landscape (very short screens like some phones) */
-@media (orientation: landscape) and (max-height: 400px) {
+/* Extra wide landscape (ultra-wide or very short screens) */
+@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .game-table {
     padding: 3px;
   }
