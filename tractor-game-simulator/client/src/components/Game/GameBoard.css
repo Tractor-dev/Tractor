@@ -3,12 +3,11 @@
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
   flex: 1;
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   color: white;
   overflow: hidden;
+  position: relative;
 }
 
 .main-game-area {
@@ -224,14 +223,19 @@
 
 /* Mobile Landscape Mode Optimizations */
 @media (orientation: landscape) and (max-height: 500px) {
+  .game-board {
+    /* Use available height minus potential browser UI */
+    min-height: 0;
+  }
+
   .phase-content {
-    padding: 10px;
-    margin: 5px;
+    padding: 8px;
+    margin: 4px;
     border-radius: 6px;
   }
 
   .phase-content.playing-phase {
-    padding: 2px;
+    padding: 1px;
     margin: 0;
   }
 

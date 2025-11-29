@@ -1,4 +1,12 @@
 .game-table {
+  /* CSS Variables for responsive sizing */
+  --table-padding: clamp(6px, 1.2vh, 10px);
+  --table-border-radius: clamp(8px, 1.5vw, 12px);
+  --player-area-padding: clamp(6px, 1vh, 8px);
+  --gap-size: clamp(3px, 0.5vh, 4px);
+  --center-max-width: min(400px, 40vw);
+  --score-panel-width: clamp(160px, 20vw, 200px);
+
   width: 100%;
   height: 100%;
   max-height: 100%;
@@ -6,8 +14,8 @@
   flex-direction: column;
   position: relative;
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: var(--table-border-radius);
+  padding: var(--table-padding);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: visible;
 }
@@ -19,8 +27,8 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  margin-bottom: 5px;
-  gap: 4px;
+  margin-bottom: var(--gap-size);
+  gap: var(--gap-size);
 }
 
 /* 中间区域（左、中央、右） */
@@ -29,7 +37,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: clamp(6px, 1.2vw, 10px);
   min-height: 0;
   overflow: hidden;
 }
@@ -49,9 +57,9 @@
   justify-content: center;
   align-items: center;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border-radius: var(--table-border-radius);
   min-height: 0;
-  max-width: 400px;
+  max-width: var(--center-max-width);
   overflow: hidden;
 }
 
@@ -71,18 +79,20 @@
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 5px;
-  gap: 4px;
+  margin-top: var(--gap-size);
+  gap: var(--gap-size);
+  overflow: visible;
 }
 
 /* 玩家区域通用样式 */
 .player-area {
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: var(--table-border-radius);
+  padding: var(--player-area-padding);
   backdrop-filter: blur(10px);
   border: 2px solid transparent;
   transition: all 0.3s ease;
+  overflow: visible;
 }
 
 .player-area.current-turn {
@@ -164,6 +174,7 @@
   box-sizing: border-box;
   justify-content: center;
   min-height: 0;
+  overflow: visible;
 }
 
 /* 当没有亮主时，手牌区域居中 */
@@ -174,14 +185,14 @@
 /* 自己的亮主区域 - 在手牌左侧 */
 .bottom-trump-zone {
   flex: 0 0 auto;
-  min-width: 60px;
-  max-width: 120px;
+  min-width: clamp(50px, 8vw, 120px);
+  max-width: clamp(80px, 15vw, 120px);
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: clamp(2px, 0.5vw, 4px);
   box-sizing: border-box;
 }
 
@@ -209,10 +220,10 @@
 /* 控制区域 - 右侧对齐 */
 .inline-controls {
   flex: 0 1 auto;
-  max-width: 600px;
+  max-width: min(600px, 50vw);
   background: rgba(255, 255, 255, 0.15);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: clamp(4px, 0.8vw, 10px) clamp(6px, 1vw, 10px);
+  border-radius: clamp(4px, 0.8vw, 6px);
   backdrop-filter: blur(10px);
   margin-left: auto;
 }
@@ -220,9 +231,9 @@
 /* 自己的手牌区域 - 居中显示 */
 .my-hand {
   flex: 1 1 auto;
-  padding: 6px 10px;
+  padding: clamp(4px, 0.8vw, 10px) clamp(6px, 1vw, 10px);
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  border-radius: clamp(6px, 1vw, 8px);
   min-height: 0;
   display: flex;
   justify-content: center;
@@ -232,6 +243,7 @@
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
+  padding-top: clamp(30px, 5vh, 40px); /* 给选中卡牌向上移动留出空间 */
 }
 
 /* Custom scrollbar for my-hand */
@@ -256,34 +268,34 @@
 /* 不同位置的样式调整 */
 .player-top {
   width: auto;
-  max-width: 500px;
-  min-width: 200px;
+  max-width: min(500px, 60vw);
+  min-width: clamp(150px, 20vw, 200px);
 }
 
 .player-left,
 .player-right {
   width: auto;
-  min-width: 100px;
-  max-width: 250px;
+  min-width: clamp(80px, 10vw, 100px);
+  max-width: clamp(150px, 20vw, 250px);
 }
 
 .player-bottom {
   width: 100%;
-  max-width: 1400px;
+  max-width: min(1400px, 95vw);
 }
 
 /* Score panel styles */
 .score-panel {
   position: absolute;
-  top: 5px;
-  left: 5px;
+  top: var(--gap-size);
+  left: var(--gap-size);
   background-color: rgba(0, 0, 0, 0.8);
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: var(--player-area-padding);
+  border-radius: var(--table-border-radius);
   border: 2px solid #ffd700;
   z-index: 100;
-  max-width: 200px;
-  font-size: 11px;
+  max-width: var(--score-panel-width);
+  font-size: clamp(10px, 1.2vw, 11px);
 }
 
 .score-panel-teams {
@@ -402,6 +414,7 @@
 
   .my-hand {
     padding: 6px 10px;
+    padding-top: 35px; /* 移动端竖屏模式 */
     min-height: 80px;
   }
 
@@ -498,6 +511,7 @@
 
   .my-hand {
     padding: 4px 6px;
+    padding-top: 30px; /* 小屏手机竖屏模式 */
     min-height: 60px;
   }
 
@@ -568,90 +582,92 @@
    ============================================ */
 @media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .game-table {
-    padding: 5px;
+    padding: 3px;
     border-radius: 4px;
   }
 
   /* Reduce vertical spacing in middle section */
   .position-middle {
-    gap: 5px;
-    min-height: 80px;
+    gap: 3px;
+    min-height: 60px;
   }
 
   .position-top,
   .position-bottom {
-    margin: 2px 0;
+    margin: 1px 0;
   }
 
   /* Compact player areas for landscape */
   .player-area {
-    padding: 4px 6px;
-    border-radius: 4px;
+    padding: 3px 5px;
+    border-radius: 3px;
   }
 
   .player-info {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
 
   .player-info .ant-typography {
-    font-size: 10px !important;
-    line-height: 1.2;
+    font-size: 9px !important;
+    line-height: 1.1;
   }
 
   /* Reduce player card areas height */
   .player-cards-area {
-    min-height: 50px;
-  }
-
-  .declared-trump-zone {
     min-height: 40px;
   }
 
+  .declared-trump-zone {
+    min-height: 35px;
+  }
+
   .played-cards-area {
-    height: 55px;
-    padding: 2px;
+    height: 45px;
+    padding: 1px;
+    min-height: 40px;
   }
 
   /* Compact left/right player areas */
   .player-left,
   .player-right {
-    width: 70px;
-    min-width: 70px;
+    width: 65px;
+    min-width: 65px;
   }
 
   /* Smaller table center */
   .table-center {
-    min-height: 60px;
-    max-width: 180px;
-    padding: 4px;
+    min-height: 50px;
+    max-width: 160px;
+    padding: 3px;
   }
 
   .center-content {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   /* Bottom player area optimizations */
   .my-hand {
-    padding: 3px 5px;
-    min-height: 50px;
+    padding: 2px 4px;
+    padding-top: 25px; /* 横屏模式下给选中卡牌留出较小空间 */
+    min-height: 0;
   }
 
   .my-hand-container {
-    gap: 4px;
+    gap: 3px;
   }
 
   .bottom-trump-zone {
-    min-width: 40px;
-    max-width: 60px;
-    min-height: 50px;
+    min-width: 35px;
+    max-width: 55px;
+    min-height: 0;
     padding: 2px;
   }
 
   .bottom-player-header {
     flex-direction: row;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .bottom-player-header .player-info {
@@ -660,7 +676,7 @@
   }
 
   .inline-controls {
-    padding: 4px 6px;
+    padding: 3px 5px;
     max-width: none;
     flex: 1;
   }
@@ -709,52 +725,54 @@
 /* Extra wide landscape (ultra-wide or very short screens) */
 @media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .game-table {
-    padding: 3px;
+    padding: 2px;
   }
 
   .position-middle {
-    min-height: 60px;
-    gap: 3px;
+    min-height: 50px;
+    gap: 2px;
   }
 
   .player-left,
   .player-right {
-    width: 60px;
-    min-width: 60px;
+    width: 55px;
+    min-width: 55px;
   }
 
   .player-area {
-    padding: 3px 4px;
+    padding: 2px 3px;
   }
 
   .player-info .ant-typography {
-    font-size: 9px !important;
+    font-size: 8px !important;
   }
 
   .player-cards-area {
-    min-height: 40px;
-  }
-
-  .declared-trump-zone {
     min-height: 35px;
   }
 
+  .declared-trump-zone {
+    min-height: 30px;
+  }
+
   .played-cards-area {
-    height: 45px;
+    height: 38px;
+    min-height: 35px;
   }
 
   .table-center {
-    min-height: 50px;
-    max-width: 150px;
+    min-height: 40px;
+    max-width: 140px;
   }
 
   .my-hand {
-    min-height: 45px;
-    padding: 2px 4px;
+    min-height: 0;
+    padding: 2px 3px;
+    padding-top: 20px; /* 超短横屏模式下给选中卡牌留出最小空间 */
   }
 
   .bottom-trump-zone {
-    min-height: 45px;
+    min-height: 0;
   }
 
   .score-panel {
@@ -812,6 +830,7 @@
 
   .my-hand {
     padding: 3px 5px;
+    padding-top: 25px; /* 极小屏幕 */
     min-height: 55px;
   }
 
