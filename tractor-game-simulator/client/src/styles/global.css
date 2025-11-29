@@ -4,6 +4,13 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -60,8 +67,24 @@ html {
 
 /* Mobile landscape mode - reduce touch target size for better fit */
 @media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
+  html {
+    font-size: 12px;
+  }
+
   button, .ant-btn {
-    min-height: 32px;
-    min-width: 32px;
+    min-height: 28px;
+    min-width: 28px;
+  }
+}
+
+/* Extra short landscape - further reduce font size */
+@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
+  html {
+    font-size: 11px;
+  }
+
+  button, .ant-btn {
+    min-height: 24px;
+    min-width: 24px;
   }
 }

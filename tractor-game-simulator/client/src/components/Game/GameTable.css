@@ -568,90 +568,91 @@
    ============================================ */
 @media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .game-table {
-    padding: 5px;
+    padding: 3px;
     border-radius: 4px;
   }
 
   /* Reduce vertical spacing in middle section */
   .position-middle {
-    gap: 5px;
-    min-height: 80px;
+    gap: 3px;
+    min-height: 60px;
   }
 
   .position-top,
   .position-bottom {
-    margin: 2px 0;
+    margin: 1px 0;
   }
 
   /* Compact player areas for landscape */
   .player-area {
-    padding: 4px 6px;
-    border-radius: 4px;
+    padding: 3px 5px;
+    border-radius: 3px;
   }
 
   .player-info {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
 
   .player-info .ant-typography {
-    font-size: 10px !important;
-    line-height: 1.2;
+    font-size: 9px !important;
+    line-height: 1.1;
   }
 
   /* Reduce player card areas height */
   .player-cards-area {
-    min-height: 50px;
-  }
-
-  .declared-trump-zone {
     min-height: 40px;
   }
 
+  .declared-trump-zone {
+    min-height: 35px;
+  }
+
   .played-cards-area {
-    height: 55px;
-    padding: 2px;
+    height: 45px;
+    padding: 1px;
+    min-height: 40px;
   }
 
   /* Compact left/right player areas */
   .player-left,
   .player-right {
-    width: 70px;
-    min-width: 70px;
+    width: 65px;
+    min-width: 65px;
   }
 
   /* Smaller table center */
   .table-center {
-    min-height: 60px;
-    max-width: 180px;
-    padding: 4px;
+    min-height: 50px;
+    max-width: 160px;
+    padding: 3px;
   }
 
   .center-content {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   /* Bottom player area optimizations */
   .my-hand {
-    padding: 3px 5px;
-    min-height: 50px;
+    padding: 2px 4px;
+    min-height: 0;
   }
 
   .my-hand-container {
-    gap: 4px;
+    gap: 3px;
   }
 
   .bottom-trump-zone {
-    min-width: 40px;
-    max-width: 60px;
-    min-height: 50px;
+    min-width: 35px;
+    max-width: 55px;
+    min-height: 0;
     padding: 2px;
   }
 
   .bottom-player-header {
     flex-direction: row;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .bottom-player-header .player-info {
@@ -660,7 +661,7 @@
   }
 
   .inline-controls {
-    padding: 4px 6px;
+    padding: 3px 5px;
     max-width: none;
     flex: 1;
   }
@@ -709,52 +710,53 @@
 /* Extra wide landscape (ultra-wide or very short screens) */
 @media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .game-table {
-    padding: 3px;
+    padding: 2px;
   }
 
   .position-middle {
-    min-height: 60px;
-    gap: 3px;
+    min-height: 50px;
+    gap: 2px;
   }
 
   .player-left,
   .player-right {
-    width: 60px;
-    min-width: 60px;
+    width: 55px;
+    min-width: 55px;
   }
 
   .player-area {
-    padding: 3px 4px;
+    padding: 2px 3px;
   }
 
   .player-info .ant-typography {
-    font-size: 9px !important;
+    font-size: 8px !important;
   }
 
   .player-cards-area {
-    min-height: 40px;
-  }
-
-  .declared-trump-zone {
     min-height: 35px;
   }
 
+  .declared-trump-zone {
+    min-height: 30px;
+  }
+
   .played-cards-area {
-    height: 45px;
+    height: 38px;
+    min-height: 35px;
   }
 
   .table-center {
-    min-height: 50px;
-    max-width: 150px;
+    min-height: 40px;
+    max-width: 140px;
   }
 
   .my-hand {
-    min-height: 45px;
-    padding: 2px 4px;
+    min-height: 0;
+    padding: 2px 3px;
   }
 
   .bottom-trump-zone {
-    min-height: 45px;
+    min-height: 0;
   }
 
   .score-panel {

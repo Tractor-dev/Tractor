@@ -228,10 +228,10 @@
 /* Mobile Landscape Mode - Wide aspect ratio (> 1.6) OR limited height */
 @media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
   .hand {
-    --card-width: 42px;
-    --card-overlap: 16px;
-    padding: 3px 4px;
-    min-height: 65px;
+    --card-width: 38px;
+    --card-overlap: 14px;
+    padding: 2px 3px;
+    min-height: 55px;
   }
 
   .hand.compact-1 {
@@ -251,10 +251,10 @@
   }
 
   .hand.small {
-    --card-width: 32px;
-    --card-overlap: 10px;
-    padding: 3px;
-    min-height: 50px;
+    --card-width: 28px;
+    --card-overlap: 8px;
+    padding: 2px;
+    min-height: 42px;
   }
 
   .hand.small.compact-1 {
@@ -274,7 +274,7 @@
   }
 
   .card-wrapper {
-    width: var(--card-width, 42px);
+    width: var(--card-width, 38px);
   }
 
   .tractor-label {
@@ -290,10 +290,10 @@
 /* Extra wide landscape (ultra-wide or very short) */
 @media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
   .hand {
-    --card-width: 36px;
-    --card-overlap: 14px;
-    padding: 2px 3px;
-    min-height: 55px;
+    --card-width: 32px;
+    --card-overlap: 12px;
+    padding: 2px;
+    min-height: 48px;
   }
 
   .hand.compact-1 {
@@ -313,13 +313,13 @@
   }
 
   .hand.small {
-    --card-width: 28px;
-    --card-overlap: 8px;
-    min-height: 42px;
+    --card-width: 24px;
+    --card-overlap: 6px;
+    min-height: 36px;
   }
 
   .card-wrapper {
-    width: var(--card-width, 36px);
+    width: var(--card-width, 32px);
   }
 
   .tractor-label {
