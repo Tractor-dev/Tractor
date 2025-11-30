@@ -247,6 +247,17 @@ export class BotService {
   }
 
   /**
+   * 更新最后一次响应（用于fallback后修正WhoDesigned bot的历史）
+   * @param {string} playerId - 玩家ID
+   * @param {Array} cards - 实际出的卡牌数组
+   */
+  updateLastResponse(playerId, cards) {
+    if (this.whoDesignedService) {
+      this.whoDesignedService.updateLastResponse(playerId, cards);
+    }
+  }
+
+  /**
    * 构建bot需要的输入数据
    */
   _buildBotInput(gameState, playerCards, playerIndex, room) {

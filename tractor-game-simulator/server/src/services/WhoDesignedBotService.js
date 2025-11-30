@@ -233,117 +233,110 @@ export class WhoDesignedBotService {
   /**
    * 构建history数组（play阶段）
    * history格式: [最近一轮的出牌, 当前轮的出牌, 最近一轮的首家id, 当前轮的首家id]
+   * 
+   * 重要: 每个轮次的出牌必须按照从首家开始的顺序排列
+   * 例如，如果首家是玩家2，则顺序应为: [玩家2的牌, 玩家3的牌, 玩家0的牌, 玩家1的牌]
    */
   _buildHistory(gameState, room) {
-    const history = [[], [], null, null];
-
-    if (!gameState.currentRoundPlays) {
-      return [[], [], 0, 0]; // 如果没有当前回合数据，返回默认值
-    }
-
-    // 当前回合的出牌记录
-    const currentRoundPlays = gameState.currentRoundPlays || [];
-    const currentRoundCards = [];
-
-    for (const play of currentRoundPlays) {
-      currentRoundCards.push(CardNumberingSystem.cardsToNumbers(play.cards));
-    }
-
-    // 上一回合的出牌记录
-    // 需要从playHistory中获取
-    const previousRoundCards = this._getPreviousRoundCards(gameState, room);
-
-    history[0] = previousRoundCards; // 上一回合的出牌
-    history[1] = currentRoundCards;  // 当前回合的出牌
-
-    // 获取首家id
-    const previousRoundLeader = this._getPreviousRoundLeader(gameState);
+    // 当前回合首家索引
     const currentRoundLeader = gameState.roundStartPlayerIndex !== undefined
       ? gameState.roundStartPlayerIndex
       : (gameState.currentPlayerIndex || 0);
 
-    history[2] = previousRoundLeader; // 上一回合的首家
-    history[3] = currentRoundLeader;  // 当前回合的首家
+    // 当前回合的出牌记录（按照从首家开始的顺序）
+    const currentRoundPlays = gameState.currentRoundPlays || [];
+    const currentRoundCards = [];
+
+    // currentRoundPlays已经是按出牌顺序排列的，直接转换
+    for (const play of currentRoundPlays) {
+      currentRoundCards.push(CardNumberingSystem.cardsToNumbers(play.cards));
+    }
+
+    // 获取上一回合的数据
+    const { previousRoundCards, previousRoundLeader } = this._getPreviousRoundData(gameState, room, 4);
+
+    const history = [
+      previousRoundCards, // 上一回合的出牌（按首家顺序排列）
+      currentRoundCards,  // 当前回合的出牌
+      previousRoundLeader, // 上一回合的首家
+      currentRoundLeader   // 当前回合的首家
+    ];
+
+    logger.info(`构建history: previousRoundCards长度=${previousRoundCards.length}, currentRoundCards长度=${currentRoundCards.length}, previousLeader=${previousRoundLeader}, currentLeader=${currentRoundLeader}`);
 
     return history;
   }
 
   /**
-   * 获取上一回合的出牌记录
+   * 获取上一回合的出牌记录和首家
+   * @param {Object} gameState - 游戏状态
+   * @param {Object} room - 房间对象
+   * @param {number} playersPerRound - 每轮玩家数（通常为4）
+   * @returns {Object} { previousRoundCards: Array, previousRoundLeader: number }
    */
-  _getPreviousRoundCards(gameState, room) {
-    // 如果当前是第一个回合，返回空数组
+  _getPreviousRoundData(gameState, room, playersPerRound = 4) {
+    const defaultResult = { previousRoundCards: [], previousRoundLeader: 0 };
+
+    // 如果没有历史记录，返回默认值
     if (!gameState.playHistory || gameState.playHistory.length === 0) {
-      return [];
+      return defaultResult;
     }
 
-    // 一个回合有4次出牌
-    // 找到倒数第5到倒数第8个记录（如果存在）
-    const history = gameState.playHistory;
-    const result = [];
+    const playHistory = gameState.playHistory;
+    const currentRoundPlaysCount = (gameState.currentRoundPlays || []).length;
 
-    // 计算上一回合的起始位置
-    // 假设currentRoundPlays.length是当前回合已经出的牌数
-    const currentRoundSize = (gameState.currentRoundPlays || []).length;
-    const previousRoundEnd = history.length;
-    const previousRoundStart = Math.max(0, previousRoundEnd - 4);
+    // playHistory包含所有已完成轮次的出牌 + 当前轮次的出牌(如果在当前轮次内)
+    // 注意: 当一轮结束后，currentRoundPlays会被清空，但playHistory保留所有记录
+    // 所以上一轮的出牌在 playHistory 中的位置是:
+    // - 如果当前轮没有人出牌(currentRoundPlaysCount = 0)，上一轮是最后4条记录
+    // - 如果当前轮有人出牌，需要跳过当前轮的记录
 
-    if (previousRoundStart < previousRoundEnd) {
-      for (let i = previousRoundStart; i < previousRoundEnd; i++) {
-        const play = history[i];
-        result.push(CardNumberingSystem.cardsToNumbers(play.cards));
-      }
+    // 计算上一轮的结束位置（在playHistory中的索引）
+    const previousRoundEndIndex = playHistory.length - currentRoundPlaysCount;
+    const previousRoundStartIndex = previousRoundEndIndex - playersPerRound;
+
+    // 如果没有完整的上一轮，返回默认值
+    if (previousRoundStartIndex < 0 || previousRoundEndIndex <= 0) {
+      return defaultResult;
     }
 
-    return result;
-  }
+    // 提取上一轮的出牌记录
+    const previousRoundPlays = playHistory.slice(previousRoundStartIndex, previousRoundEndIndex);
 
-  /**
-   * 获取上一回合的首家玩家索引
-   */
-  _getPreviousRoundLeader(gameState) {
-    if (!gameState.playHistory || gameState.playHistory.length < 4) {
-      return 0;
+    if (previousRoundPlays.length !== playersPerRound) {
+      // 上一轮不完整，可能是第一轮
+      return defaultResult;
     }
 
-    // 上一回合的第一个出牌者
-    const previousRoundStart = Math.max(0, gameState.playHistory.length - 4);
-    if (previousRoundStart < gameState.playHistory.length) {
-      const firstPlay = gameState.playHistory[previousRoundStart];
-      // 需要从playerId转换为playerIndex
-      // 这里假设playHistory中有playerIndex信息
-      return firstPlay.playerIndex || 0;
-    }
+    // 获取上一轮的首家
+    const previousRoundLeader = previousRoundPlays[0].playerIndex;
 
-    return 0;
+    // 转换为bot需要的格式（按从首家开始的顺序排列）
+    const previousRoundCards = previousRoundPlays.map(play => 
+      CardNumberingSystem.cardsToNumbers(play.cards)
+    );
+
+    return { previousRoundCards, previousRoundLeader };
   }
 
   /**
    * 计算闲家已获得的分数
    */
   _calculateIdlerScore(gameState, room) {
-    // 从gameState中获取闲家的分数
-    // 闲家是非庄家队伍
-    // 假设collectedPointCards存储了已收集的分牌
+    // gameState.attackerScore 直接存储了闲家的总分
+    // collectedPointCards 是闲家收集的分数牌数组（不是按玩家索引的）
+    if (typeof gameState.attackerScore === 'number') {
+      return gameState.attackerScore;
+    }
 
-    if (!gameState.collectedPointCards) {
+    // 如果没有 attackerScore，尝试从 collectedPointCards 计算
+    if (!gameState.collectedPointCards || !Array.isArray(gameState.collectedPointCards)) {
       return 0;
     }
 
     let totalScore = 0;
-
-    // 遍历所有玩家的收集牌
-    for (let playerIndex = 0; playerIndex < 4; playerIndex++) {
-      // 判断该玩家是否是闲家
-      // 庄家索引是dealerPlayerIndex
-      const isDealerTeam = this._isPlayerInDealerTeam(playerIndex, gameState.dealerPlayerIndex);
-
-      if (!isDealerTeam && gameState.collectedPointCards[playerIndex]) {
-        // 计算这个玩家的分数
-        for (const card of gameState.collectedPointCards[playerIndex]) {
-          totalScore += this._getCardPoints(card);
-        }
-      }
+    for (const card of gameState.collectedPointCards) {
+      totalScore += this._getCardPoints(card);
     }
 
     return totalScore;
@@ -402,6 +395,26 @@ export class WhoDesignedBotService {
    */
   clearAllBotHistory() {
     this.botHistory.clear();
+  }
+
+  /**
+   * 更新最后一次响应的卡牌（用于fallback后修正历史）
+   * @param {string} playerId - 玩家ID
+   * @param {Array} cards - 实际出的卡牌数组
+   */
+  updateLastResponse(playerId, cards) {
+    const history = this.botHistory.get(playerId);
+    if (!history || history.responses.length === 0) {
+      logger.warn(`无法更新玩家 ${playerId} 的响应历史：历史不存在或为空`);
+      return;
+    }
+
+    // 将卡牌转换为bot编号格式
+    const cardNumbers = CardNumberingSystem.cardsToNumbers(cards);
+
+    // 替换最后一个响应
+    history.responses[history.responses.length - 1] = cardNumbers;
+    logger.info(`已更新玩家 ${playerId} 的最后响应为: ${JSON.stringify(cardNumbers)}`);
   }
 
   /**

@@ -178,7 +178,8 @@ export async function triggerBotPlay(io, room, gameEngine) {
     // 尝试使用fallback策略：出相应数量的牌
     try {
       const leadingPattern = room.gameState.leadingPattern;
-      const requiredCount = leadingPattern?.cardCount || 1;
+      // 使用 length 字段（单张=1，对子=2，拖拉机=连续对子数*2，甩牌=所有牌数）
+      const requiredCount = leadingPattern?.length || 1;
       logger.info(`尝试Bot ${currentPlayer.name} fallback策略：出 ${requiredCount} 张牌`);
       
       let fallbackCardIds = [];
@@ -214,6 +215,12 @@ export async function triggerBotPlay(io, room, gameEngine) {
       if (fallbackCardIds.length > 0) {
         const fallbackResult = gameEngine.playCards(currentPlayer.id, fallbackCardIds);
         logger.info(`Bot ${currentPlayer.name} fallback出牌成功`);
+        
+        // 更新WhoDesigned bot的响应历史（将空响应替换为实际出的牌）
+        const botService = botServices.get(room.id);
+        if (botService) {
+          botService.updateLastResponse(currentPlayer.id, fallbackResult.playedCards);
+        }
         
         // 广播bot出牌
         io.to(room.id).emit('cards_played', {
