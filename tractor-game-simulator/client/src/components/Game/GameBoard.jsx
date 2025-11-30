@@ -3,7 +3,7 @@ import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, 
 import { GlobalOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
-import { SOCKET_EVENTS, GamePhases, PlayModes } from '../../utils/constants';
+import { SOCKET_EVENTS, GamePhases, PlayModes, BotTypes } from '../../utils/constants';
 import { detectAvailableDeclarations } from '../../utils/trumpUtils';
 import { validateLeadingPlay, validateFollowingPlay } from '../../utils/cardPatternUtils';
 import { useI18n, LANGUAGE_NAMES, LANGUAGE_LIST } from '../../locales/index.jsx';
@@ -54,6 +54,7 @@ export default function GameBoard() {
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8); // 新的底牌数量
   const [newDealInterval, setNewDealInterval] = useState(100); // 新的发牌间隔
   const [newPlayMode, setNewPlayMode] = useState(PlayModes.ORDERED); // 新的出牌模式
+  const [newBotType, setNewBotType] = useState(BotTypes.SIMPLE); // 新的Bot类型
   const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
   const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称
   const [chatModal, setChatModal] = useState(false); // 聊天弹窗
@@ -389,6 +390,9 @@ export default function GameBoard() {
       if (config.playMode) {
         setNewPlayMode(config.playMode);
       }
+      if (config.botType) {
+        setNewBotType(config.botType);
+      }
     });
 
     // 玩家昵称更新
@@ -546,6 +550,7 @@ export default function GameBoard() {
       setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
       setNewDealInterval(currentRoom.config.dealInterval);
       setNewPlayMode(currentRoom.config.playMode || PlayModes.ORDERED);
+      setNewBotType(currentRoom.config.botType || BotTypes.SIMPLE);
     }
   }, [currentRoom]);
 
@@ -781,7 +786,8 @@ export default function GameBoard() {
       config: {
         bottomCardsCount: newBottomCardsCount,
         dealInterval: newDealInterval,
-        playMode: newPlayMode
+        playMode: newPlayMode,
+        botType: newBotType
       }
     });
     setRoomConfigModal(false);
@@ -1840,6 +1846,21 @@ export default function GameBoard() {
           <Text type="secondary" style={{ fontSize: 12 }}>
             {t('createRoomForm.freeModeDesc')}<br />
             {t('createRoomForm.basicModeDesc')}
+          </Text>
+          <br />
+          <br />
+          <Text strong>{t('createRoomForm.botTypeLabel')}:</Text>
+          <br />
+          <Select
+            style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
+            value={newBotType}
+            onChange={setNewBotType}
+          >
+            <Select.Option value={BotTypes.SIMPLE}>{t('botType.simple')}</Select.Option>
+            <Select.Option value={BotTypes.WHO_DESIGNED}>{t('botType.whoDesigned')}</Select.Option>
+          </Select>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('createRoomForm.botTypeDesc')}
           </Text>
           <br />
           <br />
