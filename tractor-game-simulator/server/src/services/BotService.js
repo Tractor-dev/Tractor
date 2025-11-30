@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../utils/logger.js';
 import { BotTypes } from '../utils/constants.js';
+import { WhoDesignedBotService } from './WhoDesignedBotService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,14 +107,14 @@ export class BotService {
 
     this.botType = selectedBotType;
 
-    if (selectedBotType === BotTypes.SIMPLE) {
+    // 如果是WhoDesigned bot，使用专门的服务
+    if (selectedBotType === BotTypes.WHO_DESIGNED) {
+      this.whoDesignedService = new WhoDesignedBotService();
+      logger.info('使用WhoDesigned Bot（专用服务）');
+    } else if (selectedBotType === BotTypes.SIMPLE) {
       // 使用简化版bot（不依赖torch）
       this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
       logger.info('使用简化版Bot（不依赖任何Python包）');
-    } else if (selectedBotType === BotTypes.WHO_DESIGNED) {
-      // 使用WhoDesigned bot
-      this.botScriptPath = path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
-      logger.info('使用WhoDesigned Bot');
     } else {
       // 默认使用简化版bot
       this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
@@ -124,7 +125,7 @@ export class BotService {
   }
 
   /**
-   * 调用bot获取决策
+   * 调用bot获取决策（play阶段）
    * @param {Object} gameState - 游戏状态
    * @param {Array} playerCards - 玩家手牌
    * @param {Number} playerIndex - 玩家索引 (0-3)
@@ -132,6 +133,21 @@ export class BotService {
    * @returns {Promise<Array>} - bot返回的卡牌ID数组
    */
   async getBotAction(gameState, playerCards, playerIndex, room) {
+    // 如果是WhoDesigned bot，使用专门的服务
+    if (this.botType === BotTypes.WHO_DESIGNED && this.whoDesignedService) {
+      const player = room.players[playerIndex];
+      return await this.whoDesignedService.getBotAction({
+        stage: 'play',
+        gameState,
+        room,
+        playerId: player.id,
+        playerIndex,
+        playerCards,
+        deliverCards: null
+      });
+    }
+
+    // Simple bot的原有逻辑
     try {
       // 构建bot需要的输入格式
       const botInput = this._buildBotInput(gameState, playerCards, playerIndex, room);
@@ -150,6 +166,83 @@ export class BotService {
       logger.error('Bot决策失败:', error);
       // 如果bot失败，返回空数组（跳过）
       return [];
+    }
+  }
+
+  /**
+   * 调用bot获取deal阶段决策（报主/反主）
+   * @param {Object} gameState - 游戏状态
+   * @param {Object} card - 新发的牌
+   * @param {Array} playerCards - 玩家手牌
+   * @param {Number} playerIndex - 玩家索引 (0-3)
+   * @param {Object} room - 房间对象
+   * @returns {Promise<Array>} - bot返回的卡牌ID数组（用于报主/反主），空数组表示不报主
+   */
+  async getBotDealAction(gameState, card, playerCards, playerIndex, room) {
+    // 只有WhoDesigned bot支持deal阶段
+    if (this.botType === BotTypes.WHO_DESIGNED && this.whoDesignedService) {
+      const player = room.players[playerIndex];
+      return await this.whoDesignedService.getBotAction({
+        stage: 'deal',
+        gameState,
+        room,
+        playerId: player.id,
+        playerIndex,
+        playerCards,
+        deliverCards: [card]
+      });
+    }
+
+    // Simple bot不支持报主，返回空数组
+    return [];
+  }
+
+  /**
+   * 调用bot获取cover阶段决策（盖底牌）
+   * @param {Object} gameState - 游戏状态
+   * @param {Array} bottomCards - 底牌
+   * @param {Array} playerCards - 玩家手牌（包含底牌）
+   * @param {Number} playerIndex - 玩家索引 (0-3)
+   * @param {Object} room - 房间对象
+   * @returns {Promise<Array>} - bot返回的卡牌ID数组（要盖的底牌）
+   */
+  async getBotCoverAction(gameState, bottomCards, playerCards, playerIndex, room) {
+    // 只有WhoDesigned bot支持cover阶段
+    if (this.botType === BotTypes.WHO_DESIGNED && this.whoDesignedService) {
+      const player = room.players[playerIndex];
+      return await this.whoDesignedService.getBotAction({
+        stage: 'cover',
+        gameState,
+        room,
+        playerId: player.id,
+        playerIndex,
+        playerCards,
+        // deliver包含底牌（bot会自动处理deal阶段的历史）
+        deliverCards: bottomCards
+      });
+    }
+
+    // Simple bot使用简单策略：盖掉非分牌
+    const nonPointCards = playerCards.filter(card => {
+      const rank = card.rank;
+      return rank !== '5' && rank !== '10' && rank !== 'K';
+    });
+
+    // 如果非分牌足够，盖掉最小的
+    if (nonPointCards.length >= bottomCards.length) {
+      return nonPointCards.slice(0, bottomCards.length).map(c => c.id);
+    }
+
+    // 否则盖掉最小的牌
+    return playerCards.slice(0, bottomCards.length).map(c => c.id);
+  }
+
+  /**
+   * 清空bot历史（用于新游戏开始）
+   */
+  clearHistory() {
+    if (this.whoDesignedService) {
+      this.whoDesignedService.clearAllBotHistory();
     }
   }
 

@@ -14,6 +14,12 @@ export const PlayModes = {
   FREE: 'free'
 };
 
+// Bot类型
+export const BotTypes = {
+  SIMPLE: 'simple',
+  WHO_DESIGNED: 'who_designed'
+};
+
 // Socket事件
 export const SOCKET_EVENTS = {
   // 房间相关
@@ -22,6 +28,7 @@ export const SOCKET_EVENTS = {
   LEAVE_ROOM: 'leave_room',
   GET_ROOM_LIST: 'get_room_list',
   UPDATE_CONFIG: 'update_config',
+  SET_BOT_TYPE: 'set_bot_type',
   ADD_BOT: 'add_bot',
   REMOVE_BOT: 'remove_bot',
 

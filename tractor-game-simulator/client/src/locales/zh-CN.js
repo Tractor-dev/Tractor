@@ -104,9 +104,17 @@ export default {
     freeModeOff: '关闭',
     freeModeDesc: '自由模式：无出牌顺序限制，可随时出牌、展示牌、调整分数等级',
     basicModeDesc: '基础模式：按顺序出牌，完善的亮主、得分和升级规则',
+    botTypeLabel: 'Bot类型',
+    botTypeDesc: 'WhoDesigned Bot只能在基础模式下使用',
     settingsEffectNote: '设置将在下一局游戏开始时生效',
     bottomCardsValidation: '底牌数量必须在1-20之间',
     dealIntervalValidation: '发牌间隔必须在10-5000毫秒之间'
+  },
+
+  // Bot类型
+  botType: {
+    simple: 'Simple Bot（简单AI）',
+    whoDesigned: 'WhoDesigned Bot（智能AI）'
   },
 
   // 加入房间

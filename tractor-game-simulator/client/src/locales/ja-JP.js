@@ -104,9 +104,17 @@ export default {
     freeModeOff: 'オフ',
     freeModeDesc: 'フリーモード：順番制限なし、いつでもカードをプレイ/表示、スコア/レベル調整可能',
     basicModeDesc: 'ベーシックモード：順番制プレイ、完全なトランプ宣言、スコアリング、レベルアップルール',
+    botTypeLabel: 'Botタイプ',
+    botTypeDesc: 'WhoDesigned Botはベーシックモードでのみ使用可能です',
     settingsEffectNote: '設定は次のゲームから有効になります',
     bottomCardsValidation: '底牌の枚数は1-20の間である必要があります',
     dealIntervalValidation: '配牌間隔は10-5000ミリ秒の間である必要があります'
+  },
+
+  // Botタイプ
+  botType: {
+    simple: 'Simple Bot（シンプルAI）',
+    whoDesigned: 'WhoDesigned Bot（高度なAI）'
   },
 
   // ルーム参加

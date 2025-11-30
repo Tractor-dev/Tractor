@@ -105,6 +105,44 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('只有房主可以修改配置');
       }
 
+      // 如果配置中包含botType，需要特殊处理
+      if (config.botType !== undefined) {
+        // 验证botType是否有效
+        if (config.botType !== BotTypes.SIMPLE && config.botType !== BotTypes.WHO_DESIGNED) {
+          throw new Error(`无效的Bot类型: ${config.botType}`);
+        }
+
+        // 只允许在waiting、revealing、finished阶段修改botType
+        const allowedPhases = ['waiting', 'revealing', 'finished'];
+        if (!allowedPhases.includes(room.gameState.phase)) {
+          throw new Error('只能在等待或游戏结束阶段更改Bot类型');
+        }
+
+        // 检查是否在自由模式下使用WhoDesigned bot
+        const playMode = config.playMode || room.config.playMode;
+        if (playMode === 'free' && config.botType === 'who_designed' && room.players.some(p => p.isBot)) {
+          throw new Error('WhoDesigned bot只能在基础模式下使用，当前有bot玩家，请先移除bot或切换到基础模式');
+        }
+
+        // 清除现有的bot服务（下次需要时会用新的bot类型重新创建）
+        const botServices = getBotServices();
+        const botService = botServices.get(room.id);
+        if (botService) {
+          botService.clearHistory();
+          botServices.delete(room.id);
+        }
+
+        logger.info(`房间 ${room.id} Bot类型将从 ${room.config.botType} 改为 ${config.botType}`);
+      }
+
+      // 如果配置中包含playMode，需要检查与botType的兼容性
+      if (config.playMode !== undefined) {
+        const botType = config.botType || room.config.botType;
+        if (config.playMode === 'free' && botType === 'who_designed' && room.players.some(p => p.isBot)) {
+          throw new Error('WhoDesigned bot只能在基础模式下使用，请先移除bot或更改bot类型');
+        }
+      }
+
       room.updateConfig(config);
 
       // 广播配置更新
@@ -133,8 +171,10 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('只有房主可以设置Bot类型');
       }
 
-      if (room.gameState.phase !== 'waiting') {
-        throw new Error('游戏进行中无法更改Bot类型');
+      // 只允许在waiting、revealing、finished阶段修改botType
+      const allowedPhases = ['waiting', 'revealing', 'finished'];
+      if (!allowedPhases.includes(room.gameState.phase)) {
+        throw new Error('只能在等待或游戏结束阶段更改Bot类型');
       }
 
       // 验证botType是否有效
@@ -142,17 +182,31 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error(`无效的Bot类型: ${botType}`);
       }
 
+      // 检查是否在自由模式下使用WhoDesigned bot
+      if (room.config.playMode === 'free' && botType === 'who_designed' && room.players.some(p => p.isBot)) {
+        throw new Error('WhoDesigned bot只能在基础模式下使用，当前有bot玩家，请先移除bot或切换到基础模式');
+      }
+
       // 更新配置
       room.updateConfig({ botType });
 
       // 清除现有的bot服务（下次需要时会用新的bot类型重新创建）
       const botServices = getBotServices();
-      botServices.delete(room.id);
+      const botService = botServices.get(room.id);
+      if (botService) {
+        botService.clearHistory();
+        botServices.delete(room.id);
+      }
 
       // 广播Bot类型更新
       io.to(room.id).emit('bot_type_updated', {
         botType: botType,
         botTypeName: botType === BotTypes.SIMPLE ? '简单Bot' : 'WhoDesigned Bot'
+      });
+
+      // 广播配置更新
+      io.to(room.id).emit('config_updated', {
+        config: room.config
       });
 
       // 广播房间状态更新
@@ -187,6 +241,11 @@ export function registerRoomHandlers(io, socket, roomManager) {
 
       if (room.gameState.phase !== 'waiting') {
         throw new Error('游戏进行中无法添加bot');
+      }
+
+      // 检查是否在自由模式下使用WhoDesigned bot
+      if (room.config.playMode === 'free' && room.config.botType === 'who_designed') {
+        throw new Error('WhoDesigned bot只能在基础模式下使用，请切换到基础模式或使用Simple bot');
       }
 
       // 创建bot玩家（使用特殊的socketId标识）
