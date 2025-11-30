@@ -106,7 +106,13 @@ export class GameState {
       trumpRank: this.trumpRank,
       isWaitingForReady: this.isWaitingForReady,
       selectedRule: this.selectedRule,
-      currentRoundPlays: this.currentRoundPlays.length,
+      // Include actual currentRoundPlays for clients to determine lead suit
+      currentRoundPlays: this.currentRoundPlays.map(play => ({
+        playerIndex: play.playerIndex,
+        playerId: play.playerId,
+        cards: play.cards.map(c => c.toJSON ? c.toJSON() : c),
+        pattern: play.pattern
+      })),
       leadingPattern: this.leadingPattern,
       currentWinnerIndex: this.currentWinnerIndex,
       // 得分相关
