@@ -1,13 +1,17 @@
 import { GamePhases, PlayModes } from '../utils/constants.js';
 import { DeckService } from './DeckService.js';
+import BotService from './BotService.js';
 import logger from '../utils/logger.js';
 
 export class DrawingPhaseManager {
-  constructor(room, io) {
+  constructor(room, io, gameEngine = null, onBotPlayNeeded = null) {
     this.room = room;
     this.io = io;
+    this.gameEngine = gameEngine;
+    this.onBotPlayNeeded = onBotPlayNeeded; // Callback for triggering bot play
     this.timer = null;
     this.dealerTimer = null; // 指定庄家的定时器
+    this.botService = null; // Bot服务实例
   }
 
   /**
@@ -251,6 +255,150 @@ export class DrawingPhaseManager {
     this.io.to(this.room.id).emit('room_updated', {
       room: this.room.toJSON()
     });
+
+    // 如果庄家是Bot，自动触发bot盖底牌
+    if (dealer.isBot) {
+      logger.info(`Bot ${dealer.name} 需要盖底牌`);
+      this.triggerBotBurying(dealer);
+    }
+  }
+
+  /**
+   * 触发Bot盖底牌
+   */
+  async triggerBotBurying(dealer) {
+    try {
+      // 延迟1.5秒模拟思考
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // 获取或创建bot服务
+      if (!this.botService) {
+        this.botService = new BotService(this.room.config.botType);
+      }
+
+      const playerIndex = this.room.players.findIndex(p => p.id === dealer.id);
+      const bottomCards = this.room.gameState.bottomCards;
+
+      // 调用bot获取盖底牌决策
+      const cardIds = await this.botService.getBotCoverAction(
+        this.room.gameState,
+        bottomCards,
+        dealer.cards,
+        playerIndex,
+        this.room
+      );
+
+      logger.info(`Bot ${dealer.name} 选择盖底牌: ${cardIds.length} 张`);
+
+      // 执行盖底牌 - 使用GameEngine的buryCards方法
+      if (this.gameEngine) {
+        this.gameEngine.buryCards(dealer.id, cardIds);
+      } else {
+        // 如果没有GameEngine引用，直接处理
+        this.performBurying(dealer, cardIds);
+      }
+
+      // 广播埋底完成
+      this.io.to(this.room.id).emit('cards_buried', {
+        playerId: dealer.id,
+        playerName: dealer.name
+      });
+
+      // 广播首发玩家已设置（埋底玩家自动成为首发）
+      this.io.to(this.room.id).emit('first_player_set', {
+        playerId: dealer.id,
+        playerName: dealer.name,
+        currentPlayerIndex: this.room.gameState.currentPlayerIndex
+      });
+
+      // 广播阶段切换
+      this.io.to(this.room.id).emit('phase_changed', {
+        phase: 'playing',
+        message: `埋底完成，${dealer.name} 先出牌`
+      });
+
+      // 广播房间状态更新
+      this.io.to(this.room.id).emit('room_updated', {
+        room: this.room.toJSON()
+      });
+
+      // 触发bot自动出牌 - 使用回调
+      if (this.onBotPlayNeeded) {
+        this.onBotPlayNeeded();
+      }
+
+    } catch (error) {
+      logger.error(`Bot ${dealer.name} 盖底牌失败:`, error);
+      // Bot失败时使用默认策略：盖最小的牌
+      const cardIds = dealer.cards.slice(0, this.room.config.bottomCardsCount).map(c => c.id);
+      
+      if (this.gameEngine) {
+        this.gameEngine.buryCards(dealer.id, cardIds);
+      } else {
+        this.performBurying(dealer, cardIds);
+      }
+
+      this.io.to(this.room.id).emit('cards_buried', {
+        playerId: dealer.id,
+        playerName: dealer.name
+      });
+
+      this.io.to(this.room.id).emit('first_player_set', {
+        playerId: dealer.id,
+        playerName: dealer.name,
+        currentPlayerIndex: this.room.gameState.currentPlayerIndex
+      });
+
+      this.io.to(this.room.id).emit('phase_changed', {
+        phase: 'playing',
+        message: `埋底完成，${dealer.name} 先出牌`
+      });
+
+      this.io.to(this.room.id).emit('room_updated', {
+        room: this.room.toJSON()
+      });
+
+      // 触发bot自动出牌 - 使用回调
+      if (this.onBotPlayNeeded) {
+        this.onBotPlayNeeded();
+      }
+    }
+  }
+
+  /**
+   * 执行埋底操作（当没有GameEngine引用时的备用方法）
+   */
+  performBurying(dealer, cardIds) {
+    const requiredCount = this.room.config.bottomCardsCount;
+    
+    // 找出要埋的牌
+    const cardsTobury = dealer.cards.filter(card => cardIds.includes(card.id));
+    
+    // 移除并更新底牌
+    dealer.removeCards(cardIds);
+    this.room.gameState.bottomCards = cardsTobury;
+
+    logger.info(`房间 ${this.room.id} Bot埋底完成`);
+
+    // 进入出牌阶段
+    this.room.gameState.phase = GamePhases.PLAYING;
+
+    // 使用游戏开始时锁定的playMode
+    const isFreeMode = this.room.gameState.playMode === PlayModes.FREE;
+
+    if (isFreeMode) {
+      this.room.gameState.currentPlayerIndex = null;
+      logger.info(`房间 ${this.room.id} 进入自由出牌阶段`);
+    } else {
+      const playerIndex = this.room.getPlayerIndex(dealer.id);
+      this.room.gameState.firstPlayerId = dealer.id;
+      this.room.gameState.currentPlayerIndex = playerIndex;
+      this.room.gameState.roundStartPlayerIndex = playerIndex;
+      this.room.gameState.currentRound = 1;
+      this.room.gameState.playersPlayedThisRound.clear();
+
+      logger.info(`房间 ${this.room.id} 进入出牌阶段，${dealer.name} 先出牌`);
+    }
   }
 
   /**

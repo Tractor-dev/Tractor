@@ -21,8 +21,11 @@ export function getBotServices() {
 
 /**
  * 触发当前轮到的Bot自动出牌
+ * @param {Object} io - Socket.IO server instance
+ * @param {Object} room - Room object
+ * @param {Object} gameEngine - GameEngine instance
  */
-async function triggerBotPlay(io, room, gameEngine) {
+export async function triggerBotPlay(io, room, gameEngine) {
   logger.info(`=== 检查是否需要触发Bot出牌 ===`);
   logger.info(`房间ID: ${room.id}, 游戏阶段: ${room.gameState.phase}`);
 
@@ -171,7 +174,110 @@ async function triggerBotPlay(io, room, gameEngine) {
   } catch (error) {
     logger.error(`Bot ${currentPlayer.name} 出牌失败:`, error);
     logger.error('错误堆栈:', error.stack);
-    logger.info(`Bot ${currentPlayer.name} 出牌失败，跳过这一轮`);
+    
+    // 尝试使用fallback策略：出一张牌
+    try {
+      logger.info(`尝试Bot ${currentPlayer.name} fallback策略：出第一张牌`);
+      
+      // 获取当前回合的首发牌型，确定应该出什么花色
+      const leadingPattern = room.gameState.leadingPattern;
+      let fallbackCardId = null;
+      
+      if (leadingPattern) {
+        // 跟牌时，找同花色的牌
+        const requiredSuit = leadingPattern.suit === 'trump' ? null : leadingPattern.suit;
+        const trumpSuit = room.gameState.trumpSuit;
+        const trumpRank = room.gameState.trumpRank;
+        
+        // 找同花色的牌
+        if (requiredSuit) {
+          const sameSuitCard = currentPlayer.cards.find(c => 
+            c.suit === requiredSuit && c.rank !== trumpRank
+          );
+          if (sameSuitCard) {
+            fallbackCardId = sameSuitCard.id;
+          }
+        }
+        
+        // 如果没找到同花色的，找主牌
+        if (!fallbackCardId) {
+          const trumpCard = currentPlayer.cards.find(c => 
+            c.suit === trumpSuit || c.rank === trumpRank || c.suit === 'joker'
+          );
+          if (trumpCard) {
+            fallbackCardId = trumpCard.id;
+          }
+        }
+        
+        // 如果还没找到，就出第一张
+        if (!fallbackCardId && currentPlayer.cards.length > 0) {
+          fallbackCardId = currentPlayer.cards[0].id;
+        }
+      } else {
+        // 首发时，出第一张牌
+        if (currentPlayer.cards.length > 0) {
+          fallbackCardId = currentPlayer.cards[0].id;
+        }
+      }
+      
+      if (fallbackCardId) {
+        const fallbackResult = gameEngine.playCards(currentPlayer.id, [fallbackCardId]);
+        logger.info(`Bot ${currentPlayer.name} fallback出牌成功`);
+        
+        // 广播bot出牌
+        io.to(room.id).emit('cards_played', {
+          playerId: currentPlayer.id,
+          playerName: currentPlayer.name,
+          cards: fallbackResult.playedCards,
+          remainingCount: fallbackResult.remainingCount
+        });
+
+        // 广播回合状态更新
+        if (fallbackResult.roundUpdate) {
+          io.to(room.id).emit('round_updated', fallbackResult.roundUpdate);
+        }
+
+        // 检查是否有玩家打完牌
+        if (fallbackResult.remainingCount === 0) {
+          io.to(room.id).emit('player_finished', {
+            playerId: currentPlayer.id,
+            playerName: currentPlayer.name
+          });
+        }
+
+        // 游戏结束
+        if (fallbackResult.gameFinished) {
+          io.to(room.id).emit('bottom_revealed', {
+            bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
+            bottomScoreResult: room.gameState.bottomScoreResult,
+            upgradeResult: room.gameState.upgradeResult
+          });
+
+          io.to(room.id).emit('phase_changed', {
+            phase: 'revealing',
+            message: '所有玩家已出完牌，查看底牌'
+          });
+        }
+
+        // 广播房间状态更新
+        io.to(room.id).emit('room_updated', {
+          room: room.toJSON()
+        });
+
+        // 继续触发下一位bot
+        if (!fallbackResult.gameFinished && room.gameState.phase === GamePhases.PLAYING) {
+          setTimeout(() => {
+            triggerBotPlay(io, room, gameEngine).catch(err => {
+              logger.error('触发下一位bot出牌失败:', err);
+            });
+          }, 1000);
+        }
+      } else {
+        logger.error(`Bot ${currentPlayer.name} 没有手牌，无法fallback`);
+      }
+    } catch (fallbackError) {
+      logger.error(`Bot ${currentPlayer.name} fallback也失败:`, fallbackError);
+    }
   }
 }
 
@@ -195,8 +301,18 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error(`需要${room.config.minPlayers}-${room.config.maxPlayers}名玩家才能开始`);
       }
 
-      // 创建游戏引擎
-      const gameEngine = new GameEngine(room, io);
+      // 创建bot出牌回调函数
+      const onBotPlayNeeded = () => {
+        const currentGameEngine = gameEngines.get(room.id);
+        if (currentGameEngine) {
+          triggerBotPlay(io, room, currentGameEngine).catch(err => {
+            logger.error('触发bot出牌失败:', err);
+          });
+        }
+      };
+
+      // 创建游戏引擎，传入bot出牌回调
+      const gameEngine = new GameEngine(room, io, onBotPlayNeeded);
       gameEngines.set(room.id, gameEngine);
 
       // 开始游戏
