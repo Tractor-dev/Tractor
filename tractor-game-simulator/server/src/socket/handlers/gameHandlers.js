@@ -500,8 +500,10 @@ export function registerGameHandlers(io, socket, roomManager) {
             let botService = botServices.get(room.id);
             if (!botService || botService.botType !== room.config.botType) {
               if (botService) {
+                logger.info(`Bot类型已变更，从 ${botService.botType} 到 ${room.config.botType}，重新创建BotService`);
                 botService.clearHistory();
               }
+              logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
               botService = new BotService(room.config.botType);
               botServices.set(room.id, botService);
             }

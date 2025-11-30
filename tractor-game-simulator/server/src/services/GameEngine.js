@@ -860,6 +860,13 @@ export class GameEngine {
 
     // 只检查人类玩家是否都准备好了（bot自动准备）
     const humanPlayers = this.room.players.filter(p => !p.isBot);
+    
+    // 如果没有人类玩家，则不自动开始（安全检查）
+    if (humanPlayers.length === 0) {
+      logger.warn(`房间 ${this.room.id} 没有人类玩家，无法开始下一局`);
+      return false;
+    }
+    
     const allReady = humanPlayers.every(p => p.isReadyForNext);
     if (allReady) {
       logger.info(`房间 ${this.room.id} 所有人类玩家已准备，开始下一局`);
