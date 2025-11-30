@@ -113,11 +113,11 @@ export class BotService {
       logger.info('使用WhoDesigned Bot（专用服务）');
     } else if (selectedBotType === BotTypes.SIMPLE) {
       // 使用简化版bot（不依赖torch）
-      this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
+      this.botScriptPath = path.resolve(__dirname, '../bots/simple-bot/simple_bot.py');
       logger.info('使用简化版Bot（不依赖任何Python包）');
     } else {
       // 默认使用简化版bot
-      this.botScriptPath = path.resolve(__dirname, '../../../../simple-bot/simple_bot.py');
+      this.botScriptPath = path.resolve(__dirname, '../bots/simple-bot/simple_bot.py');
       logger.warn(`未知的bot类型: ${selectedBotType}，使用简化版Bot`);
     }
 
