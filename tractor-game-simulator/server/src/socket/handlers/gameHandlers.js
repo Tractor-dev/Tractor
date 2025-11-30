@@ -21,8 +21,11 @@ export function getBotServices() {
 
 /**
  * 触发当前轮到的Bot自动出牌
+ * @param {Object} io - Socket.IO server instance
+ * @param {Object} room - Room object
+ * @param {Object} gameEngine - GameEngine instance
  */
-async function triggerBotPlay(io, room, gameEngine) {
+export async function triggerBotPlay(io, room, gameEngine) {
   logger.info(`=== 检查是否需要触发Bot出牌 ===`);
   logger.info(`房间ID: ${room.id}, 游戏阶段: ${room.gameState.phase}`);
 
@@ -171,7 +174,158 @@ async function triggerBotPlay(io, room, gameEngine) {
   } catch (error) {
     logger.error(`Bot ${currentPlayer.name} 出牌失败:`, error);
     logger.error('错误堆栈:', error.stack);
-    logger.info(`Bot ${currentPlayer.name} 出牌失败，跳过这一轮`);
+    
+    // 尝试使用fallback策略：出相应数量的牌
+    try {
+      const leadingPattern = room.gameState.leadingPattern;
+      // 使用 length 字段（单张=1，对子=2，拖拉机=连续对子数*2，甩牌=所有牌数）
+      const requiredCount = leadingPattern?.length || 1;
+      const patternType = leadingPattern?.type; // 'single', 'pair', 'tractor', 'throw'
+      logger.info(`尝试Bot ${currentPlayer.name} fallback策略：出 ${requiredCount} 张牌, 类型: ${patternType}`);
+      
+      let fallbackCardIds = [];
+      const trumpSuit = room.gameState.trumpSuit;
+      const trumpRank = room.gameState.trumpRank;
+      
+      // 辅助函数：判断是否是主牌
+      const isTrump = (card) => card.suit === trumpSuit || card.rank === trumpRank || card.suit === 'joker';
+      
+      // 辅助函数：按花色和点数分组找对子
+      const findPairs = (cards) => {
+        const groups = {};
+        for (const c of cards) {
+          const key = `${c.suit}-${c.rank}`;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(c);
+        }
+        const pairs = [];
+        for (const key in groups) {
+          if (groups[key].length >= 2) {
+            pairs.push([groups[key][0], groups[key][1]]);
+          }
+        }
+        return pairs;
+      };
+      
+      if (leadingPattern) {
+        // 跟牌时，找同花色的牌
+        const requiredSuit = leadingPattern.suit === 'trump' ? null : leadingPattern.suit;
+        
+        // 收集同花色的牌
+        let sameSuitCards = [];
+        if (requiredSuit) {
+          sameSuitCards = currentPlayer.cards.filter(c => 
+            c.suit === requiredSuit && !isTrump(c)
+          );
+        } else if (leadingPattern.suit === 'trump') {
+          sameSuitCards = currentPlayer.cards.filter(c => isTrump(c));
+        }
+        
+        // 如果需要出对子，先找同花色的对子
+        if (patternType === 'pair' && requiredCount === 2) {
+          const pairs = findPairs(sameSuitCards);
+          if (pairs.length > 0) {
+            fallbackCardIds = pairs[0].map(c => c.id);
+          } else {
+            // 没有同花色对子，出两张同花色的牌
+            fallbackCardIds = sameSuitCards.slice(0, 2).map(c => c.id);
+          }
+        } else {
+          fallbackCardIds = sameSuitCards.slice(0, requiredCount).map(c => c.id);
+        }
+        
+        // 如果同花色不够，补充其他牌
+        if (fallbackCardIds.length < requiredCount) {
+          const usedIds = new Set(fallbackCardIds);
+          const otherCards = currentPlayer.cards.filter(c => !usedIds.has(c.id));
+          
+          // 如果需要对子，尝试找其他花色的对子
+          if (patternType === 'pair' && fallbackCardIds.length === 0) {
+            const allPairs = findPairs(otherCards);
+            if (allPairs.length > 0) {
+              fallbackCardIds = allPairs[0].map(c => c.id);
+            }
+          }
+          
+          // 如果还是不够，随便补充
+          if (fallbackCardIds.length < requiredCount) {
+            const stillUsedIds = new Set(fallbackCardIds);
+            const remainingCards = currentPlayer.cards.filter(c => !stillUsedIds.has(c.id));
+            const needed = requiredCount - fallbackCardIds.length;
+            fallbackCardIds = fallbackCardIds.concat(remainingCards.slice(0, needed).map(c => c.id));
+          }
+        }
+      } else {
+        // 首发时，出第一张牌
+        if (currentPlayer.cards.length > 0) {
+          fallbackCardIds = [currentPlayer.cards[0].id];
+        }
+      }
+      
+      if (fallbackCardIds.length > 0) {
+        const fallbackResult = gameEngine.playCards(currentPlayer.id, fallbackCardIds);
+        logger.info(`Bot ${currentPlayer.name} fallback出牌成功`);
+        
+        // 更新WhoDesigned bot的响应历史（将空响应替换为实际出的牌）
+        const botService = botServices.get(room.id);
+        if (botService) {
+          botService.updateLastResponse(currentPlayer.id, fallbackResult.playedCards);
+        }
+        
+        // 广播bot出牌
+        io.to(room.id).emit('cards_played', {
+          playerId: currentPlayer.id,
+          playerName: currentPlayer.name,
+          cards: fallbackResult.playedCards,
+          remainingCount: fallbackResult.remainingCount
+        });
+
+        // 广播回合状态更新
+        if (fallbackResult.roundUpdate) {
+          io.to(room.id).emit('round_updated', fallbackResult.roundUpdate);
+        }
+
+        // 检查是否有玩家打完牌
+        if (fallbackResult.remainingCount === 0) {
+          io.to(room.id).emit('player_finished', {
+            playerId: currentPlayer.id,
+            playerName: currentPlayer.name
+          });
+        }
+
+        // 游戏结束
+        if (fallbackResult.gameFinished) {
+          io.to(room.id).emit('bottom_revealed', {
+            bottomCards: room.gameState.bottomCards.map(c => c.toJSON()),
+            bottomScoreResult: room.gameState.bottomScoreResult,
+            upgradeResult: room.gameState.upgradeResult
+          });
+
+          io.to(room.id).emit('phase_changed', {
+            phase: 'revealing',
+            message: '所有玩家已出完牌，查看底牌'
+          });
+        }
+
+        // 广播房间状态更新
+        io.to(room.id).emit('room_updated', {
+          room: room.toJSON()
+        });
+
+        // 继续触发下一位bot
+        if (!fallbackResult.gameFinished && room.gameState.phase === GamePhases.PLAYING) {
+          setTimeout(() => {
+            triggerBotPlay(io, room, gameEngine).catch(err => {
+              logger.error('触发下一位bot出牌失败:', err);
+            });
+          }, 1000);
+        }
+      } else {
+        logger.error(`Bot ${currentPlayer.name} 没有手牌，无法fallback`);
+      }
+    } catch (fallbackError) {
+      logger.error(`Bot ${currentPlayer.name} fallback也失败:`, fallbackError);
+    }
   }
 }
 
@@ -195,8 +349,18 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error(`需要${room.config.minPlayers}-${room.config.maxPlayers}名玩家才能开始`);
       }
 
-      // 创建游戏引擎
-      const gameEngine = new GameEngine(room, io);
+      // 创建bot出牌回调函数
+      const onBotPlayNeeded = () => {
+        const currentGameEngine = gameEngines.get(room.id);
+        if (currentGameEngine) {
+          triggerBotPlay(io, room, currentGameEngine).catch(err => {
+            logger.error('触发bot出牌失败:', err);
+          });
+        }
+      };
+
+      // 创建游戏引擎，传入bot出牌回调
+      const gameEngine = new GameEngine(room, io, onBotPlayNeeded);
       gameEngines.set(room.id, gameEngine);
 
       // 开始游戏

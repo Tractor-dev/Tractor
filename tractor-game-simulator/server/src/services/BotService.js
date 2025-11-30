@@ -247,6 +247,17 @@ export class BotService {
   }
 
   /**
+   * 更新最后一次响应（用于fallback后修正WhoDesigned bot的历史）
+   * @param {string} playerId - 玩家ID
+   * @param {Array} cards - 实际出的卡牌数组
+   */
+  updateLastResponse(playerId, cards) {
+    if (this.whoDesignedService) {
+      this.whoDesignedService.updateLastResponse(playerId, cards);
+    }
+  }
+
+  /**
    * 构建bot需要的输入数据
    */
   _buildBotInput(gameState, playerCards, playerIndex, room) {
@@ -262,12 +273,26 @@ export class BotService {
     // 构建已出牌记录（played）
     const played = this._buildPlayed(gameState, room);
 
+    // 构建trump信息
+    const trump = this._buildTrumpInfo(gameState);
+
     return {
       id: playerIndex,
       deck,
       history,
       major,
-      played
+      played,
+      trump
+    };
+  }
+
+  /**
+   * 构建主牌信息（供simple bot使用）
+   */
+  _buildTrumpInfo(gameState) {
+    return {
+      suit: gameState.trumpSuit || null,
+      rank: gameState.trumpRank || '2'
     };
   }
 
