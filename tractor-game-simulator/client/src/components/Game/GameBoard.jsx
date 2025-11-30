@@ -1272,10 +1272,8 @@ export default function GameBoard() {
           // 修改昵称
           playingButtons.push(renderRenameButton());
           // 查看上一轮出牌按钮
-          {
-            const viewLastRoundBtn = renderViewLastRoundButton();
-            if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
-          }
+          const viewLastRoundBtn = renderViewLastRoundButton();
+          if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
           playingButtons.push(renderLanguageButton());
 
           // 房间设置（仅房主）
