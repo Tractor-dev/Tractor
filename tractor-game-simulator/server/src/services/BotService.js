@@ -262,12 +262,26 @@ export class BotService {
     // 构建已出牌记录（played）
     const played = this._buildPlayed(gameState, room);
 
+    // 构建trump信息
+    const trump = this._buildTrumpInfo(gameState);
+
     return {
       id: playerIndex,
       deck,
       history,
       major,
-      played
+      played,
+      trump
+    };
+  }
+
+  /**
+   * 构建主牌信息（供simple bot使用）
+   */
+  _buildTrumpInfo(gameState) {
+    return {
+      suit: gameState.trumpSuit || null,
+      rank: gameState.trumpRank || '2'
     };
   }
 
