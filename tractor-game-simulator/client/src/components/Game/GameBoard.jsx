@@ -78,6 +78,9 @@ export default function GameBoard() {
   const [bottomScoreResult, setBottomScoreResult] = useState(null); // 底牌得分结果
   const [upgradeResult, setUpgradeResult] = useState(null); // 升级结果
   const [isReadyForNext, setIsReadyForNext] = useState(false); // 是否已准备下一局
+  const [lastRoundCards, setLastRoundCards] = useState({}); // 上一轮出牌记录 { [playerId]: { playerName, cards } }
+  const [lastRoundWinner, setLastRoundWinner] = useState(null); // 上一轮获胜者
+  const [viewLastRoundModal, setViewLastRoundModal] = useState(false); // 查看上一轮出牌弹窗
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -138,6 +141,8 @@ export default function GameBoard() {
       setUpgradeResult(null); // 清空升级结果
       setRevealedBottomCards([]); // 清空底牌展示
       setIsReadyForNext(false); // 重置准备状态
+      setLastRoundCards({}); // 清空上一轮出牌记录
+      setLastRoundWinner(null); // 清空上一轮获胜者
     });
 
     // 收到手牌
@@ -255,6 +260,8 @@ export default function GameBoard() {
       setUpgradeResult(null);
       setRevealedBottomCards([]);
       setIsReadyForNext(false); // 重置准备状态
+      setLastRoundCards({}); // 清空上一轮出牌记录
+      setLastRoundWinner(null); // 清空上一轮获胜者
       // 主牌信息会通过房间状态同步的useEffect自动更新
     });
 
@@ -474,9 +481,18 @@ export default function GameBoard() {
           setAttackerScore(newScore);
           setCollectedPointCards(newCards || []);
         }
-        // 清空出牌历史和显示，准备下一轮
-        setPlayHistory([]);
-        setPlayedCards({});
+        // 保存当前轮次的出牌记录作为"上一轮"，供查看上轮出牌按钮使用
+        // 使用函数式更新确保获取最新的playedCards
+        setPlayedCards(currentPlayedCards => {
+          setLastRoundCards({ ...currentPlayedCards });
+          return currentPlayedCards; // 暂时保持不变
+        });
+        setLastRoundWinner(roundUpdate.roundWinner);
+        // 延迟2秒后清空出牌显示，准备下一轮
+        setTimeout(() => {
+          setPlayHistory([]);
+          setPlayedCards({});
+        }, 2000);
       }
     });
 
@@ -957,6 +973,19 @@ export default function GameBoard() {
     </Dropdown>
   );
 
+  // 通用按钮组件 - 查看上一轮出牌
+  const renderViewLastRoundButton = () => {
+    // 只有当有上一轮记录时才显示
+    if (!lastRoundCards || Object.keys(lastRoundCards).length === 0) {
+      return null;
+    }
+    return (
+      <Button key="viewLastRound" onClick={() => setViewLastRoundModal(true)} style={buttonStyle}>
+        {t('play.viewLastRound')}
+      </Button>
+    );
+  };
+
   // 渲染控制按钮区域
   const renderControlButtons = () => {
     const isFreeMode = currentPlayMode === PlayModes.FREE;
@@ -1183,6 +1212,9 @@ export default function GameBoard() {
             }
 
             playingButtons.push(renderRenameButton());
+            // 查看上一轮出牌按钮
+            const viewLastRoundBtn = renderViewLastRoundButton();
+            if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
             playingButtons.push(renderLanguageButton());
             const settingsBtn = renderSettingsButton();
             if (settingsBtn) playingButtons.push(settingsBtn);
@@ -1239,6 +1271,11 @@ export default function GameBoard() {
 
           // 修改昵称
           playingButtons.push(renderRenameButton());
+          // 查看上一轮出牌按钮
+          {
+            const viewLastRoundBtn = renderViewLastRoundButton();
+            if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
+          }
           playingButtons.push(renderLanguageButton());
 
           // 房间设置（仅房主）
@@ -1769,6 +1806,53 @@ export default function GameBoard() {
           <br />
           {myBottomCards.length > 0 && (
             <Hand cards={myBottomCards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+          )}
+        </div>
+      </Modal>
+
+      {/* 查看上一轮出牌弹窗 */}
+      <Modal
+        title={t('play.lastRoundTitle')}
+        open={viewLastRoundModal}
+        onOk={() => setViewLastRoundModal(false)}
+        onCancel={() => setViewLastRoundModal(false)}
+        width={700}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setViewLastRoundModal(false)}>
+            {t('common.close')}
+          </Button>
+        ]}
+      >
+        <div style={{ textAlign: 'center' }}>
+          {lastRoundWinner && (
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ fontSize: '16px', color: '#52c41a' }}>
+                {t('play.lastRoundWinner', { name: lastRoundWinner.playerName })}
+              </Text>
+            </div>
+          )}
+          {Object.keys(lastRoundCards).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+              {Object.entries(lastRoundCards).map(([playerId, { playerName, cards }]) => (
+                <div key={playerId} style={{
+                  padding: '12px',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '8px',
+                  width: '100%'
+                }}>
+                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>
+                    {playerName}:
+                  </Text>
+                  {cards && cards.length > 0 ? (
+                    <Hand cards={cards} disabled small trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                  ) : (
+                    <Text type="secondary">{t('common.none')}</Text>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Text type="secondary">{t('play.noLastRound')}</Text>
           )}
         </div>
       </Modal>

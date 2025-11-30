@@ -166,7 +166,11 @@ export default {
     noCardsToSelect: '選択できるカードがありません',
     cannotUndo: '取消できません',
     notYourTurn: 'あなたの番ではありません',
-    myTurn: 'あなたの番'
+    myTurn: 'あなたの番',
+    viewLastRound: '前ラウンド',
+    lastRoundTitle: '前ラウンドのカード',
+    lastRoundWinner: '勝者: {name}',
+    noLastRound: '前ラウンドの記録がありません'
   },
 
   // スコアとレベル調整

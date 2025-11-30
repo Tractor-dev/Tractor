@@ -166,7 +166,11 @@ export default {
     noCardsToSelect: '没有手牌可选择',
     cannotUndo: '无法撤回',
     notYourTurn: '还没轮到你出牌',
-    myTurn: '出牌中'
+    myTurn: '出牌中',
+    viewLastRound: '上轮出牌',
+    lastRoundTitle: '上一轮出牌记录',
+    lastRoundWinner: '获胜者: {name}',
+    noLastRound: '暂无上一轮出牌记录'
   },
 
   // 分数和等级调整

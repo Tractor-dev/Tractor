@@ -37,8 +37,13 @@ export class WhoDesignedBotService {
   async getBotAction(params) {
     const { stage, gameState, room, playerId, playerIndex, playerCards, deliverCards } = params;
 
+    logger.info(`\n========== WhoDesigned Bot 决策开始 ==========`);
+    logger.info(`玩家ID: ${playerId}, 玩家索引: ${playerIndex}, 阶段: ${stage}`);
+    logger.info(`手牌数量: ${playerCards?.length || 0}, deliver牌数量: ${deliverCards?.length || 0}`);
+    
     // 获取历史记录（在try外面，这样catch块也能访问）
     const history = this._getBotHistory(playerId);
+    logger.info(`历史记录: requests=${history.requests.length}, responses=${history.responses.length}`);
 
     try {
       // 检查是否只在ORDERED模式下使用bot
@@ -65,7 +70,8 @@ export class WhoDesignedBotService {
           history.requests.push(dealRequest);
           history.responses.push([]);
 
-          logger.info(`Cover阶段：自动添加模拟的deal请求，包含${dealtCards.length}张牌`);
+          logger.info(`[模拟deal] Cover阶段：自动添加模拟的deal请求，包含${dealtCards.length}张牌`);
+          logger.info(`[模拟deal] dealRequest: ${JSON.stringify(dealRequest)}`);
         } else if (stage === 'play') {
           // Play阶段：模拟deal阶段，包含所有手牌
           const dealRequest = {
@@ -78,12 +84,14 @@ export class WhoDesignedBotService {
           history.requests.push(dealRequest);
           history.responses.push([]);
 
-          logger.info(`Play阶段：自动添加模拟的deal请求，包含${playerCards.length}张牌`);
+          logger.info(`[模拟deal] Play阶段：自动添加模拟的deal请求，包含${playerCards.length}张牌`);
+          logger.info(`[模拟deal] dealRequest: ${JSON.stringify(dealRequest)}`);
         }
       }
 
       // 构建bot需要的request
       const request = this._buildRequest(stage, gameState, room, playerIndex, deliverCards);
+      logger.info(`[构建request] 当前阶段request: ${JSON.stringify(request)}`);
 
       // 添加当前request到历史
       history.requests.push(request);
@@ -94,23 +102,28 @@ export class WhoDesignedBotService {
         responses: history.responses
       };
 
-      logger.info(`Bot输入数据 (player ${playerIndex}): ${JSON.stringify(botInput)}`);
+      logger.info(`[Bot输入] 完整输入数据 (player ${playerIndex}): ${JSON.stringify(botInput, null, 2)}`);
+      logger.info(`[Bot输入] requests数量: ${botInput.requests.length}, responses数量: ${botInput.responses.length}`);
 
       // 调用Python bot
       const botResponse = await this._callPythonBot(botInput);
 
-      logger.info(`Bot响应数据 (player ${playerIndex}): ${JSON.stringify(botResponse)}`);
+      logger.info(`[Bot响应] 原始响应 (player ${playerIndex}): ${JSON.stringify(botResponse)}`);
 
       // 解析bot返回的卡牌编号，转换为项目格式的卡牌ID数组
       const cardIds = this._parseBotResponse(botResponse, playerCards);
+      logger.info(`[解析响应] 转换后的cardIds: ${JSON.stringify(cardIds)}`);
 
       // 将响应添加到历史
       history.responses.push(botResponse.response || []);
+      logger.info(`[更新历史] 响应已添加到历史，新responses长度: ${history.responses.length}`);
+      logger.info(`========== WhoDesigned Bot 决策完成 ==========\n`);
 
       return cardIds;
 
     } catch (error) {
-      logger.error('Bot决策失败:', error);
+      logger.error(`[Bot决策失败] 阶段: ${stage}, 错误: ${error.message}`);
+      logger.error(`[Bot决策失败] 错误堆栈: ${error.stack}`);
 
       // 根据阶段返回合适的默认值
       let defaultCardIds = [];
@@ -119,20 +132,25 @@ export class WhoDesignedBotService {
       if (stage === 'deal') {
         defaultCardIds = []; // 不报主
         defaultResponse = [];
+        logger.info(`[Fallback] deal阶段: 返回空数组（不报主）`);
       } else if (stage === 'cover') {
         // 返回前8张牌作为底牌
         const coverCards = playerCards.slice(0, 8);
         defaultCardIds = coverCards.map(c => c.id);
         // 将卡牌转换为bot编号格式添加到历史
         defaultResponse = CardNumberingSystem.cardsToNumbers(coverCards);
+        logger.info(`[Fallback] cover阶段: 返回前8张牌作为底牌`);
       } else {
         // play阶段：跳过
         defaultCardIds = [];
         defaultResponse = [];
+        logger.info(`[Fallback] play阶段: 返回空数组（跳过），将由gameHandlers的fallback处理`);
       }
 
       // 重要：将默认响应添加到历史，确保下次调用时responses长度正确
       history.responses.push(defaultResponse);
+      logger.info(`[Fallback] 已将默认响应添加到历史，新responses长度: ${history.responses.length}`);
+      logger.info(`========== WhoDesigned Bot 决策失败，使用Fallback ==========\n`);
 
       return defaultCardIds;
     }

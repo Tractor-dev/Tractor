@@ -166,7 +166,11 @@ export default {
     noCardsToSelect: 'No cards to select',
     cannotUndo: 'Cannot undo',
     notYourTurn: 'Not your turn',
-    myTurn: 'Your turn'
+    myTurn: 'Your turn',
+    viewLastRound: 'Last Round',
+    lastRoundTitle: 'Last Round Cards',
+    lastRoundWinner: 'Winner: {name}',
+    noLastRound: 'No last round record'
   },
 
   // Score and level adjustment
