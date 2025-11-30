@@ -271,8 +271,11 @@ export class DrawingPhaseManager {
       // 延迟1.5秒模拟思考
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // 获取或创建bot服务
-      if (!this.botService) {
+      // 获取或创建bot服务（如果botType变化了也重新创建）
+      if (!this.botService || this.botService.botType !== this.room.config.botType) {
+        if (this.botService) {
+          this.botService.clearHistory();
+        }
         this.botService = new BotService(this.room.config.botType);
       }
 

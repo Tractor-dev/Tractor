@@ -62,9 +62,13 @@ export async function triggerBotPlay(io, room, gameEngine) {
 
   logger.info(`\n--- 轮到Bot ${currentPlayer.name} 出牌 ---`);
 
-  // 获取或创建bot服务
+  // 获取或创建bot服务（如果botType变化了也重新创建）
   let botService = botServices.get(room.id);
-  if (!botService) {
+  if (!botService || botService.botType !== room.config.botType) {
+    if (botService) {
+      logger.info(`Bot类型已变更，从 ${botService.botType} 到 ${room.config.botType}，重新创建BotService`);
+      botService.clearHistory();
+    }
     logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
     botService = new BotService(room.config.botType);
     botServices.set(room.id, botService);
@@ -359,8 +363,18 @@ export function registerGameHandlers(io, socket, roomManager) {
         }
       };
 
-      // 创建游戏引擎，传入bot出牌回调
-      const gameEngine = new GameEngine(room, io, onBotPlayNeeded);
+      // 创建新游戏开始时的回调函数（用于清除bot服务缓存）
+      const onNewGameStart = () => {
+        const botService = botServices.get(room.id);
+        if (botService) {
+          logger.info(`房间 ${room.id} 开始新游戏，清除bot服务缓存`);
+          botService.clearHistory();
+          botServices.delete(room.id);
+        }
+      };
+
+      // 创建游戏引擎，传入bot出牌回调和新游戏开始回调
+      const gameEngine = new GameEngine(room, io, onBotPlayNeeded, onNewGameStart);
       gameEngines.set(room.id, gameEngine);
 
       // 开始游戏
@@ -482,9 +496,12 @@ export function registerGameHandlers(io, socket, roomManager) {
         logger.info(`Bot ${buryingPlayer.name} 需要盖底牌`);
         setTimeout(async () => {
           try {
-            // 获取或创建bot服务
+            // 获取或创建bot服务（如果botType变化了也重新创建）
             let botService = botServices.get(room.id);
-            if (!botService) {
+            if (!botService || botService.botType !== room.config.botType) {
+              if (botService) {
+                botService.clearHistory();
+              }
               botService = new BotService(room.config.botType);
               botServices.set(room.id, botService);
             }
