@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch, Dropdown } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch, Dropdown, Select } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
@@ -8,7 +8,7 @@ import CreateRoomModal from './components/Room/CreateRoomModal';
 import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
 import GameBoard from './components/Game/GameBoard';
-import { SOCKET_EVENTS, GamePhases } from './utils/constants';
+import { SOCKET_EVENTS, GamePhases, BotTypes } from './utils/constants';
 import './styles/App.css';
 
 const { Header, Content } = Layout;
@@ -26,6 +26,7 @@ function App() {
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8);
   const [newDealInterval, setNewDealInterval] = useState(100);
   const [newIsFreeMode, setNewIsFreeMode] = useState(false);
+  const [newBotType, setNewBotType] = useState(BotTypes.SIMPLE);
 
   useEffect(() => {
     // 连接Socket
@@ -203,7 +204,8 @@ function App() {
       config: {
         bottomCardsCount: newBottomCardsCount,
         dealInterval: newDealInterval,
-        playMode: newIsFreeMode ? 'free' : 'ordered'
+        playMode: newIsFreeMode ? 'free' : 'ordered',
+        botType: newBotType
       }
     });
     setShowConfigModal(false);
@@ -222,6 +224,7 @@ function App() {
       setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
       setNewDealInterval(currentRoom.config.dealInterval);
       setNewIsFreeMode(currentRoom.config.playMode === 'free');
+      setNewBotType(currentRoom.config.botType || BotTypes.SIMPLE);
     }
   }, [currentRoom]);
 
@@ -391,6 +394,21 @@ function App() {
             <Text type="secondary" style={{ fontSize: 12 }}>
               {t('createRoomForm.freeModeDesc')}<br />
               {t('createRoomForm.basicModeDesc')}
+            </Text>
+            <br />
+            <br />
+            <Text strong>{t('createRoomForm.botTypeLabel')}:</Text>
+            <br />
+            <Select
+              style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
+              value={newBotType}
+              onChange={setNewBotType}
+            >
+              <Select.Option value={BotTypes.SIMPLE}>{t('botType.simple')}</Select.Option>
+              <Select.Option value={BotTypes.WHO_DESIGNED}>{t('botType.whoDesigned')}</Select.Option>
+            </Select>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {t('createRoomForm.botTypeDesc')}
             </Text>
             <br />
             <br />
