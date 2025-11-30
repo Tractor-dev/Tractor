@@ -152,8 +152,6 @@ export class BotService {
       // 构建bot需要的输入格式
       const botInput = this._buildBotInput(gameState, playerCards, playerIndex, room);
 
-      logger.info(`Bot输入数据: ${JSON.stringify(botInput)}`);
-
       // 调用Python bot
       const botResponse = await this._callPythonBot(botInput);
 
@@ -366,7 +364,6 @@ export class BotService {
   async _callPythonBot(input) {
     return new Promise((resolve, reject) => {
       logger.info(`调用Bot脚本: ${this.botScriptPath}`);
-      logger.info(`Bot输入: ${JSON.stringify(input)}`);
 
       const pythonProcess = spawn('python3', [this.botScriptPath]);
 

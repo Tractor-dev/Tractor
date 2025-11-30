@@ -9,6 +9,9 @@ const gameEngines = new Map();
 // 存储每个房间的bot服务
 const botServices = new Map();
 
+// 存储每个房间的bot是否正在出牌中（防止并发触发）
+const botPlayingInProgress = new Map();
+
 // 导出gameEngines供其他模块使用（如roomHandlers中清理资源）
 export function getGameEngines() {
   return gameEngines;
@@ -28,6 +31,12 @@ export function getBotServices() {
 export async function triggerBotPlay(io, room, gameEngine) {
   logger.info(`=== 检查是否需要触发Bot出牌 ===`);
   logger.info(`房间ID: ${room.id}, 游戏阶段: ${room.gameState.phase}`);
+
+  // 防止并发触发：检查是否已有bot正在出牌
+  if (botPlayingInProgress.get(room.id)) {
+    logger.info(`房间 ${room.id} 已有Bot正在出牌中，跳过本次触发`);
+    return;
+  }
 
   // 检查游戏状态
   if (room.gameState.phase !== GamePhases.PLAYING) {
@@ -61,6 +70,9 @@ export async function triggerBotPlay(io, room, gameEngine) {
   }
 
   logger.info(`\n--- 轮到Bot ${currentPlayer.name} 出牌 ---`);
+
+  // 设置正在出牌标志
+  botPlayingInProgress.set(room.id, true);
 
   // 获取或创建bot服务（如果botType变化了也重新创建）
   let botService = botServices.get(room.id);
@@ -164,6 +176,8 @@ export async function triggerBotPlay(io, room, gameEngine) {
     // 如果游戏未结束且下一位也是Bot，继续触发
     if (!result.gameFinished && room.gameState.phase === GamePhases.PLAYING) {
       logger.info('检查下一位玩家是否是Bot...');
+      // 清除正在出牌标志，允许下一位Bot出牌
+      botPlayingInProgress.delete(room.id);
       // 延迟后递归调用，检查下一位玩家
       setTimeout(() => {
         triggerBotPlay(io, room, gameEngine).catch(err => {
@@ -172,6 +186,8 @@ export async function triggerBotPlay(io, room, gameEngine) {
         });
       }, 1000);
     } else {
+      // 清除正在出牌标志
+      botPlayingInProgress.delete(room.id);
       logger.info('=== Bot出牌流程结束 ===');
     }
 
@@ -318,16 +334,25 @@ export async function triggerBotPlay(io, room, gameEngine) {
 
         // 继续触发下一位bot
         if (!fallbackResult.gameFinished && room.gameState.phase === GamePhases.PLAYING) {
+          // 清除正在出牌标志，允许下一位Bot出牌
+          botPlayingInProgress.delete(room.id);
           setTimeout(() => {
             triggerBotPlay(io, room, gameEngine).catch(err => {
               logger.error('触发下一位bot出牌失败:', err);
             });
           }, 1000);
+        } else {
+          // 清除正在出牌标志
+          botPlayingInProgress.delete(room.id);
         }
       } else {
+        // 清除正在出牌标志
+        botPlayingInProgress.delete(room.id);
         logger.error(`Bot ${currentPlayer.name} 没有手牌，无法fallback`);
       }
     } catch (fallbackError) {
+      // 清除正在出牌标志
+      botPlayingInProgress.delete(room.id);
       logger.error(`Bot ${currentPlayer.name} fallback也失败:`, fallbackError);
     }
   }
