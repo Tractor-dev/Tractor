@@ -146,11 +146,33 @@ node test-bot-integration.js
 - 53: 大王
 - 54-107: 重复0-53（第二副牌）
 
+## Bot服务集成测试
+
+### ✅ 已通过的服务层测试 (test-bot-service.js)
+
+**测试日期**: 2025-11-30
+
+| 阶段 | 状态 | Bot返回 | 说明 |
+|------|------|---------|------|
+| Deal | ✓ 通过 | `[]` | Bot不报主 |
+| Cover | ✓ 通过 | `[32,21,10,26,16,37,15,31]` | Bot智能选择8张牌盖底 |
+| Play | ✓ 通过 | `[0]` | Bot出红桃A |
+
+**关键修复**:
+1. **自动模拟deal阶段** - 在cover/play阶段如果历史为空，自动添加模拟的deal请求（包含playerpos）
+2. **Response历史管理** - 即使bot失败也添加默认response到历史，确保responses数组长度正确
+3. **Deliver格式** - Cover阶段只传递底牌，避免重复卡牌问题
+
+**测试命令**:
+```bash
+node test-bot-service.js
+```
+
 ## 已知问题
 
 ### ⚠️ 需要进一步测试的部分
 
-1. **Deal阶段集成** - 报主/反主功能预留了接口但未完全集成到发牌流程
+1. **Deal阶段完整集成** - 当前通过模拟实现，实际发牌流程未完全集成
 2. **History构建** - `_buildHistory`和`_getPreviousRoundCards`需要在实际游戏中验证
 3. **Banking信息** - `called`和`snatched`字段需要在游戏状态中跟踪
 4. **Level和Score计算** - 需要确保与bot期望格式一致
