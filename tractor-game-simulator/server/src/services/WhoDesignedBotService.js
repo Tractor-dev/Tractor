@@ -37,6 +37,9 @@ export class WhoDesignedBotService {
   async getBotAction(params) {
     const { stage, gameState, room, playerId, playerIndex, playerCards, deliverCards } = params;
 
+    // 获取历史记录（在try外面，这样catch块也能访问）
+    const history = this._getBotHistory(playerId);
+
     try {
       // 检查是否只在ORDERED模式下使用bot
       if (gameState.playMode !== PlayModes.ORDERED) {
@@ -44,11 +47,43 @@ export class WhoDesignedBotService {
         throw new Error('WhoDesigned bot只能在基础模式下使用');
       }
 
+      // 特殊处理：如果历史为空，需要先模拟deal阶段
+      // 因为bot需要从第一个request中获取playerpos
+      if (history.requests.length === 0) {
+        if (stage === 'cover') {
+          // Cover阶段：模拟deal阶段，包含除底牌外的所有手牌
+          const bottomCardIds = new Set(deliverCards.map(c => c.id));
+          const dealtCards = playerCards.filter(card => !bottomCardIds.has(card.id));
+
+          const dealRequest = {
+            stage: 'deal',
+            deliver: CardNumberingSystem.cardsToNumbers(dealtCards),
+            global: this._buildGlobal(gameState, room, 'deal'),
+            playerpos: playerIndex
+          };
+
+          history.requests.push(dealRequest);
+          history.responses.push([]);
+
+          logger.info(`Cover阶段：自动添加模拟的deal请求，包含${dealtCards.length}张牌`);
+        } else if (stage === 'play') {
+          // Play阶段：模拟deal阶段，包含所有手牌
+          const dealRequest = {
+            stage: 'deal',
+            deliver: CardNumberingSystem.cardsToNumbers(playerCards),
+            global: this._buildGlobal(gameState, room, 'deal'),
+            playerpos: playerIndex
+          };
+
+          history.requests.push(dealRequest);
+          history.responses.push([]);
+
+          logger.info(`Play阶段：自动添加模拟的deal请求，包含${playerCards.length}张牌`);
+        }
+      }
+
       // 构建bot需要的request
       const request = this._buildRequest(stage, gameState, room, playerIndex, deliverCards);
-
-      // 获取历史记录
-      const history = this._getBotHistory(playerId);
 
       // 添加当前request到历史
       history.requests.push(request);
@@ -76,15 +111,30 @@ export class WhoDesignedBotService {
 
     } catch (error) {
       logger.error('Bot决策失败:', error);
-      // 如果bot失败，根据阶段返回合适的默认值
+
+      // 根据阶段返回合适的默认值
+      let defaultCardIds = [];
+      let defaultResponse = [];
+
       if (stage === 'deal') {
-        return []; // 不报主
+        defaultCardIds = []; // 不报主
+        defaultResponse = [];
       } else if (stage === 'cover') {
         // 返回前8张牌作为底牌
-        return playerCards.slice(0, 8).map(c => c.id);
+        const coverCards = playerCards.slice(0, 8);
+        defaultCardIds = coverCards.map(c => c.id);
+        // 将卡牌转换为bot编号格式添加到历史
+        defaultResponse = CardNumberingSystem.cardsToNumbers(coverCards);
       } else {
-        return []; // 跳过
+        // play阶段：跳过
+        defaultCardIds = [];
+        defaultResponse = [];
       }
+
+      // 重要：将默认响应添加到历史，确保下次调用时responses长度正确
+      history.responses.push(defaultResponse);
+
+      return defaultCardIds;
     }
   }
 

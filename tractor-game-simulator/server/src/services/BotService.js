@@ -217,6 +217,7 @@ export class BotService {
         playerId: player.id,
         playerIndex,
         playerCards,
+        // deliver包含底牌（bot会自动处理deal阶段的历史）
         deliverCards: bottomCards
       });
     }
