@@ -175,13 +175,13 @@ export async function triggerBotPlay(io, room, gameEngine) {
     logger.error(`Bot ${currentPlayer.name} 出牌失败:`, error);
     logger.error('错误堆栈:', error.stack);
     
-    // 尝试使用fallback策略：出一张牌
+    // 尝试使用fallback策略：出相应数量的牌
     try {
-      logger.info(`尝试Bot ${currentPlayer.name} fallback策略：出第一张牌`);
-      
-      // 获取当前回合的首发牌型，确定应该出什么花色
       const leadingPattern = room.gameState.leadingPattern;
-      let fallbackCardId = null;
+      const requiredCount = leadingPattern?.cardCount || 1;
+      logger.info(`尝试Bot ${currentPlayer.name} fallback策略：出 ${requiredCount} 张牌`);
+      
+      let fallbackCardIds = [];
       
       if (leadingPattern) {
         // 跟牌时，找同花色的牌
@@ -189,39 +189,30 @@ export async function triggerBotPlay(io, room, gameEngine) {
         const trumpSuit = room.gameState.trumpSuit;
         const trumpRank = room.gameState.trumpRank;
         
-        // 找同花色的牌
+        // 收集同花色的牌
         if (requiredSuit) {
-          const sameSuitCard = currentPlayer.cards.find(c => 
+          const sameSuitCards = currentPlayer.cards.filter(c => 
             c.suit === requiredSuit && c.rank !== trumpRank
           );
-          if (sameSuitCard) {
-            fallbackCardId = sameSuitCard.id;
-          }
+          fallbackCardIds = sameSuitCards.slice(0, requiredCount).map(c => c.id);
         }
         
-        // 如果没找到同花色的，找主牌
-        if (!fallbackCardId) {
-          const trumpCard = currentPlayer.cards.find(c => 
-            c.suit === trumpSuit || c.rank === trumpRank || c.suit === 'joker'
-          );
-          if (trumpCard) {
-            fallbackCardId = trumpCard.id;
-          }
-        }
-        
-        // 如果还没找到，就出第一张
-        if (!fallbackCardId && currentPlayer.cards.length > 0) {
-          fallbackCardId = currentPlayer.cards[0].id;
+        // 如果同花色不够，补充其他牌
+        if (fallbackCardIds.length < requiredCount) {
+          const usedIds = new Set(fallbackCardIds);
+          const otherCards = currentPlayer.cards.filter(c => !usedIds.has(c.id));
+          const needed = requiredCount - fallbackCardIds.length;
+          fallbackCardIds = fallbackCardIds.concat(otherCards.slice(0, needed).map(c => c.id));
         }
       } else {
         // 首发时，出第一张牌
         if (currentPlayer.cards.length > 0) {
-          fallbackCardId = currentPlayer.cards[0].id;
+          fallbackCardIds = [currentPlayer.cards[0].id];
         }
       }
       
-      if (fallbackCardId) {
-        const fallbackResult = gameEngine.playCards(currentPlayer.id, [fallbackCardId]);
+      if (fallbackCardIds.length > 0) {
+        const fallbackResult = gameEngine.playCards(currentPlayer.id, fallbackCardIds);
         logger.info(`Bot ${currentPlayer.name} fallback出牌成功`);
         
         // 广播bot出牌
