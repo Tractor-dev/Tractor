@@ -24,6 +24,7 @@ export class GameState {
 
     // 当前轮出牌记录
     this.currentRoundPlays = []; // [{ playerIndex, playerId, cards, pattern }]
+    this.previousRoundPlays = []; // 上一轮出牌记录（在下一轮首发时清除）
     this.leadingPattern = null; // 首发牌型
     this.currentWinnerIndex = null; // 当前轮最大的玩家索引
 
@@ -73,6 +74,7 @@ export class GameState {
 
     // 重置当前轮出牌记录
     this.currentRoundPlays = [];
+    this.previousRoundPlays = [];
     this.leadingPattern = null;
     this.currentWinnerIndex = null;
 
@@ -108,6 +110,13 @@ export class GameState {
       selectedRule: this.selectedRule,
       // Include actual currentRoundPlays for clients to determine lead suit
       currentRoundPlays: this.currentRoundPlays.map(play => ({
+        playerIndex: play.playerIndex,
+        playerId: play.playerId,
+        cards: play.cards.map(c => c.toJSON ? c.toJSON() : c),
+        pattern: play.pattern
+      })),
+      // Include previous round plays for display purposes
+      previousRoundPlays: this.previousRoundPlays.map(play => ({
         playerIndex: play.playerIndex,
         playerId: play.playerId,
         cards: play.cards.map(c => c.toJSON ? c.toJSON() : c),

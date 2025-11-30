@@ -27,12 +27,13 @@ import {
 import { levelToRank } from '../utils/constants.js';
 
 export class GameEngine {
-  constructor(room, io, onBotPlayNeeded = null) {
+  constructor(room, io, onBotPlayNeeded = null, onNewGameStart = null) {
     this.room = room;
     this.io = io;
     this.drawingManager = null;
     this.roundManager = null;
     this.onBotPlayNeeded = onBotPlayNeeded; // Callback for triggering bot play
+    this.onNewGameStart = onNewGameStart; // Callback for clearing bot services when new game starts
   }
 
   /**
@@ -351,6 +352,9 @@ export class GameEngine {
     let throwFailed = false;
 
     if (isLeading) {
+      // 首发出牌时，清除上一轮的出牌记录
+      this.room.gameState.previousRoundPlays = [];
+
       // 首发出牌验证
       const validation = validateLeadingPlay(validCards, trumpSuit, trumpRank);
       if (!validation.valid) {
@@ -540,7 +544,8 @@ export class GameEngine {
       this.room.gameState.lastRoundLeadingPattern = currentLeadingPattern;
       this.room.gameState.lastRoundWinnerIndex = winnerIndex;
 
-      // 清空当前轮出牌记录，准备下一轮
+      // 保存当前轮出牌记录到上一轮（不立即清除，等下一轮首发时再清除）
+      this.room.gameState.previousRoundPlays = [...this.room.gameState.currentRoundPlays];
       this.room.gameState.currentRoundPlays = [];
       this.room.gameState.leadingPattern = null;
 
@@ -853,10 +858,18 @@ export class GameEngine {
       player.isReadyForNext = true;
     }
 
-    // 检查是否所有人都准备好了
-    const allReady = this.room.players.every(p => p.isReadyForNext);
+    // 只检查人类玩家是否都准备好了（bot自动准备）
+    const humanPlayers = this.room.players.filter(p => !p.isBot);
+    
+    // 如果没有人类玩家，则不自动开始（安全检查）
+    if (humanPlayers.length === 0) {
+      logger.warn(`房间 ${this.room.id} 没有人类玩家，无法开始下一局`);
+      return false;
+    }
+    
+    const allReady = humanPlayers.every(p => p.isReadyForNext);
     if (allReady) {
-      logger.info(`房间 ${this.room.id} 所有玩家已准备，开始下一局`);
+      logger.info(`房间 ${this.room.id} 所有人类玩家已准备，开始下一局`);
       // 重置所有玩家的准备状态
       this.room.players.forEach(p => p.isReadyForNext = false);
       // 直接开始下一局
@@ -870,6 +883,11 @@ export class GameEngine {
    * 开始下一局（自动进入发牌阶段）
    */
   startNextGame() {
+    // 通知清除bot服务缓存，以便新游戏使用最新的botType配置
+    if (this.onNewGameStart) {
+      this.onNewGameStart();
+    }
+
     this.room.resetForNewGame();
 
     // 重置游戏状态
@@ -899,6 +917,11 @@ export class GameEngine {
    * 重新开始游戏（房主手动重启）
    */
   restartGame() {
+    // 通知清除bot服务缓存，以便新游戏使用最新的botType配置
+    if (this.onNewGameStart) {
+      this.onNewGameStart();
+    }
+
     this.room.resetForNewGame();
     this.startGame();
   }
