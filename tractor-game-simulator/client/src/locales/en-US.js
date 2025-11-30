@@ -104,9 +104,17 @@ export default {
     freeModeOff: 'Off',
     freeModeDesc: 'Free Mode: No turn order, can play/show cards and adjust score/level anytime',
     basicModeDesc: 'Basic Mode: Turn-based play with complete trump declaration, scoring and leveling rules',
+    botTypeLabel: 'Bot Type',
+    botTypeDesc: 'WhoDesigned Bot can only be used in Basic Mode',
     settingsEffectNote: 'Settings will take effect in the next game',
     bottomCardsValidation: 'Bottom cards count must be between 1-20',
     dealIntervalValidation: 'Deal interval must be between 10-5000ms'
+  },
+
+  // Bot types
+  botType: {
+    simple: 'Simple Bot (Basic AI)',
+    whoDesigned: 'WhoDesigned Bot (Advanced AI)'
   },
 
   // Join room
