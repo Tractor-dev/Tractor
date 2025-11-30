@@ -313,6 +313,97 @@ export function registerGameHandlers(io, socket, roomManager) {
         room: room.toJSON()
       });
 
+      // 如果埋底玩家是Bot，自动触发bot盖底牌
+      if (buryingPlayer.isBot) {
+        logger.info(`Bot ${buryingPlayer.name} 需要盖底牌`);
+        setTimeout(async () => {
+          try {
+            // 获取或创建bot服务
+            let botService = botServices.get(room.id);
+            if (!botService) {
+              botService = new BotService(room.config.botType);
+              botServices.set(room.id, botService);
+            }
+
+            const playerIndex = room.players.findIndex(p => p.id === playerId);
+            const bottomCards = room.gameState.bottomCards;
+
+            // 调用bot获取盖底牌决策
+            const cardIds = await botService.getBotCoverAction(
+              room.gameState,
+              bottomCards,
+              buryingPlayer.cards,
+              playerIndex,
+              room
+            );
+
+            logger.info(`Bot ${buryingPlayer.name} 选择盖底牌: ${cardIds.length} 张`);
+
+            // 执行盖底牌
+            gameEngine.buryCards(playerId, cardIds);
+
+            // 广播埋底完成
+            io.to(room.id).emit('cards_buried', {
+              playerId: playerId,
+              playerName: buryingPlayer.name
+            });
+
+            // 广播首发玩家已设置（埋底玩家自动成为首发）
+            io.to(room.id).emit('first_player_set', {
+              playerId: playerId,
+              playerName: buryingPlayer.name,
+              currentPlayerIndex: room.gameState.currentPlayerIndex
+            });
+
+            // 广播阶段切换
+            io.to(room.id).emit('phase_changed', {
+              phase: 'playing',
+              message: `埋底完成，${buryingPlayer.name} 先出牌`
+            });
+
+            // 广播房间状态更新
+            io.to(room.id).emit('room_updated', {
+              room: room.toJSON()
+            });
+
+            // 触发bot自动出牌
+            triggerBotPlay(io, room, gameEngine).catch(err => {
+              logger.error('触发bot出牌失败:', err);
+            });
+
+          } catch (error) {
+            logger.error(`Bot ${buryingPlayer.name} 盖底牌失败:`, error);
+            // Bot失败时使用默认策略：盖最小的牌
+            const cardIds = buryingPlayer.cards.slice(0, room.config.bottomCardsCount).map(c => c.id);
+            gameEngine.buryCards(playerId, cardIds);
+
+            io.to(room.id).emit('cards_buried', {
+              playerId: playerId,
+              playerName: buryingPlayer.name
+            });
+
+            io.to(room.id).emit('first_player_set', {
+              playerId: playerId,
+              playerName: buryingPlayer.name,
+              currentPlayerIndex: room.gameState.currentPlayerIndex
+            });
+
+            io.to(room.id).emit('phase_changed', {
+              phase: 'playing',
+              message: `埋底完成，${buryingPlayer.name} 先出牌`
+            });
+
+            io.to(room.id).emit('room_updated', {
+              room: room.toJSON()
+            });
+
+            triggerBotPlay(io, room, gameEngine).catch(err => {
+              logger.error('触发bot出牌失败:', err);
+            });
+          }
+        }, 1500); // 延迟1.5秒模拟思考
+      }
+
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('设置埋底玩家失败:', error);

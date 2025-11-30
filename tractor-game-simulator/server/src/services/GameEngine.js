@@ -40,6 +40,13 @@ export class GameEngine {
   startGame() {
     logger.info(`房间 ${this.room.id} 开始游戏 - 等待玩家准备`);
 
+    // 检查是否在自由模式下使用WhoDesigned bot
+    if (this.room.config.playMode === PlayModes.FREE &&
+        this.room.config.botType === 'who_designed' &&
+        this.room.players.some(p => p.isBot)) {
+      throw new Error('WhoDesigned bot只能在基础模式下使用');
+    }
+
     // 重置游戏状态
     this.room.gameState.reset();
 

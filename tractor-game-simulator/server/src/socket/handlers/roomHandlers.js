@@ -189,6 +189,11 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('游戏进行中无法添加bot');
       }
 
+      // 检查是否在自由模式下使用WhoDesigned bot
+      if (room.config.playMode === 'free' && room.config.botType === 'who_designed') {
+        throw new Error('WhoDesigned bot只能在基础模式下使用，请切换到基础模式或使用Simple bot');
+      }
+
       // 创建bot玩家（使用特殊的socketId标识）
       const botSocketId = `bot_${Date.now()}_${Math.random()}`;
       const bot = new Player(
