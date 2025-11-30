@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
  */
 export class WhoDesignedBotService {
   constructor() {
-    this.botScriptPath = path.resolve(__dirname, '../../../../WhoDesigned/__main__.py');
+    this.botScriptPath = path.resolve(__dirname, '../../WhoDesigned/__main__.py');
     logger.info('使用WhoDesigned Bot');
 
     // 存储每个bot的历史请求和响应
