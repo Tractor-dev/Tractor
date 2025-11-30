@@ -102,7 +102,6 @@ export class WhoDesignedBotService {
         responses: history.responses
       };
 
-      logger.info(`[Bot输入] 完整输入数据 (player ${playerIndex}): ${JSON.stringify(botInput, null, 2)}`);
       logger.info(`[Bot输入] requests数量: ${botInput.requests.length}, responses数量: ${botInput.responses.length}`);
 
       // 调用Python bot
