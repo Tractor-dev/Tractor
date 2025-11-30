@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch, Dropdown } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
@@ -82,6 +82,9 @@ export default function GameBoard() {
   const [lastRoundWinner, setLastRoundWinner] = useState(null); // 上一轮获胜者
   const [viewLastRoundModal, setViewLastRoundModal] = useState(false); // 查看上一轮出牌弹窗
 
+  // 用于追踪轮次清除操作的ID，防止延迟清除影响新一轮的出牌
+  const roundClearIdRef = useRef(0);
+
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
   const gameState = currentRoom?.gameState;
@@ -143,6 +146,7 @@ export default function GameBoard() {
       setIsReadyForNext(false); // 重置准备状态
       setLastRoundCards({}); // 清空上一轮出牌记录
       setLastRoundWinner(null); // 清空上一轮获胜者
+      roundClearIdRef.current += 1; // 使任何挂起的轮次清除失效
     });
 
     // 收到手牌
@@ -262,6 +266,7 @@ export default function GameBoard() {
       setIsReadyForNext(false); // 重置准备状态
       setLastRoundCards({}); // 清空上一轮出牌记录
       setLastRoundWinner(null); // 清空上一轮获胜者
+      roundClearIdRef.current += 1; // 使任何挂起的轮次清除失效
       // 主牌信息会通过房间状态同步的useEffect自动更新
     });
 
@@ -463,7 +468,9 @@ export default function GameBoard() {
         }
       } else if (roundUpdate.type === 'round_started') {
         messageApi.success(roundUpdate.message || t('messages.roundStarted', { round: roundUpdate.round }));
-        // 新一轮开始，清空出牌历史（因为是新的一轮，之前的牌不能再撤回）
+        // 新一轮开始，增加清除ID以使任何挂起的setTimeout失效
+        roundClearIdRef.current += 1;
+        // 清空出牌历史（因为是新的一轮，之前的牌不能再撤回）
         setPlayHistory([]);
         // 同时清空已出牌显示
         setPlayedCards({});
@@ -489,9 +496,14 @@ export default function GameBoard() {
         });
         setLastRoundWinner(roundUpdate.roundWinner);
         // 延迟2秒后清空出牌显示，准备下一轮
+        // 捕获当前的清除ID，只有当ID没有变化时才执行清除
+        const clearId = roundClearIdRef.current;
         setTimeout(() => {
-          setPlayHistory([]);
-          setPlayedCards({});
+          // 检查是否有新一轮开始，如果有则不清除（新一轮的出牌不应被清除）
+          if (roundClearIdRef.current === clearId) {
+            setPlayHistory([]);
+            setPlayedCards({});
+          }
         }, 2000);
       }
     });
