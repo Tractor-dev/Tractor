@@ -1,11 +1,12 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "python39", "python39Packages.pip"]
+nixPkgs = ["nodejs-18_x", "python39"]
 
 [phases.install]
 cmds = [
   "cd tractor-game-simulator/server && npm install --production",
   "git clone https://github.com/Roushelfy/WhoDesigned.git || echo 'Bot repo already exists'",
-  "pip3 install -r WhoDesigned/requirements.txt"
+  "python3 -m venv who_venv",
+  "source who_venv/bin/activate && pip install -r WhoDesigned/requirements.txt"
 ]
 
 [phases.build]
@@ -14,4 +15,4 @@ cmds = [
 ]
 
 [start]
-cmd = "cd tractor-game-simulator/server && node src/index.js"
+cmd = "source who_venv/bin/activate && cd tractor-game-simulator/server && node src/index.js"
