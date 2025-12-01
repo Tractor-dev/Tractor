@@ -1,4 +1,5 @@
 import { Player } from '../../models/Player.js';
+import { Spectator } from '../../models/Spectator.js';
 import logger from '../../utils/logger.js';
 import { getGameEngines, getBotServices } from './gameHandlers.js';
 import { BotTypes } from '../../utils/constants.js';
@@ -81,6 +82,53 @@ export function registerRoomHandlers(io, socket, roomManager) {
    */
   socket.on('leave_room', ({ roomId }) => {
     handlePlayerLeave(io, socket, roomManager, roomId);
+  });
+
+  /**
+   * 作为观战者加入房间
+   */
+  socket.on('join_as_spectator', ({ roomId, spectatorName }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      // 创建观战者
+      const spectator = new Spectator(socket.id, spectatorName || `观战者${room.spectators.length + 1}`);
+      room.addSpectator(spectator);
+
+      // 加入Socket.IO房间
+      socket.join(room.id);
+
+      // 通知该观战者
+      socket.emit('spectator_joined', {
+        room: room.toJSON(),
+        spectator: spectator.toJSON()
+      });
+
+      // 广播给房间内所有人（玩家和观战者）
+      socket.to(room.id).emit('spectator_joined_room', {
+        spectator: spectator.toJSON()
+      });
+
+      // 广播房间状态更新给所有人
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`观战者 ${spectator.name} 加入房间: ${room.id}`);
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('加入观战失败:', error);
+    }
+  });
+
+  /**
+   * 观战者离开房间
+   */
+  socket.on('leave_spectator', ({ roomId }) => {
+    handleSpectatorLeave(io, socket, roomManager, roomId);
   });
 
   /**
@@ -330,7 +378,17 @@ export function registerRoomHandlers(io, socket, roomManager) {
   socket.on('disconnect', () => {
     const room = roomManager.findRoomBySocketId(socket.id);
     if (room) {
-      handlePlayerLeave(io, socket, roomManager, room.id);
+      // Check if socket is a player
+      const player = room.findPlayerBySocketId(socket.id);
+      if (player) {
+        handlePlayerLeave(io, socket, roomManager, room.id);
+      } else {
+        // Check if socket is a spectator
+        const spectator = room.findSpectatorBySocketId(socket.id);
+        if (spectator) {
+          handleSpectatorLeave(io, socket, roomManager, room.id);
+        }
+      }
     }
   });
 }
@@ -411,5 +469,39 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
     logger.info(`玩家 ${player.name} 离开房间: ${room.id}`);
   } catch (error) {
     logger.error('处理玩家离开失败:', error);
+  }
+}
+
+/**
+ * 处理观战者离开
+ */
+function handleSpectatorLeave(io, socket, roomManager, roomId) {
+  try {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+
+    const spectator = room.findSpectatorBySocketId(socket.id);
+    if (!spectator) return;
+
+    // 移除观战者
+    room.removeSpectator(spectator.id);
+
+    // 离开Socket.IO房间
+    socket.leave(room.id);
+
+    // 广播观战者离开
+    io.to(room.id).emit('spectator_left', {
+      spectatorId: spectator.id,
+      spectatorName: spectator.name
+    });
+
+    // 广播房间状态更新
+    io.to(room.id).emit('room_updated', {
+      room: room.toJSON()
+    });
+
+    logger.info(`观战者 ${spectator.name} 离开房间: ${room.id}`);
+  } catch (error) {
+    logger.error('处理观战者离开失败:', error);
   }
 }

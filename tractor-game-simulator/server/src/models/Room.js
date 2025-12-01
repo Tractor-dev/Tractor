@@ -8,6 +8,7 @@ export class Room {
     this.name = name;
     this.hostId = hostSocketId;
     this.players = [];
+    this.spectators = []; // 观战者列表
     this.gameState = new GameState();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.createdAt = new Date();
@@ -57,6 +58,25 @@ export class Room {
     return this.players.length > 0 && this.players.every(p => p.isBot);
   }
 
+  // 观战者相关方法
+  addSpectator(spectator) {
+    this.spectators.push(spectator);
+    this.updatedAt = new Date();
+  }
+
+  removeSpectator(spectatorId) {
+    this.spectators = this.spectators.filter(s => s.id !== spectatorId);
+    this.updatedAt = new Date();
+  }
+
+  findSpectatorById(spectatorId) {
+    return this.spectators.find(s => s.id === spectatorId);
+  }
+
+  findSpectatorBySocketId(socketId) {
+    return this.spectators.find(s => s.socketId === socketId);
+  }
+
   resetForNewGame() {
     this.gameState.reset();
     this.players.forEach(player => player.resetForNewGame());
@@ -69,7 +89,9 @@ export class Room {
       name: this.name,
       hostId: this.hostId,
       players: this.players.map(p => p.toJSON()),
+      spectators: this.spectators.map(s => s.toJSON()),
       playerCount: this.players.length,
+      spectatorCount: this.spectators.length,
       maxPlayers: this.config.maxPlayers,
       gameState: this.gameState.toJSON(),
       config: this.config,

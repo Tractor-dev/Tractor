@@ -36,6 +36,20 @@ export class RoomManager {
       if (room.findPlayerBySocketId(socketId)) {
         return room;
       }
+      // Also check spectators
+      if (room.findSpectatorBySocketId(socketId)) {
+        return room;
+      }
+    }
+    return null;
+  }
+
+  // Find room where socket is a spectator
+  findRoomBySpectatorSocketId(socketId) {
+    for (const room of this.rooms.values()) {
+      if (room.findSpectatorBySocketId(socketId)) {
+        return room;
+      }
     }
     return null;
   }
@@ -45,8 +59,11 @@ export class RoomManager {
       id: room.id,
       name: room.name,
       playerCount: room.players.length,
+      spectatorCount: room.spectators.length,
       maxPlayers: room.config.maxPlayers,
       phase: room.gameState.phase,
+      gameState: room.gameState.toJSON(),
+      config: room.config,
       createdAt: room.createdAt
     }));
   }

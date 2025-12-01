@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch, Dropdown, Select } from 'antd';
-import { GlobalOutlined } from '@ant-design/icons';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Switch, Dropdown, Select, Input } from 'antd';
+import { GlobalOutlined, EyeOutlined } from '@ant-design/icons';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import { useI18n, LANGUAGES, LANGUAGE_NAMES, LANGUAGE_LIST } from './locales/index.jsx';
@@ -16,11 +16,13 @@ const { Title, Text } = Typography;
 
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
-  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, roomList, setRoomList } = useGameStore();
+  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, currentSpectator, setCurrentSpectator, isSpectator, roomList, setRoomList } = useGameStore();
   const { t, language, setLanguage } = useI18n();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showWatchModal, setShowWatchModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [spectatorName, setSpectatorName] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [newBottomCardsCount, setNewBottomCardsCount] = useState(8);
@@ -81,6 +83,25 @@ function App() {
       setCurrentRoom(room);
       setCurrentPlayer(player);
       setShowJoinModal(false);
+    });
+
+    // 监听观战者加入成功
+    socket.on('spectator_joined', ({ room, spectator }) => {
+      console.log('观战加入成功:', { room, spectator });
+      messageApi.success(t('room.joinedAsSpectator'));
+      setCurrentRoom(room);
+      setCurrentSpectator(spectator);
+      setShowWatchModal(false);
+    });
+
+    // 监听其他观战者加入
+    socket.on('spectator_joined_room', ({ spectator }) => {
+      messageApi.info(t('messages.spectatorJoined', { name: spectator.name }));
+    });
+
+    // 监听观战者离开
+    socket.on('spectator_left', ({ spectatorName }) => {
+      messageApi.info(t('messages.spectatorLeft', { name: spectatorName }));
     });
 
     // 监听房间列表
@@ -156,6 +177,20 @@ function App() {
     setShowJoinModal(true);
   };
 
+  const handleWatchRoomFromList = (roomId) => {
+    setSelectedRoomId(roomId);
+    setSpectatorName(`${t('room.defaultSpectatorName')}${Math.floor(Math.random() * 1000)}`);
+    setShowWatchModal(true);
+  };
+
+  const handleWatchRoom = () => {
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.JOIN_AS_SPECTATOR, {
+      roomId: selectedRoomId,
+      spectatorName: spectatorName || `${t('room.defaultSpectatorName')}${Math.floor(Math.random() * 1000)}`
+    });
+  };
+
   const handleRefreshRooms = () => {
     setLoadingRooms(true);
     const socket = socketService.socket;
@@ -170,6 +205,16 @@ function App() {
     setCurrentRoom(null);
     setCurrentPlayer(null);
     messageApi.info(t('room.leftRoom'));
+  };
+
+  const handleLeaveSpectator = () => {
+    const socket = socketService.socket;
+    socket.emit(SOCKET_EVENTS.LEAVE_SPECTATOR, {
+      roomId: currentRoom.id
+    });
+    setCurrentRoom(null);
+    setCurrentSpectator(null);
+    messageApi.info(t('room.leftSpectator'));
   };
 
   const handleAddBot = () => {
@@ -230,6 +275,11 @@ function App() {
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
+    // 如果是观战者模式
+    if (isSpectator) {
+      return <GameBoard />;
+    }
+
     // 如果游戏已开始（不在WAITING阶段）或正在等待准备，显示游戏界面
     const gamePhase = currentRoom.gameState?.phase || GamePhases.WAITING;
     const isWaitingForReady = currentRoom.gameState?.isWaitingForReady || false;
@@ -494,6 +544,7 @@ function App() {
           <RoomList
             rooms={roomList}
             onJoinRoom={handleJoinRoomFromList}
+            onWatchRoom={handleWatchRoomFromList}
             onRefresh={handleRefreshRooms}
             loading={loadingRooms}
           />
@@ -515,6 +566,32 @@ function App() {
         }}
         onJoinRoom={handleJoinRoom}
       />
+
+      {/* 观战输入昵称弹窗 */}
+      <Modal
+        title={t('room.watch')}
+        open={showWatchModal}
+        onOk={handleWatchRoom}
+        onCancel={() => {
+          setShowWatchModal(false);
+          setSelectedRoomId('');
+          setSpectatorName('');
+        }}
+        okText={t('room.watch')}
+        cancelText={t('common.cancel')}
+      >
+        <div>
+          <Text strong>{t('createRoomForm.playerNameLabel')}:</Text>
+          <br />
+          <Input
+            style={{ width: '100%', marginTop: 8 }}
+            placeholder={t('room.defaultSpectatorName')}
+            value={spectatorName}
+            onChange={(e) => setSpectatorName(e.target.value)}
+            maxLength={20}
+          />
+        </div>
+      </Modal>
     </Layout>
   );
 }

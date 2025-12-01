@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch, Dropdown } from 'antd';
-import { GlobalOutlined } from '@ant-design/icons';
+import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch, Dropdown, Alert } from 'antd';
+import { GlobalOutlined, EyeOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
 import { SOCKET_EVENTS, GamePhases, PlayModes, BotTypes } from '../../utils/constants';
@@ -19,6 +19,10 @@ export default function GameBoard() {
   const {
     currentRoom,
     currentPlayer,
+    currentSpectator,
+    isSpectator,
+    setCurrentRoom,
+    setCurrentSpectator,
     myCards,
     selectedCards,
     toggleCardSelection,
@@ -970,6 +974,16 @@ export default function GameBoard() {
     });
   };
 
+  // 观战者退出
+  const handleLeaveSpectator = () => {
+    socket.emit(SOCKET_EVENTS.LEAVE_SPECTATOR, {
+      roomId: currentRoom.id
+    });
+    setCurrentRoom(null);
+    setCurrentSpectator(null);
+    messageApi.info(t('room.leftSpectator'));
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
   const currentPlayMode = gameState?.playMode || currentRoom?.config?.playMode || PlayModes.ORDERED;
 
@@ -1059,6 +1073,22 @@ export default function GameBoard() {
 
   // 渲染控制按钮区域
   const renderControlButtons = () => {
+    // 观战者只有退出观战按钮
+    if (isSpectator) {
+      return (
+        <div className="responsive-flex-buttons">
+          <Button
+            key="leaveSpectator"
+            onClick={handleLeaveSpectator}
+            style={buttonStyle}
+          >
+            {t('room.leaveWatch')}
+          </Button>
+          {renderLanguageButton()}
+        </div>
+      );
+    }
+
     const isFreeMode = currentPlayMode === PlayModes.FREE;
 
     switch (phase) {
@@ -1726,6 +1756,26 @@ export default function GameBoard() {
   return (
     <div className="game-board">
       {contextHolder}
+
+      {/* 观战模式提示 */}
+      {isSpectator && (
+        <Alert
+          message={t('spectator.spectatorMode')}
+          description={t('spectator.spectatorModeHint')}
+          type="info"
+          showIcon
+          icon={<EyeOutlined />}
+          style={{
+            position: 'fixed',
+            top: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1001,
+            maxWidth: '400px'
+          }}
+          closable
+        />
+      )}
 
       {/* 毙牌动画 */}
       {trumpAnimation && (

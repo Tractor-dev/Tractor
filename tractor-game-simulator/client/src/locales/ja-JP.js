@@ -54,25 +54,32 @@ export default {
     createRoom: 'ルーム作成',
     joinRoom: 'ルーム参加',
     leaveRoom: 'ルーム退出',
+    watch: '観戦',
+    leaveWatch: '観戦終了',
     roomList: 'ルーム一覧',
     roomName: 'ルーム名',
     roomId: 'ルームID',
     players: 'プレイヤー',
     playerCount: 'プレイヤー数',
     playerList: 'プレイヤー一覧',
+    spectators: '観戦者',
+    spectatorCount: '観戦者数',
     roomConfig: 'ルーム設定',
     roomSettings: 'ルーム設定',
     modifySettings: '設定変更',
     noRooms: 'ルームがありません。「ルーム作成」をクリックしてゲームを開始してください。',
     roomCreated: 'ルームが作成されました！',
     joinedRoom: 'ルームに参加しました！',
+    joinedAsSpectator: '観戦を開始しました！',
     leftRoom: 'ルームを退出しました',
+    leftSpectator: '観戦を終了しました',
     full: '満員',
     inGame: 'ゲーム中',
     waiting: '待機中',
     enterRoomId: 'ルームIDを入力するか、リストから選択してください',
     defaultRoomName: 'マイルーム',
     defaultPlayerName: 'プレイヤー',
+    defaultSpectatorName: '観戦者',
     totalRooms: '{count} ルーム'
   },
 
@@ -315,6 +322,8 @@ export default {
   messages: {
     playerJoined: '{name}がルームに参加しました',
     playerLeft: '{name}がルームを退出しました',
+    spectatorJoined: '{name}が観戦を開始しました',
+    spectatorLeft: '{name}が観戦を終了しました',
     playerReady: '{name}が準備完了しました',
     playerCancelReady: '{name}が準備を取り消しました',
     allPlayersReady: '全員が準備完了しました',
@@ -360,6 +369,17 @@ export default {
     myTeam: '自チーム',
     opponentTeam: '相手チーム',
     teamLevel: 'レベル'
+  },
+
+  // 観戦関連
+  spectator: {
+    spectatorMode: '観戦モード',
+    spectatorModeHint: 'このルームを観戦しています',
+    spectatorList: '観戦者一覧',
+    spectatorCount: '{count}人が観戦中',
+    noSpectators: '観戦者なし',
+    watchingGame: 'ゲームを観戦中...',
+    cannotInteract: '観戦者は操作できません'
   },
 
   // 言語

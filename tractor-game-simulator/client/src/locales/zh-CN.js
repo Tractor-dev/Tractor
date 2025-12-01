@@ -54,25 +54,32 @@ export default {
     createRoom: '创建房间',
     joinRoom: '加入房间',
     leaveRoom: '离开房间',
+    watch: '观战',
+    leaveWatch: '退出观战',
     roomList: '房间列表',
     roomName: '房间名称',
     roomId: '房间ID',
     players: '玩家',
     playerCount: '玩家数',
     playerList: '玩家列表',
+    spectators: '观战者',
+    spectatorCount: '观战者数',
     roomConfig: '房间配置',
     roomSettings: '房间设置',
     modifySettings: '修改设置',
     noRooms: '暂无房间，点击上方"创建房间"开始游戏',
     roomCreated: '房间创建成功！',
     joinedRoom: '加入房间成功！',
+    joinedAsSpectator: '已加入观战！',
     leftRoom: '已离开房间',
+    leftSpectator: '已退出观战',
     full: '已满',
     inGame: '游戏中',
     waiting: '等待中',
     enterRoomId: '请输入房间ID或从列表选择',
     defaultRoomName: '我的房间',
     defaultPlayerName: '玩家',
+    defaultSpectatorName: '观战者',
     totalRooms: '共 {count} 个房间'
   },
 
@@ -315,6 +322,8 @@ export default {
   messages: {
     playerJoined: '{name} 加入了房间',
     playerLeft: '{name} 离开了房间',
+    spectatorJoined: '{name} 开始观战',
+    spectatorLeft: '{name} 退出了观战',
     playerReady: '{name} 已准备',
     playerCancelReady: '{name} 取消准备',
     allPlayersReady: '所有玩家已准备',
@@ -360,6 +369,17 @@ export default {
     myTeam: '我方',
     opponentTeam: '对方',
     teamLevel: '等级'
+  },
+
+  // 观战相关
+  spectator: {
+    spectatorMode: '观战模式',
+    spectatorModeHint: '您正在观战此房间',
+    spectatorList: '观战者列表',
+    spectatorCount: '{count} 人观战',
+    noSpectators: '暂无观战者',
+    watchingGame: '正在观战游戏...',
+    cannotInteract: '观战者无法操作'
   },
 
   // 语言
