@@ -219,15 +219,16 @@
   margin-bottom: 0;
 }
 
-/* 控制区域 - 右侧对齐 */
+/* 控制区域 - 右侧对齐 - 扩大宽度以支持横向单排按钮 */
 .inline-controls {
   flex: 0 1 auto;
-  max-width: clamp(300px, 45vmin, 600px);
+  max-width: clamp(400px, 70vmin, 900px);
   background: rgba(255, 255, 255, 0.15);
   padding: clamp(4px, 0.7vmin, 10px) clamp(6px, 0.9vmin, 10px);
   border-radius: clamp(4px, 0.7vmin, 6px);
   backdrop-filter: blur(10px);
   margin-left: auto;
+  overflow-x: auto;
 }
 
 /* 自己的手牌区域 - 居中显示 */

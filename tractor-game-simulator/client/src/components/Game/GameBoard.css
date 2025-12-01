@@ -113,35 +113,43 @@
   font-size: clamp(16px, 2.5vmin, 24px) !important;
 }
 
-/* Responsive button grid */
+/* Responsive button grid - 横向单排布局 */
 .responsive-button-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(60px, 10vmin, 100px), 1fr));
-  gap: clamp(4px, 0.8vmin, 10px);
+  display: flex;
+  gap: clamp(3px, 0.6vmin, 6px);
   width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  align-items: center;
 }
 
 .responsive-button-grid .ant-btn {
-  font-size: clamp(11px, 1.4vmin, 14px) !important;
-  padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.8vmin, 8px) !important;
-  min-width: clamp(60px, 10vmin, 100px) !important;
+  font-size: clamp(10px, 1.2vmin, 13px) !important;
+  padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.6vmin, 6px) !important;
+  min-width: clamp(50px, 8vmin, 80px) !important;
   height: auto !important;
-  min-height: clamp(32px, 5vmin, 44px);
+  min-height: clamp(28px, 4.5vmin, 40px);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-/* Responsive flex buttons */
+/* Responsive flex buttons - 横向单排布局 */
 .responsive-flex-buttons {
   display: flex;
-  gap: clamp(4px, 0.8vmin, 10px);
+  gap: clamp(3px, 0.6vmin, 6px);
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  align-items: center;
 }
 
 .responsive-flex-buttons .ant-btn {
-  font-size: clamp(11px, 1.4vmin, 14px) !important;
-  padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.8vmin, 8px) !important;
-  min-width: clamp(60px, 10vmin, 100px) !important;
-  min-height: clamp(32px, 5vmin, 44px);
+  font-size: clamp(10px, 1.2vmin, 13px) !important;
+  padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.6vmin, 6px) !important;
+  min-width: clamp(50px, 8vmin, 80px) !important;
+  min-height: clamp(28px, 4.5vmin, 40px);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* Landscape-specific adjustments */
@@ -165,16 +173,14 @@
     font-size: clamp(14px, 2.2vh, 20px) !important;
   }
 
-  .responsive-button-grid {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(55px, 9vh, 90px), 1fr));
-  }
-
   .responsive-button-grid .ant-btn {
-    min-height: clamp(28px, 4.5vh, 40px);
+    min-height: clamp(26px, 4vh, 36px);
+    font-size: clamp(9px, 1.1vmin, 12px) !important;
   }
 
   .responsive-flex-buttons .ant-btn {
-    min-height: clamp(28px, 4.5vh, 40px);
+    min-height: clamp(26px, 4vh, 36px);
+    font-size: clamp(9px, 1.1vmin, 12px) !important;
   }
 }
 
@@ -184,7 +190,11 @@
     justify-content: center;
   }
 
-  .responsive-button-grid {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(65px, 11vw, 95px), 1fr));
+  .responsive-button-grid .ant-btn {
+    min-width: clamp(45px, 7vw, 75px) !important;
+  }
+
+  .responsive-flex-buttons .ant-btn {
+    min-width: clamp(45px, 7vw, 75px) !important;
   }
 }
