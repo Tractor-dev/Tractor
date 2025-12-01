@@ -1349,10 +1349,8 @@ export default function GameBoard() {
           const viewLastRoundBtn = renderViewLastRoundButton();
           if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
           // 保存全局按钮（仅房主）
-          {
-            const saveGlobalBtn = renderSaveGlobalButton();
-            if (saveGlobalBtn) playingButtons.push(saveGlobalBtn);
-          }
+          const saveGlobalBtn = renderSaveGlobalButton();
+          if (saveGlobalBtn) playingButtons.push(saveGlobalBtn);
           playingButtons.push(renderLanguageButton());
 
           // 房间设置（仅房主）
@@ -1381,14 +1379,10 @@ export default function GameBoard() {
           </Button>
         ];
 
-        {
-          const settingsBtn = renderSettingsButton();
-          if (settingsBtn) revealingButtons.push(settingsBtn);
-        }
-        {
-          const saveGlobalBtn = renderSaveGlobalButton();
-          if (saveGlobalBtn) revealingButtons.push(saveGlobalBtn);
-        }
+        const revealingSettingsBtn = renderSettingsButton();
+        if (revealingSettingsBtn) revealingButtons.push(revealingSettingsBtn);
+        const revealingSaveGlobalBtn = renderSaveGlobalButton();
+        if (revealingSaveGlobalBtn) revealingButtons.push(revealingSaveGlobalBtn);
         revealingButtons.push(renderLanguageButton());
 
         return (
