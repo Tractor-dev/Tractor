@@ -85,6 +85,14 @@ export default function GameBoard() {
   // 用于跟踪轮次结束后清除出牌的定时器
   const roundEndTimeoutRef = useRef(null);
 
+  // 辅助函数：清除轮次结束定时器
+  const clearRoundEndTimeout = () => {
+    if (roundEndTimeoutRef.current) {
+      clearTimeout(roundEndTimeoutRef.current);
+      roundEndTimeoutRef.current = null;
+    }
+  };
+
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
   const gameState = currentRoom?.gameState;
@@ -194,10 +202,7 @@ export default function GameBoard() {
       messageApi.info(t('messages.cardsPlayed', { name: playerName, count: cards.length }));
       
       // 如果有待执行的轮次结束清除定时器，取消它（防止新一轮的第一张牌被清除）
-      if (roundEndTimeoutRef.current) {
-        clearTimeout(roundEndTimeoutRef.current);
-        roundEndTimeoutRef.current = null;
-      }
+      clearRoundEndTimeout();
       
       // 更新该玩家的出牌区域（覆盖之前的牌）
       setPlayedCards(prev => {
@@ -500,9 +505,7 @@ export default function GameBoard() {
         setLastRoundWinner(roundUpdate.roundWinner);
         // 延迟2秒后清空出牌显示，准备下一轮
         // 使用ref保存定时器，以便在新牌打出时取消
-        if (roundEndTimeoutRef.current) {
-          clearTimeout(roundEndTimeoutRef.current);
-        }
+        clearRoundEndTimeout();
         roundEndTimeoutRef.current = setTimeout(() => {
           setPlayHistory([]);
           setPlayedCards({});
@@ -546,10 +549,7 @@ export default function GameBoard() {
       socket.off('trump_action');
       socket.off('round_updated');
       // 清理轮次结束定时器
-      if (roundEndTimeoutRef.current) {
-        clearTimeout(roundEndTimeoutRef.current);
-        roundEndTimeoutRef.current = null;
-      }
+      clearRoundEndTimeout();
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer, currentRoom]);
 
