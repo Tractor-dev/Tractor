@@ -1,25 +1,26 @@
 .card {
   position: relative;
-  width: clamp(36px, 10vh, 80px);
-  height: clamp(50px, 14vh, 112px);
+  /* Fluid card sizing based on viewport - works across all resolutions */
+  width: clamp(30px, 8vmin, 80px);
+  height: clamp(42px, 11.2vmin, 112px);
   background: white;
   border: 2px solid #d9d9d9;
-  border-radius: 8px;
+  border-radius: clamp(4px, 0.8vmin, 8px);
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: inline-block;
-  margin: 0 -10px;
+  margin: 0 calc(clamp(30px, 8vmin, 80px) * -0.125);
   /* Touch optimization */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
 .card.small {
-  width: clamp(28px, 8vh, 50px);
-  height: clamp(39px, 11vh, 70px);
-  margin: 0 -6px;
+  width: clamp(24px, 6vmin, 50px);
+  height: clamp(34px, 8.4vmin, 70px);
+  margin: 0 calc(clamp(24px, 6vmin, 50px) * -0.12);
 }
 
 .card:hover {
@@ -33,7 +34,7 @@
     transform: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
-  
+
   .card:active {
     transform: translateY(-5px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
@@ -62,35 +63,35 @@
 }
 
 .card-corner.top-left {
-  top: 4px;
-  left: 6px;
+  top: clamp(2px, 0.4vmin, 4px);
+  left: clamp(3px, 0.6vmin, 6px);
   text-align: left;
 }
 
 .card-corner.bottom-right {
-  bottom: 4px;
-  right: 6px;
+  bottom: clamp(2px, 0.4vmin, 4px);
+  right: clamp(3px, 0.6vmin, 6px);
   text-align: right;
   transform: rotate(180deg);
 }
 
 .card-rank {
-  font-size: 18px;
+  font-size: clamp(12px, 2.2vmin, 18px);
   line-height: 1;
   margin-bottom: 2px;
 }
 
 .card.small .card-rank {
-  font-size: 12px;
+  font-size: clamp(9px, 1.8vmin, 12px);
 }
 
 .card-suit {
-  font-size: 16px;
+  font-size: clamp(10px, 1.8vmin, 16px);
   line-height: 1;
 }
 
 .card.small .card-suit {
-  font-size: 10px;
+  font-size: clamp(7px, 1.4vmin, 10px);
 }
 
 .card-center {
@@ -102,33 +103,33 @@
 }
 
 .suit-symbol {
-  font-size: 48px;
+  font-size: clamp(28px, 6vmin, 48px);
   opacity: 0.2;
 }
 
 .card.small .suit-symbol {
-  font-size: 30px;
+  font-size: clamp(18px, 4vmin, 30px);
 }
 
 .joker-text {
-  font-size: 20px;
+  font-size: clamp(14px, 2.8vmin, 20px);
   font-weight: bold;
 }
 
 .card.small .joker-text {
-  font-size: 14px;
+  font-size: clamp(10px, 2vmin, 14px);
 }
 
 /* 主牌星标 */
 .trump-badge {
   position: absolute;
-  bottom: 4px;
-  left: 4px;
+  bottom: clamp(2px, 0.4vmin, 4px);
+  left: clamp(2px, 0.4vmin, 4px);
   z-index: 10;
 }
 
 .trump-star {
-  font-size: 16px;
+  font-size: clamp(10px, 2vmin, 16px);
   color: #ffd700;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
   display: inline-block;
@@ -136,7 +137,7 @@
 }
 
 .card.small .trump-star {
-  font-size: 12px;
+  font-size: clamp(8px, 1.6vmin, 12px);
 }
 
 @keyframes twinkle {
@@ -150,319 +151,88 @@
   }
 }
 
-/* Mobile responsive card sizes - Portrait phones (aspect ratio < 0.75) */
-@media (max-aspect-ratio: 3/4) {
+/* Landscape-specific adjustments for better card display */
+@media (orientation: landscape) {
   .card {
-    width: 60px;
-    height: 84px;
-    margin: 0 -8px;
-    border-radius: 6px;
+    width: clamp(28px, 8vh, 70px);
+    height: clamp(39px, 11.2vh, 98px);
+    margin: 0 calc(clamp(28px, 8vh, 70px) * -0.13);
   }
 
   .card.small {
-    width: 40px;
-    height: 56px;
-    margin: 0 -5px;
+    width: clamp(22px, 6vh, 45px);
+    height: clamp(31px, 8.4vh, 63px);
+    margin: 0 calc(clamp(22px, 6vh, 45px) * -0.12);
   }
 
   .card-rank {
-    font-size: 14px;
+    font-size: clamp(10px, 2.2vh, 16px);
   }
 
   .card.small .card-rank {
-    font-size: 10px;
+    font-size: clamp(8px, 1.8vh, 11px);
   }
 
   .card-suit {
-    font-size: 12px;
+    font-size: clamp(9px, 1.8vh, 14px);
   }
 
   .card.small .card-suit {
-    font-size: 8px;
+    font-size: clamp(6px, 1.4vh, 9px);
   }
 
   .suit-symbol {
-    font-size: 36px;
+    font-size: clamp(24px, 6vh, 42px);
   }
 
   .card.small .suit-symbol {
-    font-size: 22px;
+    font-size: clamp(16px, 4vh, 26px);
   }
 
   .joker-text {
-    font-size: 16px;
+    font-size: clamp(12px, 2.8vh, 18px);
   }
 
   .card.small .joker-text {
-    font-size: 11px;
+    font-size: clamp(9px, 2vh, 12px);
   }
 
   .trump-star {
-    font-size: 12px;
+    font-size: clamp(8px, 2vh, 14px);
   }
 
   .card.small .trump-star {
-    font-size: 9px;
-  }
-
-  .card.selected {
-    transform: translateY(-25px);
+    font-size: clamp(7px, 1.6vh, 10px);
   }
 }
 
-/* Smaller phones (very tall aspect ratio < 0.55) */
-@media (max-aspect-ratio: 11/20) {
+/* Portrait-specific adjustments */
+@media (orientation: portrait) {
   .card {
-    width: 48px;
-    height: 67px;
-    margin: 0 -7px;
-    border-radius: 5px;
+    width: clamp(32px, 9vw, 75px);
+    height: clamp(45px, 12.6vw, 105px);
+    margin: 0 calc(clamp(32px, 9vw, 75px) * -0.13);
   }
 
   .card.small {
-    width: 35px;
-    height: 49px;
-    margin: 0 -4px;
+    width: clamp(26px, 7vw, 48px);
+    height: clamp(36px, 9.8vw, 67px);
+    margin: 0 calc(clamp(26px, 7vw, 48px) * -0.12);
   }
 
   .card-rank {
-    font-size: 12px;
+    font-size: clamp(11px, 2.4vw, 17px);
   }
 
   .card.small .card-rank {
-    font-size: 9px;
-  }
-
-  .card-suit {
-    font-size: 10px;
-  }
-
-  .card.small .card-suit {
-    font-size: 7px;
+    font-size: clamp(9px, 2vw, 11px);
   }
 
   .suit-symbol {
-    font-size: 28px;
+    font-size: clamp(26px, 6.5vw, 45px);
   }
 
   .card.small .suit-symbol {
-    font-size: 18px;
-  }
-
-  .joker-text {
-    font-size: 12px;
-  }
-
-  .card.small .joker-text {
-    font-size: 9px;
-  }
-
-  .trump-star {
-    font-size: 10px;
-  }
-
-  .card.small .trump-star {
-    font-size: 8px;
-  }
-
-  .card.selected {
-    transform: translateY(-20px);
-  }
-
-  .card-corner.top-left {
-    top: 2px;
-    left: 3px;
-  }
-
-  .card-corner.bottom-right {
-    bottom: 2px;
-    right: 3px;
-  }
-}
-
-/* Mobile Landscape Mode - Wide aspect ratio (> 1.6) OR limited height */
-@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
-  .card {
-    width: 38px;
-    height: 53px;
-    margin: 0 -5px;
-    border-radius: 4px;
-    border-width: 1px;
-  }
-
-  .card.small {
-    width: 28px;
-    height: 39px;
-    margin: 0 -3px;
-  }
-
-  .card-rank {
-    font-size: 11px;
-  }
-
-  .card.small .card-rank {
-    font-size: 8px;
-  }
-
-  .card-suit {
-    font-size: 9px;
-  }
-
-  .card.small .card-suit {
-    font-size: 6px;
-  }
-
-  .suit-symbol {
-    font-size: 24px;
-  }
-
-  .card.small .suit-symbol {
-    font-size: 16px;
-  }
-
-  .joker-text {
-    font-size: 10px;
-  }
-
-  .card.small .joker-text {
-    font-size: 8px;
-  }
-
-  .trump-star {
-    font-size: 8px;
-  }
-
-  .card.small .trump-star {
-    font-size: 6px;
-  }
-
-  .trump-badge {
-    bottom: 2px;
-    left: 2px;
-  }
-
-  .card.selected {
-    transform: translateY(-12px);
-    border-width: 2px;
-  }
-
-  .card-corner.top-left {
-    top: 1px;
-    left: 2px;
-  }
-
-  .card-corner.bottom-right {
-    bottom: 1px;
-    right: 2px;
-  }
-}
-
-/* Extra wide landscape (ultra-wide or very short) */
-@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
-  .card {
-    width: 32px;
-    height: 45px;
-    margin: 0 -4px;
-  }
-
-  .card.small {
-    width: 24px;
-    height: 34px;
-    margin: 0 -2px;
-  }
-
-  .card-rank {
-    font-size: 10px;
-  }
-
-  .card.small .card-rank {
-    font-size: 7px;
-  }
-
-  .card-suit {
-    font-size: 8px;
-  }
-
-  .suit-symbol {
-    font-size: 20px;
-  }
-
-  .joker-text {
-    font-size: 9px;
-  }
-
-  .card.selected {
-    transform: translateY(-12px);
-  }
-}
-
-/* Extra small screens (width < 360px) */
-@media (max-width: 360px) {
-  .card {
-    width: 40px;
-    height: 56px;
-    margin: 0 -6px;
-    border-radius: 4px;
-    border-width: 1.5px;
-  }
-
-  .card.small {
-    width: 30px;
-    height: 42px;
-    margin: 0 -4px;
-  }
-
-  .card-rank {
-    font-size: 10px;
-  }
-
-  .card.small .card-rank {
-    font-size: 8px;
-  }
-
-  .card-suit {
-    font-size: 9px;
-  }
-
-  .card.small .card-suit {
-    font-size: 6px;
-  }
-
-  .suit-symbol {
-    font-size: 24px;
-  }
-
-  .card.small .suit-symbol {
-    font-size: 16px;
-  }
-
-  .joker-text {
-    font-size: 10px;
-  }
-
-  .card.small .joker-text {
-    font-size: 8px;
-  }
-
-  .trump-star {
-    font-size: 9px;
-  }
-
-  .card.small .trump-star {
-    font-size: 7px;
-  }
-
-  .card.selected {
-    transform: translateY(-16px);
-  }
-
-  .card-corner.top-left {
-    top: 2px;
-    left: 2px;
-  }
-
-  .card-corner.bottom-right {
-    bottom: 2px;
-    right: 2px;
+    font-size: clamp(17px, 4.5vw, 28px);
   }
 }
