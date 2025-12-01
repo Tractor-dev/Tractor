@@ -551,7 +551,13 @@ export default function GameTable({
           {/* 我的出牌区域 - 在玩家框上方居中（揭示阶段隐藏） */}
           {!isRevealingPhase && renderPlayedCardsArea(positions.bottom, 'bottom')}
 
-          <div className={`player-area player-bottom current-player ${positions.bottom.id === currentTurnPlayerId && !isRevealingPhase ? 'current-turn' : ''} ${isRevealingPhase ? 'revealing-phase compact' : ''}`}>
+          <div className={[
+            'player-area',
+            'player-bottom',
+            'current-player',
+            positions.bottom.id === currentTurnPlayerId && !isRevealingPhase ? 'current-turn' : '',
+            isRevealingPhase ? 'revealing-phase compact' : ''
+          ].filter(Boolean).join(' ')}>
             {/* 上半部分：玩家信息和控制按钮 */}
             <div className="bottom-player-header">
               <div className="player-info compact-info">
