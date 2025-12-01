@@ -19,6 +19,8 @@ export class GameState {
     this.trumpSuit = null; // 主牌花色
     this.trumpRank = Ranks.TWO; // 主牌点数，默认为2
     this.currentTrumpDeclaration = null; // 当前亮主信息 {playerId, playerName, suit, count, declarationType, strength, jokerType}
+    this.trumpCalledPlayerIndex = null; // 报主玩家索引（第一个亮主的玩家）
+    this.trumpSnatchedPlayerIndex = null; // 反主玩家索引（最后一个反主的玩家）
     this.isWaitingForReady = false; // 是否在等待玩家准备
     this.selectedRule = null; // 选中的规则 { name, content }
 
@@ -69,6 +71,8 @@ export class GameState {
     }
 
     this.currentTrumpDeclaration = null; // 清空亮主信息
+    this.trumpCalledPlayerIndex = null; // 清空报主玩家索引
+    this.trumpSnatchedPlayerIndex = null; // 清空反主玩家索引
     this.isWaitingForReady = false;
     this.selectedRule = null;
 

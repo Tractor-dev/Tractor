@@ -241,8 +241,15 @@ export class WhoDesignedBotService {
       banking.banker = gameState.dealerPlayerIndex;
     }
 
-    // TODO: 需要添加called和snatched的逻辑
-    // 这需要在游戏状态中跟踪谁报主和谁反主
+    // 获取报主玩家索引（第一个亮主的玩家）
+    if (gameState.trumpCalledPlayerIndex !== undefined && gameState.trumpCalledPlayerIndex !== null) {
+      banking.called = gameState.trumpCalledPlayerIndex;
+    }
+
+    // 获取反主玩家索引（最后一个反主的玩家）
+    if (gameState.trumpSnatchedPlayerIndex !== undefined && gameState.trumpSnatchedPlayerIndex !== null) {
+      banking.snatched = gameState.trumpSnatchedPlayerIndex;
+    }
 
     return banking;
   }
