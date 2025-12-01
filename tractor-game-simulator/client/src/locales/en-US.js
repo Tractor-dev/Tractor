@@ -170,7 +170,10 @@ export default {
     viewLastRound: 'Last Round',
     lastRoundTitle: 'Last Round Cards',
     lastRoundWinner: 'Winner: {name}',
-    noLastRound: 'No last round record'
+    noLastRound: 'No last round record',
+    saveGlobal: 'Save Game',
+    saveGlobalSuccess: 'Game records downloaded',
+    saveGlobalError: 'Failed to download game records'
   },
 
   // Score and level adjustment

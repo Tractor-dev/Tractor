@@ -170,7 +170,10 @@ export default {
     viewLastRound: '前ラウンド',
     lastRoundTitle: '前ラウンドのカード',
     lastRoundWinner: '勝者: {name}',
-    noLastRound: '前ラウンドの記録がありません'
+    noLastRound: '前ラウンドの記録がありません',
+    saveGlobal: 'ゲーム保存',
+    saveGlobalSuccess: 'ゲーム記録をダウンロードしました',
+    saveGlobalError: 'ゲーム記録のダウンロードに失敗しました'
   },
 
   // スコアとレベル調整

@@ -197,19 +197,29 @@ export default function GameBoard() {
     });
 
     // 玩家出牌
-    socket.on('cards_played', ({ playerId, playerName, cards }) => {
-      console.log('收到 cards_played 事件:', { playerId, playerName, cardsCount: cards.length });
+    socket.on('cards_played', ({ playerId, playerName, cards, isLeading }) => {
+      console.log('收到 cards_played 事件:', { playerId, playerName, cardsCount: cards.length, isLeading });
       messageApi.info(t('messages.cardsPlayed', { name: playerName, count: cards.length }));
       
       // 如果有待执行的轮次结束清除定时器，取消它（防止新一轮的第一张牌被清除）
       clearRoundEndTimeout();
       
-      // 更新该玩家的出牌区域（覆盖之前的牌）
+      // 更新该玩家的出牌区域
       setPlayedCards(prev => {
-        const updated = {
-          ...prev,
-          [playerId]: { playerName, cards }
-        };
+        let updated;
+        if (isLeading) {
+          // 首发出牌时，清除其他玩家的牌，只保留当前出牌玩家的牌
+          updated = {
+            [playerId]: { playerName, cards }
+          };
+          console.log('首发出牌，清除其他玩家的牌');
+        } else {
+          // 跟牌时，保留其他玩家的牌
+          updated = {
+            ...prev,
+            [playerId]: { playerName, cards }
+          };
+        }
         console.log('更新后的 playedCards:', Object.keys(updated));
         return updated;
       });
@@ -514,6 +524,29 @@ export default function GameBoard() {
       }
     });
 
+    // 游戏记录（保存全局功能）
+    socket.on('game_records', ({ records }) => {
+      try {
+        // Create a blob with the JSON data
+        const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a download link and trigger download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tractor_game_${records.roomId}_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        messageApi.success(t('play.saveGlobalSuccess'));
+      } catch (error) {
+        console.error('下载游戏记录失败:', error);
+        messageApi.error(t('play.saveGlobalError'));
+      }
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -548,6 +581,7 @@ export default function GameBoard() {
       socket.off('dealer_countdown_end');
       socket.off('trump_action');
       socket.off('round_updated');
+      socket.off('game_records');
       // 清理轮次结束定时器
       clearRoundEndTimeout();
     };
@@ -929,6 +963,13 @@ export default function GameBoard() {
     });
   };
 
+  // 保存全局游戏记录（房主）
+  const handleSaveGlobal = () => {
+    socket.emit('get_game_records', {
+      roomId: currentRoom.id
+    });
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
   const currentPlayMode = gameState?.playMode || currentRoom?.config?.playMode || PlayModes.ORDERED;
 
@@ -1002,6 +1043,16 @@ export default function GameBoard() {
     return (
       <Button key="viewLastRound" onClick={() => setViewLastRoundModal(true)} style={buttonStyle}>
         {t('play.viewLastRound')}
+      </Button>
+    );
+  };
+
+  // 通用按钮组件 - 保存全局（仅房主可见）
+  const renderSaveGlobalButton = () => {
+    if (!isHost) return null;
+    return (
+      <Button key="saveGlobal" onClick={handleSaveGlobal} style={buttonStyle}>
+        {t('play.saveGlobal')}
       </Button>
     );
   };
@@ -1235,6 +1286,9 @@ export default function GameBoard() {
             // 查看上一轮出牌按钮
             const viewLastRoundBtn = renderViewLastRoundButton();
             if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
+            // 保存全局按钮（仅房主）
+            const saveGlobalBtn = renderSaveGlobalButton();
+            if (saveGlobalBtn) playingButtons.push(saveGlobalBtn);
             playingButtons.push(renderLanguageButton());
             const settingsBtn = renderSettingsButton();
             if (settingsBtn) playingButtons.push(settingsBtn);
@@ -1294,6 +1348,11 @@ export default function GameBoard() {
           // 查看上一轮出牌按钮
           const viewLastRoundBtn = renderViewLastRoundButton();
           if (viewLastRoundBtn) playingButtons.push(viewLastRoundBtn);
+          // 保存全局按钮（仅房主）
+          {
+            const saveGlobalBtn = renderSaveGlobalButton();
+            if (saveGlobalBtn) playingButtons.push(saveGlobalBtn);
+          }
           playingButtons.push(renderLanguageButton());
 
           // 房间设置（仅房主）
@@ -1325,6 +1384,10 @@ export default function GameBoard() {
         {
           const settingsBtn = renderSettingsButton();
           if (settingsBtn) revealingButtons.push(settingsBtn);
+        }
+        {
+          const saveGlobalBtn = renderSaveGlobalButton();
+          if (saveGlobalBtn) revealingButtons.push(saveGlobalBtn);
         }
         revealingButtons.push(renderLanguageButton());
 
