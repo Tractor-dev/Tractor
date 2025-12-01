@@ -379,7 +379,14 @@ export default {
     spectatorCount: '{count} spectator(s)',
     noSpectators: 'No spectators',
     watchingGame: 'Watching game...',
-    cannotInteract: 'Spectators cannot interact'
+    cannotInteract: 'Spectators cannot interact',
+    viewHand: 'View Hand',
+    viewHandTitle: "{name}'s Hand",
+    viewHandNotAllowed: 'Hand viewing is disabled by the host',
+    allowSpectators: 'Allow Spectators',
+    allowSpectatorViewHands: 'Allow Hand Viewing',
+    spectatorSettingsDesc: 'Allow spectators to join and watch the game',
+    viewHandsSettingsDesc: 'Allow spectators to view player hands'
   },
 
   // Language

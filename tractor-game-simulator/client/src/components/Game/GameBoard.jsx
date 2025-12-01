@@ -59,6 +59,8 @@ export default function GameBoard() {
   const [newDealInterval, setNewDealInterval] = useState(100); // 新的发牌间隔
   const [newPlayMode, setNewPlayMode] = useState(PlayModes.ORDERED); // 新的出牌模式
   const [newBotType, setNewBotType] = useState(BotTypes.SIMPLE); // 新的Bot类型
+  const [newAllowSpectators, setNewAllowSpectators] = useState(true); // 是否允许观战
+  const [newAllowSpectatorViewHands, setNewAllowSpectatorViewHands] = useState(false); // 是否允许观战者查看手牌
   const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
   const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称
   const [chatModal, setChatModal] = useState(false); // 聊天弹窗
@@ -85,6 +87,8 @@ export default function GameBoard() {
   const [lastRoundCards, setLastRoundCards] = useState({}); // 上一轮出牌记录 { [playerId]: { playerName, cards } }
   const [lastRoundWinner, setLastRoundWinner] = useState(null); // 上一轮获胜者
   const [viewLastRoundModal, setViewLastRoundModal] = useState(false); // 查看上一轮出牌弹窗
+  const [spectatorViewHandModal, setSpectatorViewHandModal] = useState(false); // 观战者查看手牌弹窗
+  const [spectatorViewedHand, setSpectatorViewedHand] = useState({ playerName: '', cards: [] }); // 观战者查看的手牌
 
   // 用于跟踪轮次结束后清除出牌的定时器
   const roundEndTimeoutRef = useRef(null);
@@ -429,6 +433,12 @@ export default function GameBoard() {
       if (config.botType) {
         setNewBotType(config.botType);
       }
+      if (config.allowSpectators !== undefined) {
+        setNewAllowSpectators(config.allowSpectators);
+      }
+      if (config.allowSpectatorViewHands !== undefined) {
+        setNewAllowSpectatorViewHands(config.allowSpectatorViewHands);
+      }
     });
 
     // 玩家昵称更新
@@ -551,6 +561,12 @@ export default function GameBoard() {
       }
     });
 
+    // 观战者查看手牌响应
+    socket.on('spectator_hand_view', ({ playerId, playerName, cards }) => {
+      setSpectatorViewedHand({ playerName, cards });
+      setSpectatorViewHandModal(true);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -586,6 +602,7 @@ export default function GameBoard() {
       socket.off('trump_action');
       socket.off('round_updated');
       socket.off('game_records');
+      socket.off('spectator_hand_view');
       // 清理轮次结束定时器
       clearRoundEndTimeout();
     };
@@ -625,6 +642,8 @@ export default function GameBoard() {
       setNewDealInterval(currentRoom.config.dealInterval);
       setNewPlayMode(currentRoom.config.playMode || PlayModes.ORDERED);
       setNewBotType(currentRoom.config.botType || BotTypes.SIMPLE);
+      setNewAllowSpectators(currentRoom.config.allowSpectators !== false);
+      setNewAllowSpectatorViewHands(currentRoom.config.allowSpectatorViewHands === true);
     }
   }, [currentRoom]);
 
@@ -861,7 +880,9 @@ export default function GameBoard() {
         bottomCardsCount: newBottomCardsCount,
         dealInterval: newDealInterval,
         playMode: newPlayMode,
-        botType: newBotType
+        botType: newBotType,
+        allowSpectators: newAllowSpectators,
+        allowSpectatorViewHands: newAllowSpectatorViewHands
       }
     });
     setRoomConfigModal(false);
@@ -984,8 +1005,17 @@ export default function GameBoard() {
     messageApi.info(t('room.leftSpectator'));
   };
 
+  // 观战者查看玩家手牌
+  const handleViewPlayerHand = (playerId, playerName) => {
+    socket.emit(SOCKET_EVENTS.SPECTATOR_VIEW_HAND, {
+      roomId: currentRoom.id,
+      playerId: playerId
+    });
+  };
+
   const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
   const currentPlayMode = gameState?.playMode || currentRoom?.config?.playMode || PlayModes.ORDERED;
+  const isFreeMode = currentPlayMode === PlayModes.FREE;
 
   // 通用按钮样式 - 响应式设计
   const buttonStyle = { 
@@ -1481,6 +1511,10 @@ export default function GameBoard() {
                 team2Level={gameState?.team2Level}
                 dealerPlayerIndex={gameState?.dealerPlayerIndex}
                 onRename={handleOpenRenameModal}
+                isSpectator={isSpectator}
+                isFreeMode={isFreeMode}
+                allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
+                onViewPlayerHand={handleViewPlayerHand}
               />
             </div>
           );
@@ -1592,6 +1626,10 @@ export default function GameBoard() {
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
               onRename={handleOpenRenameModal}
+              isSpectator={isSpectator}
+              isFreeMode={isFreeMode}
+              allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
+              onViewPlayerHand={handleViewPlayerHand}
             />
           </div>
         );
@@ -1625,6 +1663,10 @@ export default function GameBoard() {
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
               onRename={handleOpenRenameModal}
+              isSpectator={isSpectator}
+              isFreeMode={isFreeMode}
+              allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
+              onViewPlayerHand={handleViewPlayerHand}
             />
           </div>
         );
@@ -1665,6 +1707,10 @@ export default function GameBoard() {
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
               onRename={handleOpenRenameModal}
+              isSpectator={isSpectator}
+              isFreeMode={isFreeMode}
+              allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
+              onViewPlayerHand={handleViewPlayerHand}
             />
           </div>
         );
@@ -1705,6 +1751,10 @@ export default function GameBoard() {
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
               isRevealingPhase={true}
+              isSpectator={isSpectator}
+              isFreeMode={isFreeMode}
+              allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
+              onViewPlayerHand={handleViewPlayerHand}
             />
           </div>
         );
@@ -1744,6 +1794,10 @@ export default function GameBoard() {
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
               onRename={handleOpenRenameModal}
+              isSpectator={isSpectator}
+              isFreeMode={isFreeMode}
+              allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
+              onViewPlayerHand={handleViewPlayerHand}
             />
           </div>
         );
@@ -1984,6 +2038,27 @@ export default function GameBoard() {
         </div>
       </Modal>
 
+      {/* 观战者查看手牌弹窗 */}
+      <Modal
+        title={t('spectator.viewHandTitle', { name: spectatorViewedHand.playerName })}
+        open={spectatorViewHandModal}
+        onOk={() => setSpectatorViewHandModal(false)}
+        onCancel={() => setSpectatorViewHandModal(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setSpectatorViewHandModal(false)}>
+            {t('common.close')}
+          </Button>
+        ]}
+      >
+        <div style={{ textAlign: 'center' }}>
+          {spectatorViewedHand.cards && spectatorViewedHand.cards.length > 0 ? (
+            <Hand cards={spectatorViewedHand.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+          ) : (
+            <Text type="secondary">{t('common.none')}</Text>
+          )}
+        </div>
+      </Modal>
+
       {/* 设置主牌弹窗 */}
       <Modal
         title={t('trump.trump')}
@@ -2072,6 +2147,34 @@ export default function GameBoard() {
           </Select>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {t('createRoomForm.botTypeDesc')}
+          </Text>
+          <br />
+          <br />
+          <Divider style={{ margin: '12px 0' }}>{t('spectator.spectatorMode')}</Divider>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text strong>{t('spectator.allowSpectators')}:</Text>
+            <Switch
+              checked={newAllowSpectators}
+              onChange={setNewAllowSpectators}
+              checkedChildren={t('createRoomForm.freeModeOn')}
+              unCheckedChildren={t('createRoomForm.freeModeOff')}
+            />
+          </div>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            {t('spectator.spectatorSettingsDesc')}
+          </Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text strong>{t('spectator.allowSpectatorViewHands')}:</Text>
+            <Switch
+              checked={newAllowSpectatorViewHands}
+              onChange={setNewAllowSpectatorViewHands}
+              disabled={!newAllowSpectators}
+              checkedChildren={t('createRoomForm.freeModeOn')}
+              unCheckedChildren={t('createRoomForm.freeModeOff')}
+            />
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('spectator.viewHandsSettingsDesc')}
           </Text>
           <br />
           <br />

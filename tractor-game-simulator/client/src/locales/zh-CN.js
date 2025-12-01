@@ -379,7 +379,14 @@ export default {
     spectatorCount: '{count} 人观战',
     noSpectators: '暂无观战者',
     watchingGame: '正在观战游戏...',
-    cannotInteract: '观战者无法操作'
+    cannotInteract: '观战者无法操作',
+    viewHand: '查看手牌',
+    viewHandTitle: '{name}的手牌',
+    viewHandNotAllowed: '房主未开启手牌查看功能',
+    allowSpectators: '允许观战',
+    allowSpectatorViewHands: '允许查看手牌',
+    spectatorSettingsDesc: '允许观战者进入房间观看游戏',
+    viewHandsSettingsDesc: '允许观战者查看各玩家的手牌'
   },
 
   // 语言

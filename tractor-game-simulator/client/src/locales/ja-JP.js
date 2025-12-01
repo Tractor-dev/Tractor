@@ -379,7 +379,14 @@ export default {
     spectatorCount: '{count}人が観戦中',
     noSpectators: '観戦者なし',
     watchingGame: 'ゲームを観戦中...',
-    cannotInteract: '観戦者は操作できません'
+    cannotInteract: '観戦者は操作できません',
+    viewHand: '手札を見る',
+    viewHandTitle: '{name}の手札',
+    viewHandNotAllowed: 'ホストが手札閲覧を無効にしています',
+    allowSpectators: '観戦を許可',
+    allowSpectatorViewHands: '手札閲覧を許可',
+    spectatorSettingsDesc: '観戦者がルームに参加してゲームを観戦できるようにする',
+    viewHandsSettingsDesc: '観戦者がプレイヤーの手札を見られるようにする'
   },
 
   // 言語
