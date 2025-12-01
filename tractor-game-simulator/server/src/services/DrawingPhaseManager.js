@@ -4,14 +4,14 @@ import BotService from './BotService.js';
 import logger from '../utils/logger.js';
 
 export class DrawingPhaseManager {
-  constructor(room, io, gameEngine = null, onBotPlayNeeded = null) {
+  constructor(room, io, gameEngine = null, onBotPlayNeeded = null, getBotService = null) {
     this.room = room;
     this.io = io;
     this.gameEngine = gameEngine;
     this.onBotPlayNeeded = onBotPlayNeeded; // Callback for triggering bot play
+    this.getBotService = getBotService; // Callback for getting shared bot service
     this.timer = null;
     this.dealerTimer = null; // 指定庄家的定时器
-    this.botService = null; // Bot服务实例
   }
 
   /**
@@ -271,21 +271,23 @@ export class DrawingPhaseManager {
       // 延迟1.5秒模拟思考
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // 获取或创建bot服务（如果botType变化了也重新创建）
-      if (!this.botService || this.botService.botType !== this.room.config.botType) {
-        if (this.botService) {
-          logger.info(`Bot类型已变更，从 ${this.botService.botType} 到 ${this.room.config.botType}，重新创建BotService`);
-          this.botService.clearHistory();
-        }
-        logger.info(`创建新的BotService实例，Bot类型: ${this.room.config.botType}`);
-        this.botService = new BotService(this.room.config.botType);
+      // 使用共享的bot服务（通过回调获取）
+      let botService = null;
+      if (this.getBotService) {
+        botService = this.getBotService();
+      }
+      
+      // 如果无法获取共享服务，创建本地实例（向后兼容）
+      if (!botService) {
+        logger.warn(`无法获取共享BotService，创建本地实例`);
+        botService = new BotService(this.room.config.botType);
       }
 
       const playerIndex = this.room.players.findIndex(p => p.id === dealer.id);
       const bottomCards = this.room.gameState.bottomCards;
 
       // 调用bot获取盖底牌决策
-      const cardIds = await this.botService.getBotCoverAction(
+      const cardIds = await botService.getBotCoverAction(
         this.room.gameState,
         bottomCards,
         dealer.cards,

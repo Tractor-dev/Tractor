@@ -400,8 +400,24 @@ export function registerGameHandlers(io, socket, roomManager) {
         }
       };
 
-      // 创建游戏引擎，传入bot出牌回调和新游戏开始回调
-      const gameEngine = new GameEngine(room, io, onBotPlayNeeded, onNewGameStart);
+      // 创建获取共享bot服务的回调函数
+      const getBotService = () => {
+        // 获取或创建bot服务（如果botType变化了也重新创建）
+        let botService = botServices.get(room.id);
+        if (!botService || botService.botType !== room.config.botType) {
+          if (botService) {
+            logger.info(`Bot类型已变更，从 ${botService.botType} 到 ${room.config.botType}，重新创建BotService`);
+            botService.clearHistory();
+          }
+          logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
+          botService = new BotService(room.config.botType);
+          botServices.set(room.id, botService);
+        }
+        return botService;
+      };
+
+      // 创建游戏引擎，传入bot出牌回调、新游戏开始回调和获取bot服务的回调
+      const gameEngine = new GameEngine(room, io, onBotPlayNeeded, onNewGameStart, getBotService);
       gameEngines.set(room.id, gameEngine);
 
       // 开始游戏
