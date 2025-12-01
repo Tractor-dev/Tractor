@@ -1,8 +1,8 @@
-import { GamePhases, PlayModes, Suits } from '../utils/constants.js';
+import { GamePhases, PlayModes } from '../utils/constants.js';
 import { DeckService } from './DeckService.js';
 import BotService from './BotService.js';
 import logger from '../utils/logger.js';
-import { validateDeclaration, DeclarationStrength } from '../utils/trumpUtils.js';
+import { validateDeclaration } from '../utils/trumpUtils.js';
 
 export class DrawingPhaseManager {
   constructor(room, io, gameEngine = null, onBotPlayNeeded = null, getBotService = null) {
