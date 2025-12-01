@@ -54,25 +54,32 @@ export default {
     createRoom: 'Create Room',
     joinRoom: 'Join Room',
     leaveRoom: 'Leave Room',
+    watch: 'Watch',
+    leaveWatch: 'Stop Watching',
     roomList: 'Room List',
     roomName: 'Room Name',
     roomId: 'Room ID',
     players: 'Players',
     playerCount: 'Players',
     playerList: 'Player List',
+    spectators: 'Spectators',
+    spectatorCount: 'Spectators',
     roomConfig: 'Room Config',
     roomSettings: 'Room Settings',
     modifySettings: 'Settings',
     noRooms: 'No rooms available. Click "Create Room" to start.',
     roomCreated: 'Room created successfully!',
     joinedRoom: 'Joined room successfully!',
+    joinedAsSpectator: 'Now watching!',
     leftRoom: 'Left room',
+    leftSpectator: 'Stopped watching',
     full: 'Full',
     inGame: 'In Game',
     waiting: 'Waiting',
     enterRoomId: 'Enter room ID or select from list',
     defaultRoomName: 'My Room',
     defaultPlayerName: 'Player',
+    defaultSpectatorName: 'Spectator',
     totalRooms: '{count} rooms'
   },
 
@@ -315,6 +322,8 @@ export default {
   messages: {
     playerJoined: '{name} joined the room',
     playerLeft: '{name} left the room',
+    spectatorJoined: '{name} started watching',
+    spectatorLeft: '{name} stopped watching',
     playerReady: '{name} is ready',
     playerCancelReady: '{name} cancelled ready',
     allPlayersReady: 'All players are ready',
@@ -360,6 +369,17 @@ export default {
     myTeam: 'Our Team',
     opponentTeam: 'Opponent',
     teamLevel: 'Level'
+  },
+
+  // Spectator related
+  spectator: {
+    spectatorMode: 'Spectator Mode',
+    spectatorModeHint: 'You are watching this room',
+    spectatorList: 'Spectator List',
+    spectatorCount: '{count} spectator(s)',
+    noSpectators: 'No spectators',
+    watchingGame: 'Watching game...',
+    cannotInteract: 'Spectators cannot interact'
   },
 
   // Language

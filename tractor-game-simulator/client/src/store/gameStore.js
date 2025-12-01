@@ -6,6 +6,10 @@ export const useGameStore = create((set, get) => ({
   currentRoom: null,
   // 当前玩家
   currentPlayer: null,
+  // 当前观战者信息
+  currentSpectator: null,
+  // 是否是观战模式
+  isSpectator: false,
   // 手牌
   myCards: [],
   // 选中的牌
@@ -21,6 +25,8 @@ export const useGameStore = create((set, get) => ({
   // Actions
   setCurrentRoom: (room) => set({ currentRoom: room }),
   setCurrentPlayer: (player) => set({ currentPlayer: player }),
+  setCurrentSpectator: (spectator) => set({ currentSpectator: spectator, isSpectator: !!spectator }),
+  setIsSpectator: (isSpectator) => set({ isSpectator }),
   setMyCards: (cards) => set((state) => ({
     myCards: sortCards(cards, state.trumpSuit, state.trumpRank)
   })),
@@ -68,6 +74,8 @@ export const useGameStore = create((set, get) => ({
   reset: () => set({
     currentRoom: null,
     currentPlayer: null,
+    currentSpectator: null,
+    isSpectator: false,
     myCards: [],
     selectedCards: [],
     isConnected: false,

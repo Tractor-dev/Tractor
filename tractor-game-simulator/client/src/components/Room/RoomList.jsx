@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { Table, Button, Tag, Space } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { useI18n } from '../../locales/index.jsx';
 import './RoomList.css';
 
-export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false }) {
+export default function RoomList({ rooms, onJoinRoom, onWatchRoom, onRefresh, loading = false }) {
   const { t } = useI18n();
 
   const columns = [
@@ -28,6 +28,9 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
           {record.playerCount} / {record.maxPlayers}
           {record.playerCount >= record.maxPlayers && (
             <Tag color="red" style={{ marginLeft: 8 }}>{t('room.full')}</Tag>
+          )}
+          {record.spectatorCount > 0 && (
+            <Tag color="blue" style={{ marginLeft: 4 }}>👁 {record.spectatorCount}</Tag>
           )}
         </span>
       )
@@ -63,16 +66,29 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
         const phase = record.gameState?.phase;
         const isPlaying = phase && phase !== 'waiting' && phase !== 'finished';
         const canJoin = !isFull && !isPlaying;
+        const canWatch = isFull || isPlaying;
 
         return (
-          <Button
-            type="primary"
-            size="small"
-            onClick={() => onJoinRoom(record.id)}
-            disabled={!canJoin}
-          >
-            {isFull ? t('room.full') : isPlaying ? t('room.inGame') : t('common.join')}
-          </Button>
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => onJoinRoom(record.id)}
+              disabled={!canJoin}
+            >
+              {isFull ? t('room.full') : isPlaying ? t('room.inGame') : t('common.join')}
+            </Button>
+            {canWatch && onWatchRoom && (
+              <Button
+                type="default"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => onWatchRoom(record.id)}
+              >
+                {t('room.watch')}
+              </Button>
+            )}
+          </Space>
         );
       }
     }

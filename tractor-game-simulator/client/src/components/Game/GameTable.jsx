@@ -74,13 +74,41 @@ export default function GameTable({
 
   // 根据玩家数量和当前玩家位置，计算每个位置显示哪个玩家
   const getPlayerPositions = () => {
-    if (!currentPlayer || !players || players.length === 0) {
+    if (!players || players.length === 0) {
       return { bottom: null, top: null, left: null, right: null };
+    }
+
+    // 如果没有当前玩家（例如观战者），使用固定视角（第一个玩家在底部）
+    if (!currentPlayer) {
+      const positions = { bottom: players[0] || null };
+      if (players.length === 2) {
+        positions.top = players[1] || null;
+      } else if (players.length === 3) {
+        positions.left = players[1] || null;
+        positions.right = players[2] || null;
+      } else if (players.length >= 4) {
+        positions.right = players[1] || null;
+        positions.top = players[2] || null;
+        positions.left = players[3] || null;
+      }
+      return positions;
     }
 
     const myIndex = players.findIndex(p => p.id === currentPlayer.id);
     if (myIndex === -1) {
-      return { bottom: null, top: null, left: null, right: null };
+      // 如果当前玩家不在玩家列表中（观战者情况），使用固定视角
+      const positions = { bottom: players[0] || null };
+      if (players.length === 2) {
+        positions.top = players[1] || null;
+      } else if (players.length === 3) {
+        positions.left = players[1] || null;
+        positions.right = players[2] || null;
+      } else if (players.length >= 4) {
+        positions.right = players[1] || null;
+        positions.top = players[2] || null;
+        positions.left = players[3] || null;
+      }
+      return positions;
     }
 
     const positions = { bottom: players[myIndex] };
@@ -562,7 +590,10 @@ export default function GameTable({
             <div className="bottom-player-header">
               <div className="player-info compact-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                  <Text strong style={{ fontSize: 'inherit' }}>{positions.bottom.name} ({t('common.me')})</Text>
+                  <Text strong style={{ fontSize: 'inherit' }}>
+                    {positions.bottom.name}
+                    {currentPlayer && positions.bottom.id === currentPlayer.id && ` (${t('common.me')})`}
+                  </Text>
                   {(() => {
                     // 检查是否是庄家 - 使用和其他位置相同的判断逻辑
                     let isDealer = false;

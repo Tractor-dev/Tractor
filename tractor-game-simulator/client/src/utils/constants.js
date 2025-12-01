@@ -25,7 +25,9 @@ export const SOCKET_EVENTS = {
   // 房间相关
   CREATE_ROOM: 'create_room',
   JOIN_ROOM: 'join_room',
+  JOIN_AS_SPECTATOR: 'join_as_spectator',
   LEAVE_ROOM: 'leave_room',
+  LEAVE_SPECTATOR: 'leave_spectator',
   GET_ROOM_LIST: 'get_room_list',
   UPDATE_CONFIG: 'update_config',
   SET_BOT_TYPE: 'set_bot_type',
