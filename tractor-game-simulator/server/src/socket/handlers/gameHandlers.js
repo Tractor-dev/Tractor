@@ -24,7 +24,10 @@ export function getBotServices() {
 
 /**
  * 获取或创建房间的BotService实例
- * @param {Object} room - Room object
+ * @param {Object} room - Room object with the following properties:
+ * @param {string} room.id - Room identifier used as key in botServices map
+ * @param {Object} room.config - Room configuration
+ * @param {string} room.config.botType - Bot type identifier (e.g., 'who_designed', 'simple')
  * @returns {BotService} - Bot service instance
  */
 function getOrCreateBotService(room) {

@@ -272,15 +272,13 @@ export class DrawingPhaseManager {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // 使用共享的bot服务（通过回调获取）
-      let botService = null;
-      if (this.getBotService) {
-        botService = this.getBotService();
+      if (!this.getBotService) {
+        throw new Error('getBotService回调未设置，无法获取共享BotService');
       }
       
-      // 如果无法获取共享服务，创建本地实例（向后兼容）
+      const botService = this.getBotService();
       if (!botService) {
-        logger.warn(`无法获取共享BotService，创建本地实例`);
-        botService = new BotService(this.room.config.botType);
+        throw new Error('无法获取共享BotService实例');
       }
 
       const playerIndex = this.room.players.findIndex(p => p.id === dealer.id);
