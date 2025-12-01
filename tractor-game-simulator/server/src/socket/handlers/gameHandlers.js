@@ -126,7 +126,8 @@ export async function triggerBotPlay(io, room, gameEngine) {
       playerId: currentPlayer.id,
       playerName: currentPlayer.name,
       cards: result.playedCards,
-      remainingCount: result.remainingCount
+      remainingCount: result.remainingCount,
+      isLeading: result.isLeading
     });
 
     // 广播毙牌动作
@@ -297,7 +298,8 @@ export async function triggerBotPlay(io, room, gameEngine) {
           playerId: currentPlayer.id,
           playerName: currentPlayer.name,
           cards: fallbackResult.playedCards,
-          remainingCount: fallbackResult.remainingCount
+          remainingCount: fallbackResult.remainingCount,
+          isLeading: fallbackResult.isLeading
         });
 
         // 广播回合状态更新
@@ -800,7 +802,8 @@ export function registerGameHandlers(io, socket, roomManager) {
         playerId: player.id,
         playerName: player.name,
         cards: result.playedCards,
-        remainingCount: result.remainingCount
+        remainingCount: result.remainingCount,
+        isLeading: result.isLeading
       });
 
       // 广播毙牌动作
@@ -1163,6 +1166,90 @@ export function registerGameHandlers(io, socket, roomManager) {
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('选择规则失败:', error);
+    }
+  });
+
+  /**
+   * 获取游戏记录（房主保存全局功能）
+   */
+  socket.on('get_game_records', ({ roomId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      if (room.hostId !== socket.id) {
+        throw new Error('只有房主可以下载游戏记录');
+      }
+
+      // 收集所有轮的出牌记录
+      const playHistory = room.gameState.playHistory.map(record => ({
+        playerId: record.playerId,
+        playerName: record.playerName,
+        playerIndex: record.playerIndex,
+        cards: record.cards,
+        timestamp: record.timestamp
+      }));
+
+      // 收集bot的输入输出历史
+      const botHistories = {};
+      const botService = botServices.get(room.id);
+      if (botService && botService.whoDesignedService) {
+        // WhoDesigned bot has detailed history
+        const whoDesignedService = botService.whoDesignedService;
+        for (const [playerId, history] of whoDesignedService.botHistory.entries()) {
+          botHistories[playerId] = {
+            requests: history.requests,
+            responses: history.responses
+          };
+        }
+      }
+
+      // 构建游戏记录
+      const gameRecords = {
+        roomId: room.id,
+        roomName: room.name,
+        exportTime: new Date().toISOString(),
+        gameConfig: {
+          bottomCardsCount: room.config.bottomCardsCount,
+          dealInterval: room.config.dealInterval,
+          playMode: room.config.playMode,
+          botType: room.config.botType
+        },
+        gameState: {
+          phase: room.gameState.phase,
+          trumpSuit: room.gameState.trumpSuit,
+          trumpRank: room.gameState.trumpRank,
+          currentRound: room.gameState.currentRound,
+          attackerScore: room.gameState.attackerScore,
+          team1Level: room.gameState.team1Level,
+          team2Level: room.gameState.team2Level
+        },
+        players: room.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          isBot: p.isBot,
+          score: p.score,
+          level: p.level
+        })),
+        playHistory: playHistory,
+        botHistories: botHistories,
+        bottomCards: room.gameState.bottomCards.map(c => c.toJSON ? c.toJSON() : c),
+        bottomScoreResult: room.gameState.bottomScoreResult,
+        upgradeResult: room.gameState.upgradeResult
+      };
+
+      // 发送游戏记录
+      socket.emit('game_records', {
+        records: gameRecords
+      });
+
+      logger.info(`房间 ${room.id} 导出游戏记录成功`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('获取游戏记录失败:', error);
     }
   });
 }

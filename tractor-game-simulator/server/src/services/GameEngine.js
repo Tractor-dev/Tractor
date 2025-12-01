@@ -580,6 +580,7 @@ export class GameEngine {
         roundUpdate,
         roundWinner,
         trumpAction,
+        isLeading,
         throwFailed: throwFailed ? {
           message: '甩牌失败，强制出小',
           attemptedCards: originalRequestedCardIds.length,
@@ -596,6 +597,7 @@ export class GameEngine {
       roundUpdate,
       roundWinner,
       trumpAction,
+      isLeading,
       throwFailed: throwFailed ? {
         message: '甩牌失败，强制出小',
         attemptedCards: originalRequestedCardIds.length,

@@ -170,7 +170,10 @@ export default {
     viewLastRound: '上轮出牌',
     lastRoundTitle: '上一轮出牌记录',
     lastRoundWinner: '获胜者: {name}',
-    noLastRound: '暂无上一轮出牌记录'
+    noLastRound: '暂无上一轮出牌记录',
+    saveGlobal: '保存全局',
+    saveGlobalSuccess: '游戏记录已下载',
+    saveGlobalError: '下载游戏记录失败'
   },
 
   // 分数和等级调整
