@@ -816,6 +816,8 @@ function findPairsInCards(cards, trumpSuit, trumpRank) {
 function findTractorInPairs(pairs, requiredLength, trumpSuit, trumpRank) {
   if (pairs.length < requiredLength) return false;
 
+  const normTrumpRank = normalizeRank(trumpRank);
+
   // 按强度排序
   const sortedPairs = [...pairs].sort((a, b) => a.strength - b.strength);
 
@@ -823,8 +825,18 @@ function findTractorInPairs(pairs, requiredLength, trumpSuit, trumpRank) {
   for (let i = 0; i <= sortedPairs.length - requiredLength; i++) {
     let isConsecutive = true;
     for (let j = 0; j < requiredLength - 1; j++) {
-      // 简化检查：强度差应该在合理范围内
-      if (sortedPairs[i + j + 1].strength - sortedPairs[i + j].strength > 2) {
+      const currentPair = sortedPairs[i + j];
+      const nextPair = sortedPairs[i + j + 1];
+      const currentRankValue = RANK_ORDER[currentPair.cards[0].rank] || 0;
+      const nextRankValue = RANK_ORDER[nextPair.cards[0].rank] || 0;
+
+      // 检查连续性，需要跳过级牌
+      let expectedNext = currentRankValue + 1;
+      if (RANK_ORDER[normTrumpRank] === expectedNext) {
+        expectedNext++; // 跳过级牌
+      }
+
+      if (nextRankValue !== expectedNext) {
         isConsecutive = false;
         break;
       }
