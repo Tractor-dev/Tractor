@@ -2,6 +2,7 @@ import { GamePhases, PlayModes } from '../utils/constants.js';
 import { DeckService } from './DeckService.js';
 import BotService from './BotService.js';
 import logger from '../utils/logger.js';
+import { validateDeclaration } from '../utils/trumpUtils.js';
 
 export class DrawingPhaseManager {
   constructor(room, io, gameEngine = null, onBotPlayNeeded = null, getBotService = null) {
@@ -107,6 +108,11 @@ export class DrawingPhaseManager {
     });
 
     this.room.gameState.drawingIndex++;
+
+    // 如果是Bot玩家，触发Bot的deal阶段决策（是否亮主/反主）
+    if (player.isBot) {
+      this.triggerBotDealAction(player, card, playerIndex);
+    }
   }
 
   /**
@@ -142,6 +148,181 @@ export class DrawingPhaseManager {
 
       // 开始庄家倒计时
       this.startDealerCountdown();
+    }
+  }
+
+  /**
+   * 触发Bot的deal阶段决策（是否亮主/反主）
+   * @param {Object} player - Bot玩家
+   * @param {Object} card - 新发的牌
+   * @param {number} playerIndex - 玩家索引
+   */
+  async triggerBotDealAction(player, card, playerIndex) {
+    try {
+      // 使用共享的bot服务
+      if (!this.getBotService) {
+        logger.warn('getBotService回调未设置，无法获取BotService');
+        return;
+      }
+
+      const botService = this.getBotService();
+      if (!botService) {
+        logger.warn('无法获取BotService实例');
+        return;
+      }
+
+      // 调用bot获取deal阶段决策
+      const cardIds = await botService.getBotDealAction(
+        this.room.gameState,
+        card,
+        player.cards,
+        playerIndex,
+        this.room
+      );
+
+      // 如果bot返回空数组或null，表示不亮主
+      if (!cardIds || cardIds.length === 0) {
+        return;
+      }
+
+      logger.info(`Bot ${player.name} 决定亮主/反主，选择了 ${cardIds.length} 张牌`);
+
+      // 根据bot返回的卡牌ID，确定亮主的花色和数量
+      const selectedCards = player.cards.filter(c => cardIds.includes(c.id));
+      if (selectedCards.length === 0) {
+        logger.warn(`Bot ${player.name} 返回的卡牌ID无效`);
+        return;
+      }
+
+      // 解析亮主的花色和数量
+      const { suit, count } = this.parseBotDealCards(selectedCards);
+      if (!suit) {
+        logger.warn(`Bot ${player.name} 选择的牌无法用于亮主`);
+        return;
+      }
+
+      // 执行亮主
+      this.executeBotTrumpDeclaration(player, suit, count, selectedCards);
+
+    } catch (error) {
+      logger.error(`Bot ${player.name} deal阶段决策失败:`, error);
+    }
+  }
+
+  /**
+   * 解析Bot选择的牌，确定亮主的花色和数量
+   * @param {Array} selectedCards - Bot选择的牌
+   * @returns {Object} { suit: string, count: number }
+   */
+  parseBotDealCards(selectedCards) {
+    const trumpRank = this.room.gameState.trumpRank;
+
+    // 检查是否是大王或小王
+    const bigJokers = selectedCards.filter(c => c.suit === 'joker' && c.rank === 'big_joker');
+    const smallJokers = selectedCards.filter(c => c.suit === 'joker' && c.rank === 'small_joker');
+
+    if (bigJokers.length >= 2) {
+      return { suit: 'joker', count: 2 };
+    }
+    if (smallJokers.length >= 2) {
+      return { suit: 'joker', count: 2 };
+    }
+
+    // 检查是否是级牌
+    const trumpRankCards = selectedCards.filter(c => 
+      c.rank === trumpRank && c.suit !== 'joker'
+    );
+
+    if (trumpRankCards.length >= 2) {
+      // 找出有两张相同花色的级牌
+      const suitCounts = {};
+      trumpRankCards.forEach(c => {
+        suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
+      });
+      for (const suit in suitCounts) {
+        if (suitCounts[suit] >= 2) {
+          return { suit, count: 2 };
+        }
+      }
+    }
+
+    if (trumpRankCards.length >= 1) {
+      // 单张级牌
+      return { suit: trumpRankCards[0].suit, count: 1 };
+    }
+
+    return { suit: null, count: 0 };
+  }
+
+  /**
+   * 执行Bot的亮主/反主
+   * @param {Object} player - Bot玩家
+   * @param {string} suit - 花色
+   * @param {number} count - 数量
+   * @param {Array} selectedCards - 选择的牌
+   */
+  executeBotTrumpDeclaration(player, suit, count, selectedCards) {
+    const trumpRank = this.room.gameState.trumpRank;
+    const currentTrump = this.room.gameState.currentTrumpDeclaration || null;
+
+    // 验证亮主是否合法
+    const validation = validateDeclaration(player.cards, suit, count, trumpRank, currentTrump, player.id);
+
+    if (!validation.valid) {
+      logger.info(`Bot ${player.name} 亮主验证失败: ${validation.message}`);
+      return;
+    }
+
+    // 判断是亮主还是反主
+    const isCounter = currentTrump !== null;
+
+    // 记录亮主信息
+    this.room.gameState.currentTrumpDeclaration = {
+      playerId: player.id,
+      playerName: player.name,
+      suit: suit,
+      count: count,
+      declarationType: validation.declarationType,
+      strength: validation.strength,
+      jokerType: validation.jokerType,
+      isCounter: isCounter,
+      cards: validation.cards
+    };
+
+    // 设置主牌花色（除非是亮王，亮王表示无主）
+    if (suit !== 'joker') {
+      this.room.gameState.trumpSuit = suit;
+    } else {
+      this.room.gameState.trumpSuit = 'no_trump';
+    }
+
+    // 广播亮主成功
+    this.io.to(this.room.id).emit('trump_declared', {
+      playerId: player.id,
+      playerName: player.name,
+      suit: suit,
+      count: count,
+      declarationType: validation.declarationType,
+      strength: validation.strength,
+      isCounter: isCounter,
+      cards: validation.cards.map(c => c.toJSON())
+    });
+
+    // 广播主牌更新
+    this.io.to(this.room.id).emit('trump_updated', {
+      trumpSuit: this.room.gameState.trumpSuit,
+      trumpRank: this.room.gameState.trumpRank
+    });
+
+    const action = isCounter ? '反主' : '亮主';
+    logger.info(`Bot ${player.name} ${action}: ${count === 2 ? '一对' : '单张'} ${suit}`);
+
+    // 只有在摸牌结束后才重置庄家倒计时
+    // 摸牌过程中亮主不触发倒计时
+    const { deck, drawingIndex } = this.room.gameState;
+    if (drawingIndex >= deck.length) {
+      this.startDealerCountdown();
+      logger.info(`房间 ${this.room.id} Bot亮主后重置庄家倒计时`);
     }
   }
 
