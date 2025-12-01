@@ -63,7 +63,7 @@ export default function GameBoard() {
   const [quickPhrases, setQuickPhrases] = useState(() => {
     // 从localStorage加载快捷短语
     const saved = localStorage.getItem('tractorQuickPhrases');
-    return saved ? JSON.parse(saved) : ['快点出牌！', '好牌！', '加油！'];
+    return saved ? JSON.parse(saved) : ['快点出牌！', '好牌！', '加油！', '大家好，很高兴见到各位！'];
   });
   const [quickPhraseModal, setQuickPhraseModal] = useState(false); // 快捷短语管理弹窗
   const [newQuickPhrase, setNewQuickPhrase] = useState(''); // 新的快捷短语输入
