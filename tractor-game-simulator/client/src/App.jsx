@@ -147,6 +147,26 @@ function App() {
     });
 
     return () => {
+      // Clean up all event listeners
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('error');
+      socket.off('room_created');
+      socket.off('player_joined');
+      socket.off('player_left');
+      socket.off('room_updated');
+      socket.off('room_joined');
+      socket.off('spectator_joined');
+      socket.off('spectator_joined_room');
+      socket.off('spectator_left');
+      socket.off('room_list');
+      socket.off('bot_added');
+      socket.off('bot_removed');
+      socket.off('config_updated');
+      socket.off('game_started');
+      socket.off('player_ready_status');
+      socket.off('all_players_ready');
+      socket.off('start_drawing');
       socketService.disconnect();
     };
   }, []);

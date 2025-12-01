@@ -44,16 +44,6 @@ export class RoomManager {
     return null;
   }
 
-  // Find room where socket is a spectator
-  findRoomBySpectatorSocketId(socketId) {
-    for (const room of this.rooms.values()) {
-      if (room.findSpectatorBySocketId(socketId)) {
-        return room;
-      }
-    }
-    return null;
-  }
-
   getRoomList() {
     return this.getAllRooms().map(room => ({
       id: room.id,
