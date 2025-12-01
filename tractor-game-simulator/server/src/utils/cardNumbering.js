@@ -4,13 +4,13 @@ import { Suits, Ranks } from './constants.js';
  * WhoDesigned Bot使用的卡牌编号系统 (0-107)
  *
  * 编号规则：
- * - 每个点数有4张牌，顺序为：h(红桃), d(方片), s(黑桃), c(草花)
+ * - 每个点数有4张牌，顺序为：s(黑桃), h(红桃), c(草花), d(方片)
  * - 点数顺序为：A, 2, 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K
- * - 0-3:   A (h, d, s, c)
- * - 4-7:   2 (h, d, s, c)
- * - 8-11:  3 (h, d, s, c)
+ * - 0-3:   A (s, h, c, d)
+ * - 4-7:   2 (s, h, c, d)
+ * - 8-11:  3 (s, h, c, d)
  * - ...
- * - 48-51: K (h, d, s, c)
+ * - 48-51: K (s, h, c, d)
  * - 52:    小王(joker)
  * - 53:    大王(Joker)
  * - 54-107: 重复0-53的排列（第二副牌）
@@ -39,12 +39,13 @@ export class CardNumberingSystem {
 
   /**
    * 花色顺序（按照bot编号顺序）
+   * 必须与Python bot的 suitset = ['s','h','c','d'] 保持一致
    */
   static SUIT_ORDER = [
-    Suits.HEARTS,   // h - 偏移0
-    Suits.DIAMONDS, // d - 偏移1
-    Suits.SPADES,   // s - 偏移2
-    Suits.CLUBS     // c - 偏移3
+    Suits.SPADES,   // s - 偏移0
+    Suits.HEARTS,   // h - 偏移1
+    Suits.CLUBS,    // c - 偏移2
+    Suits.DIAMONDS  // d - 偏移3
   ];
 
   /**
