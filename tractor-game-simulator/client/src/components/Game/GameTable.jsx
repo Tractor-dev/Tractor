@@ -198,15 +198,15 @@ export default function GameTable({
           </Text>
         </div>
 
-        {/* 在揭示阶段隐藏牌区域 */}
-        {!isRevealingPhase && (
+        {/* 只在有内容时渲染牌区域 */}
+        {!isRevealingPhase && (hasDeclaredTrump || (shown && shown.cards && shown.cards.length > 0)) && (
           <div className="player-cards-area">
             {/* 亮主区域 - 其他玩家的亮主在这里居中显示 */}
-            <div className="declared-trump-zone">
-              {hasDeclaredTrump && currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+            {hasDeclaredTrump && currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+              <div className="declared-trump-zone">
                 <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
-              )}
-            </div>
+              </div>
+            )}
 
             {shown && shown.cards && shown.cards.length > 0 && (
               <div className="shown-cards">

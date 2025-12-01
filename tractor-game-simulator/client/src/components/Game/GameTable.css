@@ -124,12 +124,25 @@
   animation: none;
 }
 
-/* 紧凑模式 - 自动包裹文字内容 */
+/* 紧凑模式 - 自动包裹文字内容，去除空白区域 */
 .player-area.compact {
   padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.6vmin, 6px);
   width: auto;
   min-width: auto;
   max-width: fit-content;
+  height: auto;
+  min-height: auto;
+}
+
+/* 紧凑模式下隐藏牌区域的最小高度 */
+.player-area.compact .player-cards-area {
+  min-height: 0;
+  display: none;
+}
+
+.player-area.compact .declared-trump-zone {
+  min-height: 0;
+  display: none;
 }
 
 /* 玩家信息 */
@@ -144,9 +157,9 @@
   font-size: clamp(10px, 1.4vmin, 14px);
 }
 
-/* 紧凑玩家信息 - 更小的间距和字体 */
+/* 紧凑玩家信息 - 更小的间距和字体，无空白 */
 .player-info.compact-info {
-  margin-bottom: clamp(1px, 0.2vmin, 2px);
+  margin-bottom: 0;
 }
 
 .player-info.compact-info .ant-typography {
@@ -156,7 +169,7 @@
 
 /* 玩家牌区域 - 不设置固定高度，让内容自然撑开 */
 .player-cards-area {
-  min-height: clamp(50px, 8vmin, 80px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: clamp(2px, 0.4vmin, 4px);
@@ -164,11 +177,16 @@
 
 /* 亮主区域 - 其他玩家的亮主在这里居中显示 */
 .declared-trump-zone {
-  min-height: clamp(40px, 6vmin, 60px);
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
+}
+
+/* 只有当亮主区域有内容时才占空间 */
+.declared-trump-zone:empty {
+  display: none;
 }
 
 /* 出牌区域 - 在玩家框和桌面中央之间 */
@@ -312,6 +330,14 @@
   max-width: clamp(800px, 90vmin, 1400px);
 }
 
+/* 紧凑模式下覆盖位置特定的尺寸设置 */
+.player-area.compact.player-top,
+.player-area.compact.player-left,
+.player-area.compact.player-right {
+  min-width: auto;
+  max-width: fit-content;
+}
+
 /* Score panel styles */
 .score-panel {
   position: absolute;
@@ -416,14 +442,6 @@
 
   .player-info .ant-typography {
     font-size: clamp(9px, 1.3vh, 13px);
-  }
-
-  .player-cards-area {
-    min-height: clamp(45px, 7vh, 70px);
-  }
-
-  .declared-trump-zone {
-    min-height: clamp(35px, 5.5vh, 55px);
   }
 
   .played-cards-area {
