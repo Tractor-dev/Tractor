@@ -36,6 +36,7 @@ const { Text } = Typography;
  * @param {Number} props.team1Level - 队伍1等级
  * @param {Number} props.team2Level - 队伍2等级
  * @param {Number} props.dealerPlayerIndex - 庄家玩家索引
+ * @param {Boolean} props.isRevealingPhase - 是否是揭示底牌阶段，移除边框避免遮挡
  */
 export default function GameTable({
   players,
@@ -66,7 +67,8 @@ export default function GameTable({
   upgradeResult = null,
   team1Level = 2,
   team2Level = 2,
-  dealerPlayerIndex = null
+  dealerPlayerIndex = null,
+  isRevealingPhase = false
 }) {
   const { t } = useI18n();
 
@@ -152,21 +154,28 @@ export default function GameTable({
       isDealer = player.id === buryingPlayerId;
     }
 
+    // 在揭示阶段隐藏边框，添加 compact 样式让区域更紧凑
+    const playerAreaClasses = [
+      'player-area',
+      `player-${position}`,
+      isCurrentTurn && !isRevealingPhase ? 'current-turn' : '',
+      isRevealingPhase ? 'revealing-phase compact' : ''
+    ].filter(Boolean).join(' ');
+
     return (
-      <div className={`player-area player-${position} ${isCurrentTurn ? 'current-turn' : ''}`}>
-        <div className="player-info">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-            <Text strong>{player.name}</Text>
+      <div className={playerAreaClasses}>
+        <div className="player-info compact-info">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Text strong style={{ fontSize: 'inherit' }}>{player.name}</Text>
             {isDealer && (
               <span style={{
                 background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
                 color: '#8B4513',
-                fontSize: '12px',
+                fontSize: '10px',
                 fontWeight: 'bold',
-                padding: '2px 8px',
-                borderRadius: '10px',
-                marginLeft: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                padding: '1px 6px',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
               }}>
                 {t('common.dealer')}
               </span>
@@ -175,7 +184,7 @@ export default function GameTable({
               <Text
                 strong
                 style={{
-                  fontSize: '12px',
+                  fontSize: '10px',
                   color: player.isReady ? '#52c41a' : '#d9d9d9'
                 }}
               >
@@ -183,28 +192,30 @@ export default function GameTable({
               </Text>
             )}
           </div>
-          {isCurrentTurn && <Text type="warning"> ({t('play.myTurn')})</Text>}
-          <br />
-          <Text type="secondary">{t('hand.cardCount', { count: player.cardsCount || 0 })}</Text>
-          <br />
-          <Text type="secondary">{t('common.score')}: {player.score || 0} | {t('common.level')}: {player.level || 2}</Text>
+          {isCurrentTurn && !isRevealingPhase && <Text type="warning" style={{ fontSize: '10px' }}> ({t('play.myTurn')})</Text>}
+          <Text type="secondary" style={{ display: 'block', fontSize: 'inherit', lineHeight: 1.3 }}>
+            {t('hand.cardCount', { count: player.cardsCount || 0 })} | {t('common.score')}: {player.score || 0} | {t('common.level')}: {player.level || 2}
+          </Text>
         </div>
 
-        <div className="player-cards-area">
-          {/* 亮主区域 - 其他玩家的亮主在这里居中显示 */}
-          <div className="declared-trump-zone">
-            {hasDeclaredTrump && currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
-              <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+        {/* 在揭示阶段隐藏牌区域 */}
+        {!isRevealingPhase && (
+          <div className="player-cards-area">
+            {/* 亮主区域 - 其他玩家的亮主在这里居中显示 */}
+            <div className="declared-trump-zone">
+              {hasDeclaredTrump && currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+                <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+              )}
+            </div>
+
+            {shown && shown.cards && shown.cards.length > 0 && (
+              <div className="shown-cards">
+                <Text type="info">{t('hand.show')}</Text>
+                <Hand cards={shown.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+              </div>
             )}
           </div>
-
-          {shown && shown.cards && shown.cards.length > 0 && (
-            <div className="shown-cards">
-              <Text type="info">{t('hand.show')}</Text>
-              <Hand cards={shown.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
-            </div>
-          )}
-        </div>
+        )}
       </div>
     );
   };
@@ -537,15 +548,15 @@ export default function GameTable({
       {/* 下方玩家（自己） */}
       {positions.bottom && (
         <div className="position-bottom">
-          {/* 我的出牌区域 - 在玩家框上方居中 */}
-          {renderPlayedCardsArea(positions.bottom, 'bottom')}
+          {/* 我的出牌区域 - 在玩家框上方居中（揭示阶段隐藏） */}
+          {!isRevealingPhase && renderPlayedCardsArea(positions.bottom, 'bottom')}
 
-          <div className={`player-area player-bottom current-player ${positions.bottom.id === currentTurnPlayerId ? 'current-turn' : ''}`}>
+          <div className={`player-area player-bottom current-player ${positions.bottom.id === currentTurnPlayerId && !isRevealingPhase ? 'current-turn' : ''} ${isRevealingPhase ? 'revealing-phase compact' : ''}`}>
             {/* 上半部分：玩家信息和控制按钮 */}
             <div className="bottom-player-header">
-              <div className="player-info">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Text strong>{positions.bottom.name} ({t('common.me')})</Text>
+              <div className="player-info compact-info">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                  <Text strong style={{ fontSize: 'inherit' }}>{positions.bottom.name} ({t('common.me')})</Text>
                   {(() => {
                     // 检查是否是庄家 - 使用和其他位置相同的判断逻辑
                     let isDealer = false;
@@ -560,12 +571,11 @@ export default function GameTable({
                       <span style={{
                         background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
                         color: '#8B4513',
-                        fontSize: '12px',
+                        fontSize: '10px',
                         fontWeight: 'bold',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        marginLeft: '4px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        padding: '1px 6px',
+                        borderRadius: '8px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                       }}>
                         {t('common.dealer')}
                       </span>
@@ -575,7 +585,7 @@ export default function GameTable({
                     <Text
                       strong
                       style={{
-                        fontSize: '14px',
+                        fontSize: '12px',
                         color: positions.bottom.isReady ? '#52c41a' : '#d9d9d9'
                       }}
                     >
@@ -583,7 +593,9 @@ export default function GameTable({
                     </Text>
                   )}
                 </div>
-                <Text type="secondary">{t('common.score')}: {positions.bottom.score || 0} | {t('common.level')}: {positions.bottom.level || 2}</Text>
+                <Text type="secondary" style={{ display: 'block', fontSize: 'inherit', lineHeight: 1.3 }}>
+                  {t('common.score')}: {positions.bottom.score || 0} | {t('common.level')}: {positions.bottom.level || 2}
+                </Text>
               </div>
 
               {/* 控制按钮区域 - 右侧 */}
@@ -594,47 +606,49 @@ export default function GameTable({
               )}
             </div>
 
-            {/* 亮主条（仅摸牌阶段显示） */}
-            {trumpDeclarationComponent && (
+            {/* 亮主条（仅摸牌阶段显示，揭示阶段隐藏） */}
+            {trumpDeclarationComponent && !isRevealingPhase && (
               <div className="trump-declaration-wrapper">
                 {trumpDeclarationComponent}
               </div>
             )}
 
-            {/* 自己的手牌区域 - 左端分一小块作为亮主区 */}
-            <div className="my-hand-container">
-              {/* 亮主区域 - 只在有亮主时显示 */}
-              {currentTrumpDeclaration && currentTrumpDeclaration.playerId === positions.bottom.id && (
-                <div className="bottom-trump-zone">
-                  {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
-                    <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
-                  )}
-                </div>
-              )}
-              {/* 我自己展示的牌区域 - 在手牌左侧 */}
-              {(() => {
-                const myShownCards = shownCards[positions.bottom.id];
-                const hasShownCards = myShownCards && myShownCards.cards && myShownCards.cards.length > 0;
-                if (!hasShownCards) return null;
-                return (
-                  <div className="bottom-shown-zone" style={{ marginRight: '16px' }}>
-                    <Text type="info" style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>{t('hand.myShow')}</Text>
-                    <Hand cards={myShownCards.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+            {/* 自己的手牌区域 - 左端分一小块作为亮主区（揭示阶段隐藏） */}
+            {!isRevealingPhase && (
+              <div className="my-hand-container">
+                {/* 亮主区域 - 只在有亮主时显示 */}
+                {currentTrumpDeclaration && currentTrumpDeclaration.playerId === positions.bottom.id && (
+                  <div className="bottom-trump-zone">
+                    {currentTrumpDeclaration.cards && currentTrumpDeclaration.cards.length > 0 && (
+                      <Hand cards={currentTrumpDeclaration.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                    )}
                   </div>
-                );
-              })()}
-              {/* 手牌区域 */}
-              <div className="my-hand">
-                <Hand
-                  cards={myCards}
-                  selectedCards={selectedCards}
-                  onCardClick={onCardClick}
-                  onReorder={onReorder}
-                  trumpSuit={trumpSuit}
-                  trumpRank={trumpRank}
-                />
+                )}
+                {/* 我自己展示的牌区域 - 在手牌左侧 */}
+                {(() => {
+                  const myShownCards = shownCards[positions.bottom.id];
+                  const hasShownCards = myShownCards && myShownCards.cards && myShownCards.cards.length > 0;
+                  if (!hasShownCards) return null;
+                  return (
+                    <div className="bottom-shown-zone" style={{ marginRight: '16px' }}>
+                      <Text type="info" style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>{t('hand.myShow')}</Text>
+                      <Hand cards={myShownCards.cards} disabled trumpSuit={trumpSuit} trumpRank={trumpRank} />
+                    </div>
+                  );
+                })()}
+                {/* 手牌区域 */}
+                <div className="my-hand">
+                  <Hand
+                    cards={myCards}
+                    selectedCards={selectedCards}
+                    onCardClick={onCardClick}
+                    onReorder={onReorder}
+                    trumpSuit={trumpSuit}
+                    trumpRank={trumpRank}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
