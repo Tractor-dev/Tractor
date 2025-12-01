@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, Divider, Tag, Switch, Dropdown } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
@@ -81,6 +81,9 @@ export default function GameBoard() {
   const [lastRoundCards, setLastRoundCards] = useState({}); // 上一轮出牌记录 { [playerId]: { playerName, cards } }
   const [lastRoundWinner, setLastRoundWinner] = useState(null); // 上一轮获胜者
   const [viewLastRoundModal, setViewLastRoundModal] = useState(false); // 查看上一轮出牌弹窗
+
+  // 用于跟踪轮次结束后清除出牌的定时器
+  const roundEndTimeoutRef = useRef(null);
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -189,6 +192,13 @@ export default function GameBoard() {
     socket.on('cards_played', ({ playerId, playerName, cards }) => {
       console.log('收到 cards_played 事件:', { playerId, playerName, cardsCount: cards.length });
       messageApi.info(t('messages.cardsPlayed', { name: playerName, count: cards.length }));
+      
+      // 如果有待执行的轮次结束清除定时器，取消它（防止新一轮的第一张牌被清除）
+      if (roundEndTimeoutRef.current) {
+        clearTimeout(roundEndTimeoutRef.current);
+        roundEndTimeoutRef.current = null;
+      }
+      
       // 更新该玩家的出牌区域（覆盖之前的牌）
       setPlayedCards(prev => {
         const updated = {
@@ -489,9 +499,14 @@ export default function GameBoard() {
         });
         setLastRoundWinner(roundUpdate.roundWinner);
         // 延迟2秒后清空出牌显示，准备下一轮
-        setTimeout(() => {
+        // 使用ref保存定时器，以便在新牌打出时取消
+        if (roundEndTimeoutRef.current) {
+          clearTimeout(roundEndTimeoutRef.current);
+        }
+        roundEndTimeoutRef.current = setTimeout(() => {
           setPlayHistory([]);
           setPlayedCards({});
+          roundEndTimeoutRef.current = null;
         }, 2000);
       }
     });
@@ -530,6 +545,11 @@ export default function GameBoard() {
       socket.off('dealer_countdown_end');
       socket.off('trump_action');
       socket.off('round_updated');
+      // 清理轮次结束定时器
+      if (roundEndTimeoutRef.current) {
+        clearTimeout(roundEndTimeoutRef.current);
+        roundEndTimeoutRef.current = null;
+      }
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer, currentRoom]);
 
