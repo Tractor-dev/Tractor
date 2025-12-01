@@ -376,24 +376,30 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
       playerName: player.name
     });
 
-    // 如果房主离开，转移房主权限或删除房间
+    // 检查房间是否需要删除：没有玩家或者只剩机器人
+    if (room.players.length === 0 || room.hasOnlyBots()) {
+      // 房间被删除时也清理游戏引擎和bot服务
+      const gameEngines = getGameEngines();
+      const botServices = getBotServices();
+      gameEngines.delete(room.id);
+      botServices.delete(room.id);
+      roomManager.deleteRoom(room.id);
+      const reason = room.players.length === 0 ? '房间已删除' : '房间只剩机器人，已自动删除';
+      logger.info(`玩家 ${player.name} 离开房间: ${room.id}，${reason}`);
+      return; // 房间已删除，不需要再广播
+    }
+
+    // 如果房主离开，转移房主权限给下一个真人玩家
     if (room.hostId === socket.id) {
-      if (room.players.length > 0) {
-        room.hostId = room.players[0].socketId;
+      // 找到第一个非机器人玩家作为新房主
+      const newHost = room.players.find(p => !p.isBot);
+      if (newHost) {
+        room.hostId = newHost.socketId;
         io.to(room.id).emit('host_changed', {
-          newHostId: room.players[0].id,
-          newHostName: room.players[0].name
+          newHostId: newHost.id,
+          newHostName: newHost.name
         });
-        logger.info(`房间 ${room.id} 房主转移给: ${room.players[0].name}`);
-      } else {
-        // 房间被删除时也清理游戏引擎和bot服务
-        const gameEngines = getGameEngines();
-        const botServices = getBotServices();
-        gameEngines.delete(room.id);
-        botServices.delete(room.id);
-        roomManager.deleteRoom(room.id);
-        logger.info(`玩家 ${player.name} 离开房间: ${room.id}，房间已删除`);
-        return; // 房间已删除，不需要再广播
+        logger.info(`房间 ${room.id} 房主转移给: ${newHost.name}`);
       }
     }
 
