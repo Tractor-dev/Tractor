@@ -53,6 +53,10 @@ export class Room {
            this.players.length <= this.config.maxPlayers;
   }
 
+  hasOnlyBots() {
+    return this.players.length > 0 && this.players.every(p => p.isBot);
+  }
+
   resetForNewGame() {
     this.gameState.reset();
     this.players.forEach(player => player.resetForNewGame());
