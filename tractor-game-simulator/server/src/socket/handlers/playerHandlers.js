@@ -87,14 +87,16 @@ export function registerPlayerHandlers(io, socket, roomManager) {
       // 获取当前玩家索引
       const playerIndex = room.players.findIndex(p => p.id === player.id);
 
-      // 记录报主/反主玩家索引
-      if (isCounter) {
-        // 反主：更新反主玩家索引
-        room.gameState.trumpSnatchedPlayerIndex = playerIndex;
-      } else {
-        // 首次报主：设置报主玩家索引
-        room.gameState.trumpCalledPlayerIndex = playerIndex;
-        room.gameState.trumpSnatchedPlayerIndex = null; // 清空反主索引
+      // 记录报主/反主玩家索引（仅当玩家索引有效时）
+      if (playerIndex !== -1) {
+        if (isCounter) {
+          // 反主：更新反主玩家索引
+          room.gameState.trumpSnatchedPlayerIndex = playerIndex;
+        } else {
+          // 首次报主：设置报主玩家索引
+          room.gameState.trumpCalledPlayerIndex = playerIndex;
+          room.gameState.trumpSnatchedPlayerIndex = null; // 清空反主索引
+        }
       }
 
       // 记录亮主信息
