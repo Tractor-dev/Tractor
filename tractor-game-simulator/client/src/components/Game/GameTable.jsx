@@ -1,4 +1,5 @@
 import { Typography, Button } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
 import Hand from './Hand';
 import { sortCards } from '../../utils/cardUtils';
 import { useI18n } from '../../locales/index.jsx';
@@ -37,6 +38,10 @@ const { Text } = Typography;
  * @param {Number} props.team2Level - 队伍2等级
  * @param {Number} props.dealerPlayerIndex - 庄家玩家索引
  * @param {Boolean} props.isRevealingPhase - 是否是揭示底牌阶段，移除边框避免遮挡
+ * @param {Boolean} props.isSpectator - 是否是观战者
+ * @param {Boolean} props.isFreeMode - 是否是自由模式
+ * @param {Boolean} props.allowSpectatorViewHands - 是否允许观战者查看手牌
+ * @param {Function} props.onViewPlayerHand - 观战者查看玩家手牌的回调
  */
 export default function GameTable({
   players,
@@ -68,7 +73,11 @@ export default function GameTable({
   team1Level = 2,
   team2Level = 2,
   dealerPlayerIndex = null,
-  isRevealingPhase = false
+  isRevealingPhase = false,
+  isSpectator = false,
+  isFreeMode = false,
+  allowSpectatorViewHands = false,
+  onViewPlayerHand = null
 }) {
   const { t } = useI18n();
 
@@ -219,11 +228,31 @@ export default function GameTable({
                 {player.isReady ? '✓' : '○'}
               </Text>
             )}
+            {/* 观战者查看手牌按钮 */}
+            {isSpectator && allowSpectatorViewHands && onViewPlayerHand && (
+              <Button
+                size="small"
+                type="link"
+                icon={<EyeOutlined />}
+                onClick={() => onViewPlayerHand(player.id, player.name)}
+                style={{
+                  fontSize: '10px',
+                  padding: '0 4px',
+                  height: 'auto',
+                  color: '#ffd700'
+                }}
+              >
+                {t('spectator.viewHand')}
+              </Button>
+            )}
           </div>
           {isCurrentTurn && !isRevealingPhase && <Text type="warning" style={{ fontSize: '10px' }}> ({t('play.myTurn')})</Text>}
-          <Text type="secondary" style={{ display: 'block', fontSize: 'inherit', lineHeight: 1.3 }}>
-            {t('hand.cardCount', { count: player.cardsCount || 0 })} | {t('common.score')}: {player.score || 0} | {t('common.level')}: {player.level || 2}
-          </Text>
+          {/* 在自由模式下显示手牌、分数、等级信息；在基础模式下隐藏 */}
+          {isFreeMode && (
+            <Text type="secondary" style={{ display: 'block', fontSize: 'inherit', lineHeight: 1.3 }}>
+              {t('hand.cardCount', { count: player.cardsCount || 0 })} | {t('common.score')}: {player.score || 0} | {t('common.level')}: {player.level || 2}
+            </Text>
+          )}
         </div>
 
         {/* 只在有内容时渲染牌区域 */}

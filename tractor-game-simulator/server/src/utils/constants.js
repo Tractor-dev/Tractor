@@ -93,7 +93,9 @@ export const DEFAULT_CONFIG = {
   minPlayers: 2,
   maxPlayers: 4,
   botType: BotTypes.WHO_DESIGNED,  // 默认使用WhoDesigned bot
-  playMode: PlayModes.ORDERED  // 默认使用基础模式（有序出牌）
+  playMode: PlayModes.ORDERED,  // 默认使用基础模式（有序出牌）
+  allowSpectators: true,  // 是否允许观战
+  allowSpectatorViewHands: false  // 是否允许观战者查看手牌
 };
 
 // 默认玩家属性

@@ -1259,4 +1259,46 @@ export function registerGameHandlers(io, socket, roomManager) {
       logger.error('获取游戏记录失败:', error);
     }
   });
+
+  /**
+   * 观战者查看玩家手牌
+   */
+  socket.on('spectator_view_hand', ({ roomId, playerId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        throw new Error('房间不存在');
+      }
+
+      // 检查请求者是否是观战者
+      const spectator = room.findSpectatorBySocketId(socket.id);
+      if (!spectator) {
+        throw new Error('只有观战者可以查看手牌');
+      }
+
+      // 检查房间是否允许观战者查看手牌
+      if (!room.config.allowSpectatorViewHands) {
+        throw new Error('房主未开启观战者查看手牌功能');
+      }
+
+      // 查找目标玩家
+      const player = room.findPlayerById(playerId);
+      if (!player) {
+        throw new Error('玩家不存在');
+      }
+
+      // 返回玩家手牌
+      socket.emit('spectator_hand_view', {
+        playerId: player.id,
+        playerName: player.name,
+        cards: player.cards.map(c => c.toJSON ? c.toJSON() : c)
+      });
+
+      logger.info(`观战者 ${spectator.name} 查看了 ${player.name} 的手牌`);
+
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('观战者查看手牌失败:', error);
+    }
+  });
 }

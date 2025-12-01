@@ -94,6 +94,11 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('房间不存在');
       }
 
+      // 检查房间是否允许观战
+      if (room.config.allowSpectators === false) {
+        throw new Error('房主已禁止观战');
+      }
+
       // 创建观战者
       const spectator = new Spectator(socket.id, spectatorName || `观战者${room.spectators.length + 1}`);
       room.addSpectator(spectator);

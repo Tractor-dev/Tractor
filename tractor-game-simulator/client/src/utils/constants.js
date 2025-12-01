@@ -55,7 +55,10 @@ export const SOCKET_EVENTS = {
   VIEW_MY_BOTTOM_CARDS: 'view_my_bottom_cards',
   REORDER_CARDS: 'reorder_cards',
   SEND_CHAT_MESSAGE: 'send_chat_message',
-  SELECT_RULE: 'select_rule'
+  SELECT_RULE: 'select_rule',
+
+  // 观战者操作
+  SPECTATOR_VIEW_HAND: 'spectator_view_hand'
 };
 
 // 花色
