@@ -27,13 +27,14 @@ import {
 import { levelToRank } from '../utils/constants.js';
 
 export class GameEngine {
-  constructor(room, io, onBotPlayNeeded = null, onNewGameStart = null) {
+  constructor(room, io, onBotPlayNeeded = null, onNewGameStart = null, getBotService = null) {
     this.room = room;
     this.io = io;
     this.drawingManager = null;
     this.roundManager = null;
     this.onBotPlayNeeded = onBotPlayNeeded; // Callback for triggering bot play
     this.onNewGameStart = onNewGameStart; // Callback for clearing bot services when new game starts
+    this.getBotService = getBotService; // Callback for getting shared bot service
   }
 
   /**
@@ -112,8 +113,8 @@ export class GameEngine {
    * 开始发牌
    */
   startDrawing() {
-    // 创建并启动摸牌管理器，传入GameEngine引用和bot出牌回调
-    this.drawingManager = new DrawingPhaseManager(this.room, this.io, this, this.onBotPlayNeeded);
+    // 创建并启动摸牌管理器，传入GameEngine引用、bot出牌回调和获取bot服务的回调
+    this.drawingManager = new DrawingPhaseManager(this.room, this.io, this, this.onBotPlayNeeded, this.getBotService);
     this.drawingManager.start();
 
     // 锁定当前局的游戏模式（防止游戏中途修改配置影响当前局）

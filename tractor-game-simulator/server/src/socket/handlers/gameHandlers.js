@@ -23,6 +23,28 @@ export function getBotServices() {
 }
 
 /**
+ * 获取或创建房间的BotService实例
+ * @param {Object} room - Room object with the following properties:
+ * @param {string} room.id - Room identifier used as key in botServices map
+ * @param {Object} room.config - Room configuration
+ * @param {string} room.config.botType - Bot type identifier (e.g., 'who_designed', 'simple')
+ * @returns {BotService} - Bot service instance
+ */
+function getOrCreateBotService(room) {
+  let botService = botServices.get(room.id);
+  if (!botService || botService.botType !== room.config.botType) {
+    if (botService) {
+      logger.info(`Bot类型已变更，从 ${botService.botType} 到 ${room.config.botType}，重新创建BotService`);
+      botService.clearHistory();
+    }
+    logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
+    botService = new BotService(room.config.botType);
+    botServices.set(room.id, botService);
+  }
+  return botService;
+}
+
+/**
  * 触发当前轮到的Bot自动出牌
  * @param {Object} io - Socket.IO server instance
  * @param {Object} room - Room object
@@ -74,17 +96,8 @@ export async function triggerBotPlay(io, room, gameEngine) {
   // 设置正在出牌标志
   botPlayingInProgress.set(room.id, true);
 
-  // 获取或创建bot服务（如果botType变化了也重新创建）
-  let botService = botServices.get(room.id);
-  if (!botService || botService.botType !== room.config.botType) {
-    if (botService) {
-      logger.info(`Bot类型已变更，从 ${botService.botType} 到 ${room.config.botType}，重新创建BotService`);
-      botService.clearHistory();
-    }
-    logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
-    botService = new BotService(room.config.botType);
-    botServices.set(room.id, botService);
-  }
+  // 获取或创建bot服务
+  const botService = getOrCreateBotService(room);
 
   try {
     logger.info(`触发Bot ${currentPlayer.name} 自动出牌`);
@@ -400,8 +413,11 @@ export function registerGameHandlers(io, socket, roomManager) {
         }
       };
 
-      // 创建游戏引擎，传入bot出牌回调和新游戏开始回调
-      const gameEngine = new GameEngine(room, io, onBotPlayNeeded, onNewGameStart);
+      // 创建获取共享bot服务的回调函数（使用helper函数）
+      const getBotServiceCallback = () => getOrCreateBotService(room);
+
+      // 创建游戏引擎，传入bot出牌回调、新游戏开始回调和获取bot服务的回调
+      const gameEngine = new GameEngine(room, io, onBotPlayNeeded, onNewGameStart, getBotServiceCallback);
       gameEngines.set(room.id, gameEngine);
 
       // 开始游戏
@@ -523,17 +539,8 @@ export function registerGameHandlers(io, socket, roomManager) {
         logger.info(`Bot ${buryingPlayer.name} 需要盖底牌`);
         setTimeout(async () => {
           try {
-            // 获取或创建bot服务（如果botType变化了也重新创建）
-            let botService = botServices.get(room.id);
-            if (!botService || botService.botType !== room.config.botType) {
-              if (botService) {
-                logger.info(`Bot类型已变更，从 ${botService.botType} 到 ${room.config.botType}，重新创建BotService`);
-                botService.clearHistory();
-              }
-              logger.info(`创建新的BotService实例，Bot类型: ${room.config.botType}`);
-              botService = new BotService(room.config.botType);
-              botServices.set(room.id, botService);
-            }
+            // 获取或创建bot服务
+            const botService = getOrCreateBotService(room);
 
             const playerIndex = room.players.findIndex(p => p.id === playerId);
             const bottomCards = room.gameState.bottomCards;
