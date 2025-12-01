@@ -1,12 +1,12 @@
 .hand {
-  --card-width: clamp(36px, 10vh, 80px);
-  --card-overlap: clamp(14px, 3vw, 25px);
+  --card-width: clamp(30px, 8vmin, 80px);
+  --card-overlap: clamp(12px, 2.5vmin, 25px);
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: flex-end;
-  padding: 5px;
-  padding-top: clamp(30px, 5vh, 45px); /* 给选中卡牌向上移动留出空间 */
+  padding: clamp(3px, 0.6vmin, 5px);
+  padding-top: clamp(25px, 4.5vmin, 45px); /* 给选中卡牌向上移动留出空间 */
   min-height: 0;
   flex-wrap: nowrap;
   width: 100%;
@@ -49,43 +49,43 @@
 }
 
 .hand.compact-1 {
-  --card-overlap: 30px;
+  --card-overlap: clamp(18px, 3.5vmin, 30px);
 }
 
 .hand.compact-2 {
-  --card-overlap: 38px;
+  --card-overlap: clamp(22px, 4.2vmin, 38px);
 }
 
 .hand.compact-3 {
-  --card-overlap: 45px;
+  --card-overlap: clamp(26px, 4.8vmin, 45px);
 }
 
 .hand.compact-4 {
-  --card-overlap: 50px; /* 33张牌时的重叠度 */
+  --card-overlap: clamp(28px, 5.2vmin, 50px); /* 33张牌时的重叠度 */
 }
 
 .hand.small {
-  --card-width: min(50px, 8vh);
-  --card-overlap: 18px;
-  padding: 5px;
+  --card-width: clamp(24px, 6vmin, 50px);
+  --card-overlap: clamp(10px, 2vmin, 18px);
+  padding: clamp(3px, 0.6vmin, 5px);
   min-height: 0;
   flex-wrap: nowrap;
 }
 
 .hand.small.compact-1 {
-  --card-overlap: 25px;
+  --card-overlap: clamp(14px, 2.8vmin, 25px);
 }
 
 .hand.small.compact-2 {
-  --card-overlap: 30px;
+  --card-overlap: clamp(17px, 3.3vmin, 30px);
 }
 
 .hand.small.compact-3 {
-  --card-overlap: 35px;
+  --card-overlap: clamp(20px, 3.8vmin, 35px);
 }
 
 .hand.small.compact-4 {
-  --card-overlap: 38px; /* 小卡片33张时的重叠度 */
+  --card-overlap: clamp(22px, 4.2vmin, 38px); /* 小卡片33张时的重叠度 */
 }
 
 /* 拖拉机标记样式 */
@@ -104,294 +104,110 @@
 .tractor-label {
   pointer-events: none;
   z-index: 11;
+  font-size: clamp(6px, 1.2vmin, 10px) !important;
+  bottom: clamp(-12px, -2vmin, -8px) !important;
 }
 
-/* Mobile responsive styles - Portrait phones (aspect ratio < 0.75) */
-@media (max-aspect-ratio: 3/4) {
+/* Landscape-specific adjustments for better hand display */
+@media (orientation: landscape) {
   .hand {
-    --card-width: 60px;
-    --card-overlap: 20px;
-    padding: 6px 4px;
-    padding-top: 35px;
-    min-height: 100px;
+    --card-width: clamp(28px, 8vh, 70px);
+    --card-overlap: clamp(10px, 2.5vh, 22px);
+    padding-top: clamp(20px, 4vh, 40px);
   }
 
   .hand.compact-1 {
-    --card-overlap: 25px;
+    --card-overlap: clamp(16px, 3.5vh, 28px);
   }
 
   .hand.compact-2 {
-    --card-overlap: 32px;
+    --card-overlap: clamp(20px, 4.2vh, 35px);
   }
 
   .hand.compact-3 {
-    --card-overlap: 38px;
+    --card-overlap: clamp(24px, 4.8vh, 42px);
   }
 
   .hand.compact-4 {
-    --card-overlap: 42px;
+    --card-overlap: clamp(26px, 5.2vh, 46px);
   }
 
   .hand.small {
-    --card-width: 40px;
-    --card-overlap: 14px;
-    padding: 6px;
-    min-height: 70px;
+    --card-width: clamp(22px, 6vh, 45px);
+    --card-overlap: clamp(8px, 2vh, 16px);
   }
 
   .hand.small.compact-1 {
-    --card-overlap: 20px;
+    --card-overlap: clamp(12px, 2.8vh, 22px);
   }
 
   .hand.small.compact-2 {
-    --card-overlap: 25px;
+    --card-overlap: clamp(15px, 3.3vh, 27px);
   }
 
   .hand.small.compact-3 {
-    --card-overlap: 28px;
+    --card-overlap: clamp(18px, 3.8vh, 32px);
   }
 
   .hand.small.compact-4 {
-    --card-overlap: 32px;
-  }
-
-  .card-wrapper {
-    width: var(--card-width, 60px);
+    --card-overlap: clamp(20px, 4.2vh, 35px);
   }
 
   .tractor-label {
-    font-size: 8px !important;
-    bottom: -14px !important;
-  }
-}
-
-/* Smaller phones (very tall aspect ratio < 0.55) */
-@media (max-aspect-ratio: 11/20) {
-  .hand {
-    --card-width: 48px;
-    --card-overlap: 18px;
-    padding: 4px 3px;
-    padding-top: 30px;
-    min-height: 80px;
-  }
-
-  .hand.compact-1 {
-    --card-overlap: 22px;
-  }
-
-  .hand.compact-2 {
-    --card-overlap: 28px;
-  }
-
-  .hand.compact-3 {
-    --card-overlap: 34px;
-  }
-
-  .hand.compact-4 {
-    --card-overlap: 38px;
-  }
-
-  .hand.small {
-    --card-width: 35px;
-    --card-overlap: 12px;
-    padding: 4px;
-    min-height: 55px;
-  }
-
-  .hand.small.compact-1 {
-    --card-overlap: 16px;
-  }
-
-  .hand.small.compact-2 {
-    --card-overlap: 20px;
-  }
-
-  .hand.small.compact-3 {
-    --card-overlap: 24px;
-  }
-
-  .hand.small.compact-4 {
-    --card-overlap: 28px;
-  }
-
-  .card-wrapper {
-    width: var(--card-width, 48px);
-  }
-
-  .tractor-label {
-    font-size: 7px !important;
-    bottom: -12px !important;
+    font-size: clamp(5px, 1.2vh, 9px) !important;
   }
 
   .tractor-line {
-    height: 2px !important;
+    height: clamp(1px, 0.3vh, 3px) !important;
   }
 }
 
-/* Mobile Landscape Mode - Wide aspect ratio (> 1.6) OR limited height */
-@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
+/* Portrait-specific adjustments */
+@media (orientation: portrait) {
   .hand {
-    --card-width: 38px;
-    --card-overlap: 14px;
-    padding: 2px 3px;
-    padding-top: 20px;
-    min-height: 55px;
+    --card-width: clamp(32px, 9vw, 75px);
+    --card-overlap: clamp(12px, 2.8vw, 24px);
+    padding-top: clamp(28px, 5vw, 42px);
   }
 
   .hand.compact-1 {
-    --card-overlap: 20px;
+    --card-overlap: clamp(18px, 3.8vw, 28px);
   }
 
   .hand.compact-2 {
-    --card-overlap: 26px;
+    --card-overlap: clamp(22px, 4.5vw, 36px);
   }
 
   .hand.compact-3 {
-    --card-overlap: 30px;
+    --card-overlap: clamp(26px, 5.2vw, 42px);
   }
 
   .hand.compact-4 {
-    --card-overlap: 34px;
+    --card-overlap: clamp(28px, 5.6vw, 48px);
   }
 
   .hand.small {
-    --card-width: 28px;
-    --card-overlap: 8px;
-    padding: 2px;
-    min-height: 42px;
+    --card-width: clamp(26px, 7vw, 48px);
+    --card-overlap: clamp(10px, 2.2vw, 17px);
   }
 
   .hand.small.compact-1 {
-    --card-overlap: 14px;
+    --card-overlap: clamp(14px, 3vw, 24px);
   }
 
   .hand.small.compact-2 {
-    --card-overlap: 18px;
+    --card-overlap: clamp(17px, 3.6vw, 28px);
   }
 
   .hand.small.compact-3 {
-    --card-overlap: 22px;
+    --card-overlap: clamp(20px, 4.2vw, 33px);
   }
 
   .hand.small.compact-4 {
-    --card-overlap: 26px;
-  }
-
-  .card-wrapper {
-    width: var(--card-width, 38px);
+    --card-overlap: clamp(22px, 4.6vw, 36px);
   }
 
   .tractor-label {
-    font-size: 6px !important;
-    bottom: -10px !important;
-  }
-
-  .tractor-line {
-    height: 2px !important;
-  }
-}
-
-/* Extra wide landscape (ultra-wide or very short) */
-@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
-  .hand {
-    --card-width: 32px;
-    --card-overlap: 12px;
-    padding: 2px;
-    padding-top: 18px;
-    min-height: 48px;
-  }
-
-  .hand.compact-1 {
-    --card-overlap: 18px;
-  }
-
-  .hand.compact-2 {
-    --card-overlap: 22px;
-  }
-
-  .hand.compact-3 {
-    --card-overlap: 26px;
-  }
-
-  .hand.compact-4 {
-    --card-overlap: 30px;
-  }
-
-  .hand.small {
-    --card-width: 24px;
-    --card-overlap: 6px;
-    min-height: 36px;
-  }
-
-  .card-wrapper {
-    width: var(--card-width, 32px);
-  }
-
-  .tractor-label {
-    font-size: 5px !important;
-    bottom: -8px !important;
-  }
-}
-
-/* Extra small screens (width < 360px) */
-@media (max-width: 360px) {
-  .hand {
-    --card-width: 40px;
-    --card-overlap: 16px;
-    padding: 3px 2px;
-    padding-top: 25px;
-    min-height: 70px;
-  }
-
-  .hand.compact-1 {
-    --card-overlap: 20px;
-  }
-
-  .hand.compact-2 {
-    --card-overlap: 26px;
-  }
-
-  .hand.compact-3 {
-    --card-overlap: 32px;
-  }
-
-  .hand.compact-4 {
-    --card-overlap: 36px;
-  }
-
-  .hand.small {
-    --card-width: 30px;
-    --card-overlap: 10px;
-    padding: 3px;
-    min-height: 50px;
-  }
-
-  .hand.small.compact-1 {
-    --card-overlap: 14px;
-  }
-
-  .hand.small.compact-2 {
-    --card-overlap: 18px;
-  }
-
-  .hand.small.compact-3 {
-    --card-overlap: 22px;
-  }
-
-  .hand.small.compact-4 {
-    --card-overlap: 26px;
-  }
-
-  .card-wrapper {
-    width: var(--card-width, 40px);
-  }
-
-  .tractor-label {
-    font-size: 6px !important;
-    bottom: -10px !important;
-  }
-
-  .tractor-line {
-    height: 2px !important;
+    font-size: clamp(6px, 1.4vw, 10px) !important;
   }
 }

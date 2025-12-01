@@ -22,11 +22,11 @@
 .phase-content {
   flex: 1;
   background: rgba(255, 255, 255, 0.95);
-  padding: 20px;
-  border-radius: 16px;
+  padding: clamp(12px, 2vmin, 24px);
+  border-radius: clamp(8px, 1.5vmin, 16px);
   text-align: center;
   color: #333;
-  margin: 10px;
+  margin: clamp(6px, 1vmin, 12px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow-y: auto;
   min-height: 0;
@@ -49,21 +49,21 @@
 /* 游戏控制面板 - 右下角 */
 .game-controls {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: clamp(12px, 2vmin, 24px);
+  right: clamp(12px, 2vmin, 24px);
   background: rgba(255, 255, 255, 0.95);
-  padding: 16px;
-  border-radius: 8px;
+  padding: clamp(10px, 1.5vmin, 20px);
+  border-radius: clamp(6px, 1vmin, 10px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  min-width: 180px;
-  max-width: 240px;
+  min-width: clamp(140px, 20vmin, 220px);
+  max-width: clamp(200px, 30vmin, 280px);
   backdrop-filter: blur(10px);
   z-index: 100;
 }
 
 .game-info {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  margin-bottom: clamp(8px, 1.2vmin, 14px);
+  padding-bottom: clamp(8px, 1.2vmin, 14px);
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -71,6 +71,7 @@
   margin: 0;
   line-height: 1.8;
   color: #333;
+  font-size: clamp(12px, 1.6vmin, 16px);
 }
 
 /* 毙牌动画 */
@@ -95,8 +96,8 @@
 
 .trump-animation {
   background: rgba(0, 0, 0, 0.7);
-  padding: 30px 60px;
-  border-radius: 16px;
+  padding: clamp(20px, 3vmin, 40px) clamp(40px, 6vmin, 80px);
+  border-radius: clamp(10px, 2vmin, 20px);
   backdrop-filter: blur(10px);
 }
 
@@ -104,211 +105,86 @@
   background: rgba(50, 0, 0, 0.8);
 }
 
-/* Mobile responsive styles */
-@media (max-width: 768px) {
-  .phase-content {
-    padding: 20px;
-    margin: 10px;
-    border-radius: 12px;
-  }
-
-  .phase-content.playing-phase {
-    padding: 5px;
-    margin: 0;
-  }
-
-  .game-controls {
-    bottom: 10px;
-    right: 10px;
-    padding: 10px;
-    min-width: 140px;
-    max-width: 180px;
-  }
-
-  .trump-animation {
-    padding: 20px 40px;
-    font-size: 48px !important;
-  }
-
-  .trump-animation span:first-child {
-    font-size: 48px !important;
-  }
-
-  .trump-animation span:last-child {
-    font-size: 18px !important;
-  }
+.trump-animation span:first-child {
+  font-size: clamp(40px, 8vmin, 72px) !important;
 }
 
-@media (max-width: 480px) {
-  .phase-content {
-    padding: 12px;
-    margin: 5px;
-    border-radius: 8px;
-  }
-
-  .phase-content.playing-phase {
-    padding: 3px;
-  }
-
-  .game-controls {
-    bottom: 5px;
-    right: 5px;
-    padding: 8px;
-    min-width: 120px;
-  }
-
-  .trump-animation {
-    padding: 15px 25px;
-  }
-
-  .trump-animation span:first-child {
-    font-size: 36px !important;
-  }
-
-  .trump-animation span:last-child {
-    font-size: 14px !important;
-  }
+.trump-animation span:last-child {
+  font-size: clamp(16px, 2.5vmin, 24px) !important;
 }
 
 /* Responsive button grid */
 .responsive-button-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(60px, 10vmin, 100px), 1fr));
+  gap: clamp(4px, 0.8vmin, 10px);
   width: 100%;
 }
 
-@media (max-width: 768px) {
-  .responsive-button-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-}
-
-@media (max-width: 480px) {
-  .responsive-button-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4px;
-  }
-
-  .responsive-button-grid .ant-btn {
-    font-size: 11px !important;
-    padding: 2px 6px !important;
-    min-width: 60px !important;
-    height: auto !important;
-    min-height: 32px;
-  }
+.responsive-button-grid .ant-btn {
+  font-size: clamp(11px, 1.4vmin, 14px) !important;
+  padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.8vmin, 8px) !important;
+  min-width: clamp(60px, 10vmin, 100px) !important;
+  height: auto !important;
+  min-height: clamp(32px, 5vmin, 44px);
 }
 
 /* Responsive flex buttons */
 .responsive-flex-buttons {
   display: flex;
-  gap: 8px;
+  gap: clamp(4px, 0.8vmin, 10px);
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
-@media (max-width: 480px) {
-  .responsive-flex-buttons {
-    gap: 4px;
-    justify-content: center;
-  }
-
-  .responsive-flex-buttons .ant-btn {
-    font-size: 11px !important;
-    padding: 2px 6px !important;
-    min-width: 60px !important;
-  }
+.responsive-flex-buttons .ant-btn {
+  font-size: clamp(11px, 1.4vmin, 14px) !important;
+  padding: clamp(2px, 0.4vmin, 4px) clamp(4px, 0.8vmin, 8px) !important;
+  min-width: clamp(60px, 10vmin, 100px) !important;
+  min-height: clamp(32px, 5vmin, 44px);
 }
 
-/* Mobile Landscape Mode Optimizations */
-@media (orientation: landscape) and (max-height: 500px) {
-  .game-board {
-    /* Use available height minus potential browser UI */
-    min-height: 0;
-  }
-
-  .phase-content {
-    padding: 8px;
-    margin: 4px;
-    border-radius: 6px;
-  }
-
-  .phase-content.playing-phase {
-    padding: 1px;
-    margin: 0;
-  }
-
+/* Landscape-specific adjustments */
+@media (orientation: landscape) {
   .game-controls {
-    bottom: 5px;
-    right: 5px;
-    padding: 6px;
-    min-width: 100px;
-    max-width: 140px;
-  }
-
-  .game-info {
-    margin-bottom: 6px;
-    padding-bottom: 6px;
+    bottom: clamp(8px, 1.5vh, 16px);
+    right: clamp(8px, 1.5vh, 16px);
+    min-width: clamp(120px, 18vh, 200px);
+    max-width: clamp(180px, 27vh, 260px);
   }
 
   .trump-animation {
-    padding: 12px 20px;
+    padding: clamp(15px, 2.5vh, 30px) clamp(30px, 5vh, 60px);
   }
 
   .trump-animation span:first-child {
-    font-size: 32px !important;
+    font-size: clamp(36px, 7vh, 64px) !important;
   }
 
   .trump-animation span:last-child {
-    font-size: 12px !important;
+    font-size: clamp(14px, 2.2vh, 20px) !important;
   }
 
-  /* Compact button grid for landscape */
   .responsive-button-grid {
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(55px, 9vh, 90px), 1fr));
   }
 
   .responsive-button-grid .ant-btn {
-    font-size: 10px !important;
-    padding: 2px 4px !important;
-    min-width: 55px !important;
-    height: auto !important;
-    min-height: 28px;
-  }
-
-  .responsive-flex-buttons {
-    gap: 4px;
+    min-height: clamp(28px, 4.5vh, 40px);
   }
 
   .responsive-flex-buttons .ant-btn {
-    font-size: 10px !important;
-    padding: 2px 5px !important;
-    min-width: 50px !important;
-    min-height: 28px;
+    min-height: clamp(28px, 4.5vh, 40px);
   }
 }
 
-/* Extra small landscape */
-@media (orientation: landscape) and (max-height: 400px) {
-  .phase-content {
-    padding: 6px;
-    margin: 3px;
+/* Portrait-specific adjustments */
+@media (orientation: portrait) {
+  .responsive-flex-buttons {
+    justify-content: center;
   }
 
-  .phase-content.playing-phase {
-    padding: 1px;
-  }
-
-  .trump-animation span:first-child {
-    font-size: 28px !important;
-  }
-
-  .responsive-button-grid .ant-btn,
-  .responsive-flex-buttons .ant-btn {
-    font-size: 9px !important;
-    min-height: 24px;
-    min-width: 45px !important;
+  .responsive-button-grid {
+    grid-template-columns: repeat(auto-fit, minmax(clamp(65px, 11vw, 95px), 1fr));
   }
 }

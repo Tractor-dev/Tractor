@@ -38,22 +38,34 @@ body {
   }
 }
 
-/* Responsive font size base */
+/* Fluid responsive font size base - scales with viewport */
 html {
-  font-size: 16px;
+  /* Base calculation: 1vmin = 1% of the smaller viewport dimension
+     This ensures the UI scales proportionally on all screen sizes
+     Using clamp to set min/max bounds while maintaining fluidity */
+  font-size: clamp(10px, 1.6vmin, 20px);
 }
 
-/* Portrait phones and tablets (aspect ratio < 0.75) */
-@media (max-aspect-ratio: 3/4) {
+/* Fine-tune for different aspect ratios */
+
+/* Portrait orientation - use viewport width as primary scaling factor */
+@media (orientation: portrait) {
   html {
-    font-size: 14px;
+    font-size: clamp(10px, 2.2vw, 18px);
   }
 }
 
-/* Smaller phones (very tall aspect ratio < 0.55) */
-@media (max-aspect-ratio: 11/20) {
+/* Landscape orientation - use viewport height as primary scaling factor */
+@media (orientation: landscape) {
   html {
-    font-size: 13px;
+    font-size: clamp(9px, 2.4vh, 18px);
+  }
+}
+
+/* Very wide screens (desktop/4K) - cap the scaling */
+@media (min-width: 1920px) and (min-height: 1080px) {
+  html {
+    font-size: 18px;
   }
 }
 
@@ -66,25 +78,9 @@ html {
 }
 
 /* Mobile landscape mode - reduce touch target size for better fit */
-@media ((min-aspect-ratio: 16/10) and (max-height: 600px)) or (orientation: landscape and max-height: 500px) {
-  html {
-    font-size: 12px;
-  }
-
+@media (orientation: landscape) and (max-height: 500px) {
   button, .ant-btn {
-    min-height: 28px;
-    min-width: 28px;
-  }
-}
-
-/* Extra short landscape - further reduce font size */
-@media ((min-aspect-ratio: 2/1) and (max-height: 500px)) or (orientation: landscape and max-height: 400px) {
-  html {
-    font-size: 11px;
-  }
-
-  button, .ant-btn {
-    min-height: 24px;
-    min-width: 24px;
+    min-height: 32px;
+    min-width: 32px;
   }
 }
