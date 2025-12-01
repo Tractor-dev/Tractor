@@ -200,11 +200,22 @@ export class WhoDesignedBotService {
    * 获取级牌字符串
    */
   _getLevelString(room) {
-    // 从房间中获取庄家等级
-    // 假设team1是庄家队，返回他们的等级
-    // 这里需要根据实际的game state来获取
-    if (room.gameState && room.gameState.team1Level) {
-      return String(room.gameState.team1Level);
+    // 从房间中获取庄家队的等级
+    // 根据dealerPlayerIndex确定庄家所在队伍，然后返回该队伍的等级
+    if (room.gameState) {
+      const dealerPlayerIndex = room.gameState.dealerPlayerIndex;
+      if (dealerPlayerIndex !== null && dealerPlayerIndex !== undefined) {
+        // 队伍1: 索引0和2, 队伍2: 索引1和3
+        const dealerTeam = dealerPlayerIndex % 2 === 0 ? 1 : 2;
+        const dealerLevel = dealerTeam === 1 ? room.gameState.team1Level : room.gameState.team2Level;
+        if (dealerLevel !== undefined && dealerLevel !== null) {
+          return String(dealerLevel);
+        }
+      }
+      // 如果dealerPlayerIndex为null（第一局），使用team1Level作为默认值
+      if (room.gameState.team1Level !== undefined && room.gameState.team1Level !== null) {
+        return String(room.gameState.team1Level);
+      }
     }
     return '2'; // 默认从2开始
   }
