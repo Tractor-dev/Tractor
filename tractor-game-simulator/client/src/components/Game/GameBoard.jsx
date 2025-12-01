@@ -1641,13 +1641,14 @@ export default function GameBoard() {
 
       case GamePhases.REVEALING:
         // 揭示底牌阶段不需要高亮边框，传递 null
+        // 清空所有人出的牌，避免遮挡底牌展示
         return (
           <div className="phase-content playing-phase">
-            {/* 游戏桌面 - 展示底牌，保留所有人的出牌 */}
+            {/* 游戏桌面 - 展示底牌，清空出牌区域 */}
             <GameTable
               players={currentRoom.players}
               currentPlayer={currentPlayer}
-              playedCards={playedCards}
+              playedCards={{}}
               shownCards={{}}
               myCards={myCards}
               selectedCards={selectedCards}
@@ -1673,6 +1674,7 @@ export default function GameBoard() {
               team1Level={gameState?.team1Level}
               team2Level={gameState?.team2Level}
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
+              isRevealingPhase={true}
             />
           </div>
         );
