@@ -477,7 +477,7 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
       }
 
       // 检查是否所有真人玩家都断线了
-      if (room.hasOnlyOfflineOrBots()) {
+      if (room.hasNoOnlineHumanPlayers()) {
         // 所有真人玩家都断线，但保留房间一段时间等待重连
         logger.info(`房间 ${room.id} 所有真人玩家断线，保留房间等待重连`);
       }

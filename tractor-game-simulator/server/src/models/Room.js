@@ -161,9 +161,9 @@ export class Room {
   }
 
   /**
-   * 检查房间是否只剩离线玩家和机器人
+   * 检查房间是否没有在线的真人玩家
    */
-  hasOnlyOfflineOrBots() {
+  hasNoOnlineHumanPlayers() {
     return this.players.length > 0 && 
            this.players.every(p => p.isBot || !p.isOnline);
   }
