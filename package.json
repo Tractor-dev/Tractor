@@ -10,7 +10,7 @@
     "postinstall": "npm run install:server && npm run install:client && npm run build:client"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.0.0",
     "npm": ">=9.0.0"
   },
   "keywords": ["tractor", "card-game", "multiplayer"],
