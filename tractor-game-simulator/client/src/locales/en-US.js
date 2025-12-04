@@ -395,5 +395,13 @@ export default {
     chinese: '中文',
     english: 'English',
     japanese: '日本語'
+  },
+
+  // Settings
+  settings: {
+    settings: 'Settings',
+    language: 'Language',
+    hideNotifications: 'Hide Notifications',
+    hideNotificationsDesc: 'When enabled, blocks all popups (e.g., who played what card)'
   }
 };

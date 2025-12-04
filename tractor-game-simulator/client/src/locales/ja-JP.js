@@ -395,5 +395,13 @@ export default {
     chinese: '中文',
     english: 'English',
     japanese: '日本語'
+  },
+
+  // 設定
+  settings: {
+    settings: '設定',
+    language: '言語',
+    hideNotifications: '通知を非表示',
+    hideNotificationsDesc: '有効にすると、すべてのポップアップ（誰がカードを出したかなど）をブロックします'
   }
 };

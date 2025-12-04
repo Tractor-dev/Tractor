@@ -31,8 +31,9 @@ const translations = {
   [LANGUAGES.JA_JP]: jaJP
 };
 
-// Storage key
+// Storage keys
 const STORAGE_KEY = 'tractorGameLanguage';
+const HIDE_NOTIFICATIONS_KEY = 'tractorHideNotifications';
 
 // Get initial language from localStorage or default to Chinese
 const getInitialLanguage = () => {
@@ -47,12 +48,24 @@ const getInitialLanguage = () => {
   return LANGUAGES.ZH_CN;
 };
 
+// Get initial hideNotifications state from localStorage
+const getInitialHideNotifications = () => {
+  try {
+    const saved = localStorage.getItem(HIDE_NOTIFICATIONS_KEY);
+    return saved === 'true';
+  } catch (e) {
+    console.warn('Failed to load hideNotifications from localStorage:', e);
+  }
+  return false;
+};
+
 // Create context
 const I18nContext = createContext(null);
 
 // Provider component
 export function I18nProvider({ children }) {
   const [language, setLanguageState] = useState(getInitialLanguage);
+  const [hideNotifications, setHideNotificationsState] = useState(getInitialHideNotifications);
 
   // Set language and persist to localStorage
   const setLanguage = useCallback((lang) => {
@@ -63,6 +76,16 @@ export function I18nProvider({ children }) {
       } catch (e) {
         console.warn('Failed to save language to localStorage:', e);
       }
+    }
+  }, []);
+
+  // Set hideNotifications and persist to localStorage
+  const setHideNotifications = useCallback((hide) => {
+    setHideNotificationsState(hide);
+    try {
+      localStorage.setItem(HIDE_NOTIFICATIONS_KEY, String(hide));
+    } catch (e) {
+      console.warn('Failed to save hideNotifications to localStorage:', e);
     }
   }, []);
 
@@ -95,10 +118,12 @@ export function I18nProvider({ children }) {
     language,
     setLanguage,
     t,
+    hideNotifications,
+    setHideNotifications,
     isZhCN: language === LANGUAGES.ZH_CN,
     isEnUS: language === LANGUAGES.EN_US,
     isJaJP: language === LANGUAGES.JA_JP
-  }), [language, setLanguage, t]);
+  }), [language, setLanguage, t, hideNotifications, setHideNotifications]);
 
   return (
     <I18nContext.Provider value={value}>
