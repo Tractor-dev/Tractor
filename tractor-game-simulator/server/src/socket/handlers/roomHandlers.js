@@ -43,6 +43,43 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('房间不存在');
       }
 
+      // 检查是否有断线的位置可以重连
+      if (room.hasDisconnectedSlot()) {
+        // 获取第一个断线位置
+        const disconnectedSlot = room.getFirstDisconnectedSlot();
+        
+        // 让新玩家继承断线玩家的状态
+        const player = room.reconnectPlayer(socket.id, playerName || `玩家${disconnectedSlot.position + 1}`, disconnectedSlot.position);
+        
+        if (player) {
+          // 加入Socket.IO房间
+          socket.join(room.id);
+
+          // 通知该玩家（带有完整的手牌信息）
+          socket.emit('room_rejoined', {
+            room: room.toJSON(),
+            player: player.toJSONWithCards(),
+            reconnected: true,
+            inheritedFrom: disconnectedSlot.player.name
+          });
+
+          // 广播给其他玩家
+          io.to(room.id).emit('player_reconnected', {
+            player: player.toJSON(),
+            previousName: disconnectedSlot.player.name,
+            message: `玩家 ${player.name} 重新连接`
+          });
+
+          // 广播房间状态更新给所有人
+          io.to(room.id).emit('room_updated', {
+            room: room.toJSON()
+          });
+
+          logger.info(`玩家 ${player.name} 重连到房间: ${room.id}，继承位置 ${player.position}`);
+          return;
+        }
+      }
+
       if (room.players.length >= room.config.maxPlayers) {
         throw new Error('房间已满');
       }
@@ -408,6 +445,51 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
 
     const player = room.findPlayerBySocketId(socket.id);
     if (!player) return;
+
+    // 检查是否可以保留游戏状态等待重连
+    // 条件：原始真人玩家数量 > 2 且游戏进行中 且断线的是真人玩家
+    if (room.canWaitForReconnect() && !player.isBot) {
+      // 保存断线玩家状态，不终止游戏
+      room.saveDisconnectedPlayer(player);
+      
+      // 离开Socket.IO房间
+      socket.leave(room.id);
+
+      // 广播玩家断线（区别于完全离开）
+      io.to(room.id).emit('player_disconnected', {
+        playerId: player.id,
+        playerName: player.name,
+        position: player.position,
+        message: `玩家 ${player.name} 断线，等待重连...`
+      });
+
+      // 如果房主断线，转移房主权限给下一个在线的真人玩家
+      if (room.hostId === socket.id) {
+        const newHost = room.players.find(p => !p.isBot && p.isOnline);
+        if (newHost) {
+          room.hostId = newHost.socketId;
+          io.to(room.id).emit('host_changed', {
+            newHostId: newHost.id,
+            newHostName: newHost.name
+          });
+          logger.info(`房间 ${room.id} 房主转移给: ${newHost.name}`);
+        }
+      }
+
+      // 检查是否所有真人玩家都断线了
+      if (room.hasOnlyOfflineOrBots()) {
+        // 所有真人玩家都断线，但保留房间一段时间等待重连
+        logger.info(`房间 ${room.id} 所有真人玩家断线，保留房间等待重连`);
+      }
+
+      // 广播房间状态更新
+      io.to(room.id).emit('room_updated', {
+        room: room.toJSON()
+      });
+
+      logger.info(`玩家 ${player.name} 断线（等待重连）: ${room.id}`);
+      return;
+    }
 
     // 如果游戏正在进行，终止游戏
     if (room.gameState.phase !== 'waiting' && room.gameState.phase !== 'finished') {

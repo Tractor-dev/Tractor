@@ -54,7 +54,10 @@ export class RoomManager {
       phase: room.gameState.phase,
       gameState: room.gameState.toJSON(),
       config: room.config,
-      createdAt: room.createdAt
+      createdAt: room.createdAt,
+      // 断线重连相关
+      hasDisconnectedSlot: room.hasDisconnectedSlot(),
+      canRejoin: room.hasDisconnectedSlot()
     }));
   }
 }

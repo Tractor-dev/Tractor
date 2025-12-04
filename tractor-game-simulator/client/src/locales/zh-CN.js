@@ -80,7 +80,9 @@ export default {
     defaultRoomName: '我的房间',
     defaultPlayerName: '玩家',
     defaultSpectatorName: '观战者',
-    totalRooms: '共 {count} 个房间'
+    totalRooms: '共 {count} 个房间',
+    waitingReconnect: '等待重连',
+    reconnect: '重连'
   },
 
   // 房间状态
@@ -346,7 +348,10 @@ export default {
     ruleSelected: '{name} 选择了规则: {rule}',
     playerReadyForNext: '{name} 已准备 ({ready}/{total})',
     nextGameStarted: '开始下一局！',
-    errorOccurred: '发生错误'
+    errorOccurred: '发生错误',
+    playerDisconnected: '{name} 断线，等待重连...',
+    playerReconnected: '{name} 重新连接',
+    youRejoined: '您成功重连，继承了 {from} 的位置'
   },
 
   // 手牌相关

@@ -80,7 +80,9 @@ export default {
     defaultRoomName: 'マイルーム',
     defaultPlayerName: 'プレイヤー',
     defaultSpectatorName: '観戦者',
-    totalRooms: '{count} ルーム'
+    totalRooms: '{count} ルーム',
+    waitingReconnect: '再接続待ち',
+    reconnect: '再接続'
   },
 
   // ルーム状態
@@ -346,7 +348,10 @@ export default {
     ruleSelected: '{name}がルールを選択: {rule}',
     playerReadyForNext: '{name}が準備完了 ({ready}/{total})',
     nextGameStarted: '次のゲームを開始！',
-    errorOccurred: 'エラーが発生しました'
+    errorOccurred: 'エラーが発生しました',
+    playerDisconnected: '{name}が切断されました、再接続待ち...',
+    playerReconnected: '{name}が再接続しました',
+    youRejoined: '再接続に成功しました、{from}のポジションを継承しました'
   },
 
   // 手札関連

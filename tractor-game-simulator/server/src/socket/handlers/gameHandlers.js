@@ -393,6 +393,10 @@ export function registerGameHandlers(io, socket, roomManager) {
         throw new Error(`需要${room.config.minPlayers}-${room.config.maxPlayers}名玩家才能开始`);
       }
 
+      // 记录游戏开始时的真人玩家数量，用于断线重连判断
+      room.originalHumanPlayerCount = room.getHumanPlayerCount();
+      logger.info(`房间 ${room.id} 开始游戏，真人玩家数量: ${room.originalHumanPlayerCount}`);
+
       // 创建bot出牌回调函数
       const onBotPlayNeeded = () => {
         const currentGameEngine = gameEngines.get(room.id);

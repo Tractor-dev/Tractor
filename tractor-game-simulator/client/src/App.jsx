@@ -146,6 +146,31 @@ function App() {
       console.log('开始发牌阶段:', phase);
     });
 
+    // 玩家断线（等待重连）
+    socket.on('player_disconnected', ({ playerId, playerName, position, message }) => {
+      console.log('玩家断线:', { playerId, playerName, position, message });
+      messageApi.warning(message || t('messages.playerDisconnected', { name: playerName }) || `玩家 ${playerName} 断线，等待重连...`);
+    });
+
+    // 玩家重连成功
+    socket.on('player_reconnected', ({ player, previousName, message }) => {
+      console.log('玩家重连:', { player, previousName, message });
+      messageApi.success(message || t('messages.playerReconnected', { name: player.name }) || `玩家 ${player.name} 重新连接`);
+    });
+
+    // 当前玩家重连成功（带有手牌信息）
+    socket.on('room_rejoined', ({ room, player, reconnected, inheritedFrom }) => {
+      console.log('重连到房间成功:', { room, player, reconnected, inheritedFrom });
+      messageApi.success(t('messages.youRejoined', { from: inheritedFrom }) || `您成功重连，继承了 ${inheritedFrom} 的位置`);
+      setCurrentRoom(room);
+      setCurrentPlayer(player);
+      // 如果有手牌信息，需要设置
+      if (player.cards) {
+        useGameStore.getState().setMyCards(player.cards);
+      }
+      setShowJoinModal(false);
+    });
+
     return () => {
       // Clean up all event listeners
       socket.off('connect');
@@ -167,6 +192,9 @@ function App() {
       socket.off('player_ready_status');
       socket.off('all_players_ready');
       socket.off('start_drawing');
+      socket.off('player_disconnected');
+      socket.off('player_reconnected');
+      socket.off('room_rejoined');
       socketService.disconnect();
     };
   }, []);
