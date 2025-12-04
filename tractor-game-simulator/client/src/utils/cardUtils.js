@@ -2,6 +2,69 @@ import { SUIT_ORDER, RANK_ORDER, Suits, Ranks } from './constants.js';
 import { getCardStrength, getEffectiveSuit } from './cardPatternUtils.js';
 
 /**
+ * 获取基于主花色的动态花色排序（副牌红黑交替）
+ * 主花色在最左边，然后按红黑交替顺序排列
+ * @param {String} trumpSuit - 主花色
+ * @returns {Object} 花色到顺序的映射
+ */
+function getDynamicSuitOrder(trumpSuit) {
+  // 默认顺序（无主或未设置）
+  const defaultOrder = {
+    [Suits.SPADES]: 0,
+    [Suits.HEARTS]: 1,
+    [Suits.CLUBS]: 2,
+    [Suits.DIAMONDS]: 3,
+    [Suits.JOKER]: 4
+  };
+
+  if (!trumpSuit || trumpSuit === Suits.NO_TRUMP || trumpSuit === Suits.JOKER) {
+    return defaultOrder;
+  }
+
+  // 红色花色和黑色花色
+  const redSuits = [Suits.HEARTS, Suits.DIAMONDS];
+  const blackSuits = [Suits.SPADES, Suits.CLUBS];
+
+  const isRedTrump = redSuits.includes(trumpSuit);
+  const order = {};
+  
+  // 主花色排在最前面（但会被移到主牌区域）
+  order[trumpSuit] = 0;
+  
+  // 根据主花色确定交替顺序
+  // 主花色后面是相反颜色，然后交替
+  let remainingSuits;
+  if (isRedTrump) {
+    // 红色主：红主 -> 黑 -> 红 -> 黑
+    const otherRed = redSuits.filter(s => s !== trumpSuit)[0];
+    if (trumpSuit === Suits.HEARTS) {
+      // hearts -> spades -> diamonds -> clubs
+      remainingSuits = [Suits.SPADES, Suits.DIAMONDS, Suits.CLUBS];
+    } else {
+      // diamonds -> clubs -> hearts -> spades
+      remainingSuits = [Suits.CLUBS, Suits.HEARTS, Suits.SPADES];
+    }
+  } else {
+    // 黑色主：黑主 -> 红 -> 黑 -> 红
+    if (trumpSuit === Suits.SPADES) {
+      // spades -> hearts -> clubs -> diamonds
+      remainingSuits = [Suits.HEARTS, Suits.CLUBS, Suits.DIAMONDS];
+    } else {
+      // clubs -> diamonds -> spades -> hearts
+      remainingSuits = [Suits.DIAMONDS, Suits.SPADES, Suits.HEARTS];
+    }
+  }
+
+  remainingSuits.forEach((suit, index) => {
+    order[suit] = index + 1;
+  });
+
+  order[Suits.JOKER] = 4;
+
+  return order;
+}
+
+/**
  * 判断一张牌是否为主牌
  * @param {Object} card - 卡牌对象
  * @param {String} trumpSuit - 主花色
@@ -48,8 +111,9 @@ function getTrumpPriority(card, trumpSuit, trumpRank) {
     if (trumpSuit && trumpSuit !== Suits.NO_TRUMP && card.suit === trumpSuit) {
       return 2;
     }
-    // 其他花色级牌按 SUIT_ORDER 排序
-    return 3 + (SUIT_ORDER[card.suit] ?? 0);
+    // 其他花色级牌按动态花色顺序排序（红黑交替）
+    const dynamicOrder = getDynamicSuitOrder(trumpSuit);
+    return 3 + (dynamicOrder[card.suit] ?? 0);
   }
 
   // 其他主花色牌（在级牌之后）
@@ -121,6 +185,9 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
     return cards;
   }
 
+  // 获取基于主花色的动态花色排序（副牌红黑交替）
+  const dynamicSuitOrder = getDynamicSuitOrder(trumpSuit);
+
   // 第一步：按照基本规则排序
   let sorted = [...cards].sort((a, b) => {
     const aIsJokerOrTrumpRank = isJokerOrTrumpRank(a, trumpRank);
@@ -158,9 +225,9 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
       return rankB - rankA;
     }
 
-    // 都是副牌，按花色和点数排序
-    const suitA = SUIT_ORDER[a.suit] ?? 999;
-    const suitB = SUIT_ORDER[b.suit] ?? 999;
+    // 都是副牌，按动态花色顺序和点数排序（红黑交替）
+    const suitA = dynamicSuitOrder[a.suit] ?? 999;
+    const suitB = dynamicSuitOrder[b.suit] ?? 999;
 
     if (suitA !== suitB) {
       return suitA - suitB;

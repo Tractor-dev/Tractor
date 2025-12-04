@@ -395,5 +395,13 @@ export default {
     chinese: '中文',
     english: 'English',
     japanese: '日本語'
+  },
+
+  // 设置
+  settings: {
+    settings: '设置',
+    language: '语言',
+    hideNotifications: '隐藏提示',
+    hideNotificationsDesc: '开启后将屏蔽所有弹窗（如谁出了什么牌）'
   }
 };

@@ -10,8 +10,9 @@ import './TrumpDeclaration.css';
  * @param {Array} props.availableDeclarations - 可用的亮主选项 [{type: 'joker|spades|hearts|clubs|diamonds', count: 1|2, canDeclare: boolean, description: string}]
  * @param {Function} props.onDeclare - 亮主回调 (type, count) => void
  * @param {Object} props.currentTrump - 当前主牌 {suit: string, declarationType: 'single'|'pair'|'pair_joker'}
+ * @param {Object} props.suitCounts - 各花色牌数（不含主点数） { spades: number, hearts: number, clubs: number, diamonds: number, joker: number }
  */
-export default function TrumpDeclaration({ availableDeclarations = [], onDeclare, currentTrump }) {
+export default function TrumpDeclaration({ availableDeclarations = [], onDeclare, currentTrump, suitCounts = {} }) {
   const { t } = useI18n();
   const [hoveredSlot, setHoveredSlot] = useState(null);
 
@@ -88,6 +89,11 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
     return tips;
   };
 
+  // 获取某个花色的牌数（不含主点数）
+  const getSuitCount = (slotType) => {
+    return suitCounts[slotType] || 0;
+  };
+
   return (
     <div className="trump-declaration">
       <div className="declaration-label">{t('trump.declareTrump')}</div>
@@ -95,6 +101,7 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
         {slots.map(slot => {
           const isActive = isSlotActive(slot.type);
           const tooltip = getSlotTooltip(slot.type);
+          const count = getSuitCount(slot.type);
 
           return (
             <Tooltip key={slot.type} title={tooltip} placement="top">
@@ -105,6 +112,7 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
                 onMouseLeave={() => setHoveredSlot(null)}
               >
                 <span className="slot-label">{slot.label}</span>
+                <span className="slot-count">{count}</span>
               </div>
             </Tooltip>
           );
