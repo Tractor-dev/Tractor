@@ -80,7 +80,9 @@ export default {
     defaultRoomName: 'My Room',
     defaultPlayerName: 'Player',
     defaultSpectatorName: 'Spectator',
-    totalRooms: '{count} rooms'
+    totalRooms: '{count} rooms',
+    waitingReconnect: 'Awaiting Reconnect',
+    reconnect: 'Reconnect'
   },
 
   // Room status
@@ -346,7 +348,10 @@ export default {
     ruleSelected: '{name} selected rule: {rule}',
     playerReadyForNext: '{name} is ready ({ready}/{total})',
     nextGameStarted: 'Starting next game!',
-    errorOccurred: 'An error occurred'
+    errorOccurred: 'An error occurred',
+    playerDisconnected: '{name} disconnected, waiting for reconnect...',
+    playerReconnected: '{name} reconnected',
+    youRejoined: 'You rejoined successfully, inherited position from {from}'
   },
 
   // Hand related

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Table, Button, Tag, Space } from 'antd';
-import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined, ReloadOutlined as ReconnectOutlined } from '@ant-design/icons';
 import { useI18n } from '../../locales/index.jsx';
 import './RoomList.css';
 
@@ -26,8 +26,11 @@ export default function RoomList({ rooms, onJoinRoom, onWatchRoom, onRefresh, lo
       render: (_, record) => (
         <span>
           {record.playerCount} / {record.maxPlayers}
-          {record.playerCount >= record.maxPlayers && (
+          {record.playerCount >= record.maxPlayers && !record.hasDisconnectedSlot && (
             <Tag color="red" style={{ marginLeft: 8 }}>{t('room.full')}</Tag>
+          )}
+          {record.hasDisconnectedSlot && (
+            <Tag color="orange" style={{ marginLeft: 8 }}>{t('room.waitingReconnect') || '等待重连'}</Tag>
           )}
           {record.spectatorCount > 0 && (
             <Tag color="blue" style={{ marginLeft: 4 }}>👁 {record.spectatorCount}</Tag>
@@ -65,18 +68,21 @@ export default function RoomList({ rooms, onJoinRoom, onWatchRoom, onRefresh, lo
         const isFull = record.playerCount >= record.maxPlayers;
         const phase = record.gameState?.phase;
         const isPlaying = phase && phase !== 'waiting' && phase !== 'finished';
-        const canJoin = !isFull && !isPlaying;
-        const canWatch = isFull || isPlaying;
+        const hasDisconnectedSlot = record.hasDisconnectedSlot;
+        // Allow joining if has disconnected slot (reconnection)
+        const canJoin = (!isFull && !isPlaying) || hasDisconnectedSlot;
+        const canWatch = (isFull || isPlaying) && !hasDisconnectedSlot;
 
         return (
           <Space size="small">
             <Button
-              type="primary"
+              type={hasDisconnectedSlot ? "primary" : "primary"}
               size="small"
               onClick={() => onJoinRoom(record.id)}
               disabled={!canJoin}
+              style={hasDisconnectedSlot ? { backgroundColor: '#fa8c16', borderColor: '#fa8c16' } : {}}
             >
-              {isFull ? t('room.full') : isPlaying ? t('room.inGame') : t('common.join')}
+              {hasDisconnectedSlot ? (t('room.reconnect') || '重连') : (isFull ? t('room.full') : isPlaying ? t('room.inGame') : t('common.join'))}
             </Button>
             {canWatch && onWatchRoom && (
               <Button
