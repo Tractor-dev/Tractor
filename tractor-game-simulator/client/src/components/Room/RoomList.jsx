@@ -48,7 +48,7 @@ export default function RoomList({ rooms, onJoinRoom, onWatchRoom, onRefresh, lo
         
         // If game is paused, show special status
         if (isPaused) {
-          return <Tag color="orange">{t('roomStatus.paused') || '已暂停'}</Tag>;
+          return <Tag color="orange">{t('roomStatus.paused')}</Tag>;
         }
         
         const statusMap = {

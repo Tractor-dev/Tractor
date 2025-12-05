@@ -108,8 +108,7 @@ export class Room {
    * 条件：游戏进行中（不在waiting或finished阶段）
    */
   canWaitForReconnect() {
-    const gameInProgress = this.gameState.phase !== 'waiting' && this.gameState.phase !== 'finished';
-    return gameInProgress;
+    return this.gameState.phase !== 'waiting' && this.gameState.phase !== 'finished';
   }
 
   /**

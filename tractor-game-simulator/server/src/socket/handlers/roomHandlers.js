@@ -71,6 +71,7 @@ export function registerRoomHandlers(io, socket, roomManager) {
           });
 
           // 如果没有更多断线玩家，广播游戏恢复事件
+          // (reconnectPlayer方法会在没有更多断线玩家时清除isPaused状态)
           if (!room.isPaused) {
             io.to(room.id).emit('game_resumed', {
               message: `玩家 ${player.name} 已重连，游戏继续`
