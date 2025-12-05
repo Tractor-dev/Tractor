@@ -42,8 +42,15 @@ export default function RoomList({ rooms, onJoinRoom, onWatchRoom, onRefresh, lo
       title: t('connection.connectionStatus'),
       dataIndex: 'gameState',
       key: 'status',
-      render: (gameState) => {
+      render: (gameState, record) => {
         const phase = gameState?.phase || 'waiting';
+        const isPaused = record.isPaused;
+        
+        // If game is paused, show special status
+        if (isPaused) {
+          return <Tag color="orange">{t('roomStatus.paused') || '已暂停'}</Tag>;
+        }
+        
         const statusMap = {
           waiting: { text: t('roomStatus.waiting'), color: 'blue' },
           drawing: { text: t('roomStatus.drawing'), color: 'orange' },

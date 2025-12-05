@@ -92,7 +92,8 @@ export default {
     burying: '埋底中',
     playing: '游戏中',
     revealing: '揭底中',
-    finished: '已结束'
+    finished: '已结束',
+    paused: '已暂停'
   },
 
   // 创建房间表单

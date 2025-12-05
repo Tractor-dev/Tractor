@@ -92,7 +92,8 @@ export default {
     burying: 'Burying',
     playing: 'Playing',
     revealing: 'Revealing',
-    finished: 'Finished'
+    finished: 'Finished',
+    paused: 'Paused'
   },
 
   // Create room form

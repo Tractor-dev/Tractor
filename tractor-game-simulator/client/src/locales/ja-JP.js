@@ -92,7 +92,8 @@ export default {
     burying: '埋め中',
     playing: 'プレイ中',
     revealing: '公開中',
-    finished: '終了'
+    finished: '終了',
+    paused: '一時停止'
   },
 
   // ルーム作成フォーム
