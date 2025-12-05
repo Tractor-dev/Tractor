@@ -42,6 +42,8 @@ const { Text } = Typography;
  * @param {Boolean} props.isFreeMode - 是否是自由模式
  * @param {Boolean} props.allowSpectatorViewHands - 是否允许观战者查看手牌
  * @param {Function} props.onViewPlayerHand - 观战者查看玩家手牌的回调
+ * @param {Boolean} props.isPaused - 游戏是否因玩家断线而暂停
+ * @param {String} props.pausedByPlayerName - 导致游戏暂停的玩家名称
  */
 export default function GameTable({
   players,
@@ -77,7 +79,9 @@ export default function GameTable({
   isSpectator = false,
   isFreeMode = false,
   allowSpectatorViewHands = false,
-  onViewPlayerHand = null
+  onViewPlayerHand = null,
+  isPaused = false,
+  pausedByPlayerName = null
 }) {
   const { t } = useI18n();
 
@@ -715,6 +719,18 @@ export default function GameTable({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 游戏暂停覆盖层 */}
+      {isPaused && (
+        <div className="game-paused-overlay">
+          <div className="game-paused-content">
+            <div className="game-paused-icon">⏸️</div>
+            <div className="game-paused-title">{t('pause.gamePaused')}</div>
+            <div className="game-paused-message">{t('pause.playerDisconnected', { name: pausedByPlayerName })}</div>
+            <div className="game-paused-waiting">{t('pause.waitingForReconnect')}</div>
           </div>
         </div>
       )}

@@ -351,7 +351,9 @@ export default {
     errorOccurred: '发生错误',
     playerDisconnected: '{name} 断线，等待重连...',
     playerReconnected: '{name} 重新连接',
-    youRejoined: '您成功重连，继承了 {from} 的位置'
+    youRejoined: '您成功重连，继承了 {from} 的位置',
+    gamePaused: '玩家 {name} 断线，游戏已暂停',
+    gameResumed: '游戏继续'
   },
 
   // 手牌相关
@@ -392,6 +394,13 @@ export default {
     allowSpectatorViewHands: '允许查看手牌',
     spectatorSettingsDesc: '允许观战者进入房间观看游戏',
     viewHandsSettingsDesc: '允许观战者查看各玩家的手牌'
+  },
+
+  // 游戏暂停相关
+  pause: {
+    gamePaused: '游戏已暂停',
+    playerDisconnected: '玩家 {name} 断线',
+    waitingForReconnect: '等待重连...'
   },
 
   // 语言

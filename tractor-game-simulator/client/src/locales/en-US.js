@@ -351,7 +351,9 @@ export default {
     errorOccurred: 'An error occurred',
     playerDisconnected: '{name} disconnected, waiting for reconnect...',
     playerReconnected: '{name} reconnected',
-    youRejoined: 'You rejoined successfully, inherited position from {from}'
+    youRejoined: 'You rejoined successfully, inherited position from {from}',
+    gamePaused: 'Player {name} disconnected, game paused',
+    gameResumed: 'Game resumed'
   },
 
   // Hand related
@@ -392,6 +394,13 @@ export default {
     allowSpectatorViewHands: 'Allow Hand Viewing',
     spectatorSettingsDesc: 'Allow spectators to join and watch the game',
     viewHandsSettingsDesc: 'Allow spectators to view player hands'
+  },
+
+  // Game pause related
+  pause: {
+    gamePaused: 'Game Paused',
+    playerDisconnected: 'Player {name} disconnected',
+    waitingForReconnect: 'Waiting for reconnect...'
   },
 
   // Language

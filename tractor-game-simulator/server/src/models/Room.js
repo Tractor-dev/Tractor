@@ -17,6 +17,8 @@ export class Room {
     // 断线重连相关
     this.disconnectedPlayers = new Map(); // 保存断线玩家的状态 Map<position, {player, disconnectedAt}>
     this.originalHumanPlayerCount = 0; // 原始真人玩家数量
+    this.isPaused = false; // 游戏是否因玩家断线而暂停
+    this.pausedByPlayerName = null; // 导致游戏暂停的玩家名称
   }
 
   addPlayer(player) {
@@ -86,6 +88,9 @@ export class Room {
     this.players.forEach(player => player.resetForNewGame());
     // 重置断线玩家列表
     this.disconnectedPlayers.clear();
+    // 重置暂停状态
+    this.isPaused = false;
+    this.pausedByPlayerName = null;
     this.updatedAt = new Date();
   }
 
@@ -100,15 +105,15 @@ export class Room {
 
   /**
    * 检查是否可以保留游戏状态等待重连
-   * 条件：原始真人玩家数量 > 2 且游戏进行中
+   * 条件：游戏进行中（不在waiting或finished阶段）
    */
   canWaitForReconnect() {
     const gameInProgress = this.gameState.phase !== 'waiting' && this.gameState.phase !== 'finished';
-    return this.originalHumanPlayerCount > 2 && gameInProgress;
+    return gameInProgress;
   }
 
   /**
-   * 保存断线玩家状态
+   * 保存断线玩家状态并暂停游戏
    */
   saveDisconnectedPlayer(player) {
     this.disconnectedPlayers.set(player.position, {
@@ -117,6 +122,9 @@ export class Room {
     });
     // 将玩家设置为离线状态但保留在玩家列表中
     player.isOnline = false;
+    // 暂停游戏
+    this.isPaused = true;
+    this.pausedByPlayerName = player.name;
     this.updatedAt = new Date();
   }
 
@@ -155,6 +163,13 @@ export class Room {
     
     // 从断线列表中移除
     this.disconnectedPlayers.delete(position);
+    
+    // 如果没有更多断线玩家，取消暂停状态
+    if (this.disconnectedPlayers.size === 0) {
+      this.isPaused = false;
+      this.pausedByPlayerName = null;
+    }
+    
     this.updatedAt = new Date();
     
     return player;
@@ -194,7 +209,9 @@ export class Room {
       updatedAt: this.updatedAt,
       // 断线重连相关
       hasDisconnectedSlot: this.hasDisconnectedSlot(),
-      disconnectedPositions: disconnectedPositions
+      disconnectedPositions: disconnectedPositions,
+      isPaused: this.isPaused,
+      pausedByPlayerName: this.pausedByPlayerName
     };
   }
 }
