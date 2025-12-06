@@ -92,7 +92,8 @@ export default {
     burying: '埋め中',
     playing: 'プレイ中',
     revealing: '公開中',
-    finished: '終了'
+    finished: '終了',
+    paused: '一時停止'
   },
 
   // ルーム作成フォーム
@@ -351,7 +352,9 @@ export default {
     errorOccurred: 'エラーが発生しました',
     playerDisconnected: '{name}が切断されました、再接続待ち...',
     playerReconnected: '{name}が再接続しました',
-    youRejoined: '再接続に成功しました、{from}のポジションを継承しました'
+    youRejoined: '再接続に成功しました、{from}のポジションを継承しました',
+    gamePaused: 'プレイヤー {name} が切断されました、ゲームが一時停止しました',
+    gameResumed: 'ゲームが再開しました'
   },
 
   // 手札関連
@@ -392,6 +395,13 @@ export default {
     allowSpectatorViewHands: '手札閲覧を許可',
     spectatorSettingsDesc: '観戦者がルームに参加してゲームを観戦できるようにする',
     viewHandsSettingsDesc: '観戦者がプレイヤーの手札を見られるようにする'
+  },
+
+  // ゲーム一時停止関連
+  pause: {
+    gamePaused: 'ゲームが一時停止しました',
+    playerDisconnected: 'プレイヤー {name} が切断されました',
+    waitingForReconnect: '再接続待ち...'
   },
 
   // 言語

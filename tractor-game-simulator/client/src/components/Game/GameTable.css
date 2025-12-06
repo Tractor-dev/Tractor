@@ -503,3 +503,85 @@
     margin-left: 0;
   }
 }
+
+/* Game paused overlay styles */
+.game-paused-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  border-radius: var(--table-border-radius);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.game-paused-content {
+  text-align: center;
+  color: white;
+  padding: clamp(24px, 4vmin, 48px);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: clamp(12px, 2vmin, 24px);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 90%;
+}
+
+.game-paused-icon {
+  font-size: clamp(48px, 8vmin, 80px);
+  margin-bottom: clamp(12px, 2vmin, 20px);
+  animation: pulse-icon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.game-paused-title {
+  font-size: clamp(24px, 4vmin, 36px);
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: clamp(8px, 1.5vmin, 16px);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.game-paused-message {
+  font-size: clamp(14px, 2.5vmin, 20px);
+  color: #ffffff;
+  margin-bottom: clamp(8px, 1.5vmin, 12px);
+}
+
+.game-paused-waiting {
+  font-size: clamp(12px, 2vmin, 16px);
+  color: rgba(255, 255, 255, 0.7);
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

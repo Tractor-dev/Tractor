@@ -90,6 +90,8 @@ export default function GameBoard() {
   const [viewLastRoundModal, setViewLastRoundModal] = useState(false); // 查看上一轮出牌弹窗
   const [spectatorViewHandModal, setSpectatorViewHandModal] = useState(false); // 观战者查看手牌弹窗
   const [spectatorViewedHand, setSpectatorViewedHand] = useState({ playerName: '', cards: [] }); // 观战者查看的手牌
+  const [isGamePaused, setIsGamePaused] = useState(false); // 游戏是否因玩家断线而暂停
+  const [pausedByPlayerName, setPausedByPlayerName] = useState(null); // 导致游戏暂停的玩家名称
 
   // 用于跟踪轮次结束后清除出牌的定时器
   const roundEndTimeoutRef = useRef(null);
@@ -610,6 +612,22 @@ export default function GameBoard() {
       setSpectatorViewHandModal(true);
     });
 
+    // 游戏暂停（玩家断线）
+    socket.on('game_paused', ({ pausedByPlayerName, message }) => {
+      console.log('游戏暂停:', { pausedByPlayerName, message });
+      setIsGamePaused(true);
+      setPausedByPlayerName(pausedByPlayerName);
+      showMessage('warning', t('messages.gamePaused', { name: pausedByPlayerName }), 5);
+    });
+
+    // 游戏恢复（玩家重连）
+    socket.on('game_resumed', ({ message }) => {
+      console.log('游戏恢复:', { message });
+      setIsGamePaused(false);
+      setPausedByPlayerName(null);
+      showMessage('success', t('messages.gameResumed'), 3);
+    });
+
     return () => {
       socket.off('game_started');
       socket.off('card_dealt');
@@ -646,6 +664,8 @@ export default function GameBoard() {
       socket.off('round_updated');
       socket.off('game_records');
       socket.off('spectator_hand_view');
+      socket.off('game_paused');
+      socket.off('game_resumed');
       // 清理轮次结束定时器
       clearRoundEndTimeout();
     };
@@ -687,6 +707,11 @@ export default function GameBoard() {
       setNewBotType(currentRoom.config.botType || BotTypes.SIMPLE);
       setNewAllowSpectators(currentRoom.config.allowSpectators !== false);
       setNewAllowSpectatorViewHands(currentRoom.config.allowSpectatorViewHands === true);
+    }
+    // 同步游戏暂停状态
+    if (currentRoom) {
+      setIsGamePaused(currentRoom.isPaused || false);
+      setPausedByPlayerName(currentRoom.pausedByPlayerName || null);
     }
   }, [currentRoom]);
 
@@ -1555,6 +1580,8 @@ export default function GameBoard() {
                 isFreeMode={isFreeMode}
                 allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
                 onViewPlayerHand={handleViewPlayerHand}
+                isPaused={isGamePaused}
+                pausedByPlayerName={pausedByPlayerName}
               />
             </div>
           );
@@ -1671,6 +1698,8 @@ export default function GameBoard() {
               isFreeMode={isFreeMode}
               allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
               onViewPlayerHand={handleViewPlayerHand}
+              isPaused={isGamePaused}
+              pausedByPlayerName={pausedByPlayerName}
             />
           </div>
         );
@@ -1708,6 +1737,8 @@ export default function GameBoard() {
               isFreeMode={isFreeMode}
               allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
               onViewPlayerHand={handleViewPlayerHand}
+              isPaused={isGamePaused}
+              pausedByPlayerName={pausedByPlayerName}
             />
           </div>
         );
@@ -1752,6 +1783,8 @@ export default function GameBoard() {
               isFreeMode={isFreeMode}
               allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
               onViewPlayerHand={handleViewPlayerHand}
+              isPaused={isGamePaused}
+              pausedByPlayerName={pausedByPlayerName}
             />
           </div>
         );
@@ -1796,6 +1829,8 @@ export default function GameBoard() {
               isFreeMode={isFreeMode}
               allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
               onViewPlayerHand={handleViewPlayerHand}
+              isPaused={isGamePaused}
+              pausedByPlayerName={pausedByPlayerName}
             />
           </div>
         );
@@ -1839,6 +1874,8 @@ export default function GameBoard() {
               isFreeMode={isFreeMode}
               allowSpectatorViewHands={currentRoom?.config?.allowSpectatorViewHands}
               onViewPlayerHand={handleViewPlayerHand}
+              isPaused={isGamePaused}
+              pausedByPlayerName={pausedByPlayerName}
             />
           </div>
         );
