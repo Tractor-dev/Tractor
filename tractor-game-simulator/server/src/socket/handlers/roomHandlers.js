@@ -445,6 +445,9 @@ export function registerRoomHandlers(io, socket, roomManager) {
 
 /**
  * 清理并删除房间
+ * @param {RoomManager} roomManager - 房间管理器实例
+ * @param {string} roomId - 要删除的房间ID
+ * @description 清理房间相关的所有资源（游戏引擎、bot服务）并删除房间
  */
 function cleanupAndDeleteRoom(roomManager, roomId) {
   const gameEngines = getGameEngines();
