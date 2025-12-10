@@ -444,6 +444,21 @@ export function registerRoomHandlers(io, socket, roomManager) {
 }
 
 /**
+ * 清理并删除房间
+ */
+function cleanupAndDeleteRoom(roomManager, roomId) {
+  const gameEngines = getGameEngines();
+  const botServices = getBotServices();
+  const gameEngine = gameEngines.get(roomId);
+  if (gameEngine) {
+    gameEngine.cleanup();
+  }
+  gameEngines.delete(roomId);
+  botServices.delete(roomId);
+  roomManager.deleteRoom(roomId);
+}
+
+/**
  * 处理玩家离开
  */
 function handlePlayerLeave(io, socket, roomManager, roomId) {
@@ -495,24 +510,14 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
         // 所有真人玩家都断线，删除房间
         logger.info(`房间 ${room.id} 所有真人玩家断线，自动删除房间`);
         
-        // 清理游戏引擎资源
-        const gameEngines = getGameEngines();
-        const botServices = getBotServices();
-        const gameEngine = gameEngines.get(room.id);
-        if (gameEngine) {
-          gameEngine.cleanup();
-        }
-        gameEngines.delete(room.id);
-        botServices.delete(room.id);
-        
         // 通知观战者房间已删除
         io.to(room.id).emit('room_deleted', {
           reason: '所有真人玩家已断线，房间已自动删除',
           roomId: room.id
         });
         
-        // 删除房间
-        roomManager.deleteRoom(room.id);
+        // 清理并删除房间
+        cleanupAndDeleteRoom(roomManager, room.id);
         return;
       }
 
@@ -558,11 +563,7 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
     // 检查房间是否需要删除：没有玩家或者只剩机器人
     if (room.players.length === 0 || room.hasOnlyBots()) {
       // 房间被删除时也清理游戏引擎和bot服务
-      const gameEngines = getGameEngines();
-      const botServices = getBotServices();
-      gameEngines.delete(room.id);
-      botServices.delete(room.id);
-      roomManager.deleteRoom(room.id);
+      cleanupAndDeleteRoom(roomManager, room.id);
       const reason = room.players.length === 0 ? '房间已删除' : '房间只剩机器人，已自动删除';
       logger.info(`玩家 ${player.name} 离开房间: ${room.id}，${reason}`);
       return; // 房间已删除，不需要再广播
