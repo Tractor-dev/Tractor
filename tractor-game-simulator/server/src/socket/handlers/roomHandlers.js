@@ -492,8 +492,28 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
 
       // 检查是否所有真人玩家都断线了
       if (room.hasNoOnlineHumanPlayers()) {
-        // 所有真人玩家都断线，但保留房间一段时间等待重连
-        logger.info(`房间 ${room.id} 所有真人玩家断线，保留房间等待重连`);
+        // 所有真人玩家都断线，删除房间
+        logger.info(`房间 ${room.id} 所有真人玩家断线，自动删除房间`);
+        
+        // 清理游戏引擎资源
+        const gameEngines = getGameEngines();
+        const botServices = getBotServices();
+        const gameEngine = gameEngines.get(room.id);
+        if (gameEngine) {
+          gameEngine.cleanup();
+        }
+        gameEngines.delete(room.id);
+        botServices.delete(room.id);
+        
+        // 通知观战者房间已删除
+        io.to(room.id).emit('room_deleted', {
+          reason: '所有真人玩家已断线，房间已自动删除',
+          roomId: room.id
+        });
+        
+        // 删除房间
+        roomManager.deleteRoom(room.id);
+        return;
       }
 
       // 广播房间状态更新
