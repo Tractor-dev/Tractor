@@ -29,6 +29,9 @@ function App() {
   const [newDealInterval, setNewDealInterval] = useState(100);
   const [newIsFreeMode, setNewIsFreeMode] = useState(false);
   const [newBotType, setNewBotType] = useState(BotTypes.SIMPLE);
+  const [newInitialTeam1Level, setNewInitialTeam1Level] = useState(null);
+  const [newInitialTeam2Level, setNewInitialTeam2Level] = useState(null);
+  const [newInitialDealerIndex, setNewInitialDealerIndex] = useState(null);
 
   useEffect(() => {
     // 连接Socket
@@ -298,7 +301,10 @@ function App() {
         bottomCardsCount: newBottomCardsCount,
         dealInterval: newDealInterval,
         playMode: newIsFreeMode ? 'free' : 'ordered',
-        botType: newBotType
+        botType: newBotType,
+        initialTeam1Level: newInitialTeam1Level,
+        initialTeam2Level: newInitialTeam2Level,
+        initialDealerIndex: newInitialDealerIndex
       }
     });
     setShowConfigModal(false);
@@ -318,6 +324,10 @@ function App() {
       setNewDealInterval(currentRoom.config.dealInterval);
       setNewIsFreeMode(currentRoom.config.playMode === 'free');
       setNewBotType(currentRoom.config.botType || BotTypes.SIMPLE);
+      // 同步房主初始设置
+      setNewInitialTeam1Level(currentRoom.config.initialTeam1Level ?? null);
+      setNewInitialTeam2Level(currentRoom.config.initialTeam2Level ?? null);
+      setNewInitialDealerIndex(currentRoom.config.initialDealerIndex ?? null);
     }
   }, [currentRoom]);
 
@@ -507,6 +517,66 @@ function App() {
             </Select>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {t('createRoomForm.botTypeDesc')}
+            </Text>
+            <br />
+            <br />
+            <Divider style={{ margin: '12px 0' }}>{t('createRoomForm.initialSettingsTitle')}</Divider>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+              {t('createRoomForm.initialSettingsDesc')}
+            </Text>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: 16 }}>
+              <div style={{ flex: 1 }}>
+                <Text strong>{t('createRoomForm.team1InitialLevel')}:</Text>
+                <br />
+                <Select
+                  style={{ width: '100%', marginTop: 8 }}
+                  value={newInitialTeam1Level}
+                  onChange={setNewInitialTeam1Level}
+                  allowClear
+                  placeholder={t('createRoomForm.defaultLevel')}
+                >
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                    <Select.Option key={level} value={level}>
+                      {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text strong>{t('createRoomForm.team2InitialLevel')}:</Text>
+                <br />
+                <Select
+                  style={{ width: '100%', marginTop: 8 }}
+                  value={newInitialTeam2Level}
+                  onChange={setNewInitialTeam2Level}
+                  allowClear
+                  placeholder={t('createRoomForm.defaultLevel')}
+                >
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                    <Select.Option key={level} value={level}>
+                      {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+            <Text strong>{t('createRoomForm.initialDealerLabel')}:</Text>
+            <br />
+            <Select
+              style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
+              value={newInitialDealerIndex}
+              onChange={setNewInitialDealerIndex}
+              allowClear
+              placeholder={t('createRoomForm.defaultDealer')}
+            >
+              {currentRoom?.players?.map((player, index) => (
+                <Select.Option key={index} value={index}>
+                  {player.name} ({t('createRoomForm.position')} {index + 1})
+                </Select.Option>
+              ))}
+            </Select>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {t('createRoomForm.initialDealerDesc')}
             </Text>
             <br />
             <br />
