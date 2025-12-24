@@ -62,6 +62,9 @@ export default function GameBoard() {
   const [newBotType, setNewBotType] = useState(BotTypes.SIMPLE); // 新的Bot类型
   const [newAllowSpectators, setNewAllowSpectators] = useState(true); // 是否允许观战
   const [newAllowSpectatorViewHands, setNewAllowSpectatorViewHands] = useState(false); // 是否允许观战者查看手牌
+  const [newInitialTeam1Level, setNewInitialTeam1Level] = useState(null); // 房主设置的队伍1初始等级
+  const [newInitialTeam2Level, setNewInitialTeam2Level] = useState(null); // 房主设置的队伍2初始等级
+  const [newInitialDealerIndex, setNewInitialDealerIndex] = useState(null); // 房主设置的初始庄家索引
   const [renameModal, setRenameModal] = useState(false); // 修改昵称弹窗
   const [newPlayerName, setNewPlayerName] = useState(''); // 新昵称
   const [chatModal, setChatModal] = useState(false); // 聊天弹窗
@@ -707,6 +710,10 @@ export default function GameBoard() {
       setNewBotType(currentRoom.config.botType || BotTypes.SIMPLE);
       setNewAllowSpectators(currentRoom.config.allowSpectators !== false);
       setNewAllowSpectatorViewHands(currentRoom.config.allowSpectatorViewHands === true);
+      // 同步房主初始设置
+      setNewInitialTeam1Level(currentRoom.config.initialTeam1Level ?? null);
+      setNewInitialTeam2Level(currentRoom.config.initialTeam2Level ?? null);
+      setNewInitialDealerIndex(currentRoom.config.initialDealerIndex ?? null);
     }
     // 同步游戏暂停状态
     if (currentRoom) {
@@ -950,7 +957,10 @@ export default function GameBoard() {
         playMode: newPlayMode,
         botType: newBotType,
         allowSpectators: newAllowSpectators,
-        allowSpectatorViewHands: newAllowSpectatorViewHands
+        allowSpectatorViewHands: newAllowSpectatorViewHands,
+        initialTeam1Level: newInitialTeam1Level,
+        initialTeam2Level: newInitialTeam2Level,
+        initialDealerIndex: newInitialDealerIndex
       }
     });
     setRoomConfigModal(false);
@@ -2253,6 +2263,66 @@ export default function GameBoard() {
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {t('spectator.viewHandsSettingsDesc')}
+          </Text>
+          <br />
+          <br />
+          <Divider style={{ margin: '12px 0' }}>{t('createRoomForm.initialSettingsTitle')}</Divider>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            {t('createRoomForm.initialSettingsDesc')}
+          </Text>
+          <div style={{ display: 'flex', gap: '16px', marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <Text strong>{t('createRoomForm.team1InitialLevel')}:</Text>
+              <br />
+              <Select
+                style={{ width: '100%', marginTop: 8 }}
+                value={newInitialTeam1Level}
+                onChange={setNewInitialTeam1Level}
+                allowClear
+                placeholder={t('createRoomForm.defaultLevel')}
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                  <Select.Option key={level} value={level}>
+                    {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Text strong>{t('createRoomForm.team2InitialLevel')}:</Text>
+              <br />
+              <Select
+                style={{ width: '100%', marginTop: 8 }}
+                value={newInitialTeam2Level}
+                onChange={setNewInitialTeam2Level}
+                allowClear
+                placeholder={t('createRoomForm.defaultLevel')}
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                  <Select.Option key={level} value={level}>
+                    {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <Text strong>{t('createRoomForm.initialDealerLabel')}:</Text>
+          <br />
+          <Select
+            style={{ width: '100%', marginTop: 8, marginBottom: 8 }}
+            value={newInitialDealerIndex}
+            onChange={setNewInitialDealerIndex}
+            allowClear
+            placeholder={t('createRoomForm.defaultDealer')}
+          >
+            {currentRoom?.players?.map((player, index) => (
+              <Select.Option key={index} value={index}>
+                {player.name} ({t('createRoomForm.position')} {index + 1})
+              </Select.Option>
+            ))}
+          </Select>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('createRoomForm.initialDealerDesc')}
           </Text>
           <br />
           <br />

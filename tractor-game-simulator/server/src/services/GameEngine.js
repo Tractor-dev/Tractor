@@ -53,6 +53,9 @@ export class GameEngine {
     // 重置游戏状态
     this.room.gameState.reset();
 
+    // 应用房主设置的初始状态（仅在第一局，即dealerPlayerIndex仍然为null时应用）
+    this.applyInitialSettings();
+
     // 重置所有玩家的准备状态
     this.room.players.forEach(player => {
       player.isReady = false;
@@ -72,6 +75,45 @@ export class GameEngine {
       isWaitingForReady: true,
       config: this.room.config
     });
+  }
+
+  /**
+   * 应用房主设置的初始状态
+   * 仅在第一局应用（dealerPlayerIndex为null时）
+   */
+  applyInitialSettings() {
+    const config = this.room.config;
+    const gameState = this.room.gameState;
+
+    // 应用初始队伍等级
+    if (config.initialTeam1Level !== null && config.initialTeam1Level !== undefined) {
+      const level = Math.max(2, Math.min(14, config.initialTeam1Level));
+      gameState.team1Level = level;
+      logger.info(`房间 ${this.room.id} 应用房主设置的队伍1初始等级: ${level}`);
+    }
+
+    if (config.initialTeam2Level !== null && config.initialTeam2Level !== undefined) {
+      const level = Math.max(2, Math.min(14, config.initialTeam2Level));
+      gameState.team2Level = level;
+      logger.info(`房间 ${this.room.id} 应用房主设置的队伍2初始等级: ${level}`);
+    }
+
+    // 应用初始庄家索引（仅在第一局，即dealerPlayerIndex仍然为null时应用）
+    if (gameState.dealerPlayerIndex === null &&
+        config.initialDealerIndex !== null && config.initialDealerIndex !== undefined) {
+      const maxIndex = this.room.players.length - 1;
+      const dealerIndex = Math.max(0, Math.min(maxIndex, config.initialDealerIndex));
+      gameState.dealerPlayerIndex = dealerIndex;
+      logger.info(`房间 ${this.room.id} 应用房主设置的初始庄家索引: ${dealerIndex}`);
+    }
+
+    // 如果设置了初始庄家，根据庄家所属队伍的等级设置级牌
+    if (gameState.dealerPlayerIndex !== null) {
+      const dealerTeam = gameState.dealerPlayerIndex % 2 === 0 ? 1 : 2;
+      const dealerLevel = dealerTeam === 1 ? gameState.team1Level : gameState.team2Level;
+      gameState.trumpRank = levelToRank(dealerLevel);
+      logger.info(`房间 ${this.room.id} 根据庄家队伍等级设置级牌: ${gameState.trumpRank}`);
+    }
   }
 
   /**

@@ -118,7 +118,17 @@ export default {
     botTypeDesc: 'WhoDesigned Botはベーシックモードでのみ使用可能です',
     settingsEffectNote: '設定は次のゲームから有効になります',
     bottomCardsValidation: '底牌の枚数は1-20の間である必要があります',
-    dealIntervalValidation: '配牌間隔は10-5000ミリ秒の間である必要があります'
+    dealIntervalValidation: '配牌間隔は10-5000ミリ秒の間である必要があります',
+    // 初期状態設定
+    initialSettingsTitle: '初期状態設定',
+    initialSettingsDesc: '設定すると、最初のゲームでデフォルト値の代わりに指定した初期レベルと親を使用します',
+    team1InitialLevel: 'チーム1の初期レベル',
+    team2InitialLevel: 'チーム2の初期レベル',
+    defaultLevel: 'デフォルト（2）',
+    initialDealerLabel: '初期の親',
+    initialDealerDesc: '設定しない場合、親はトランプ宣言またはランダムで決定されます',
+    defaultDealer: 'デフォルト（宣言で決定）',
+    position: 'ポジション'
   },
 
   // Botタイプ
