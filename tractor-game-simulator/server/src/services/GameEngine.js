@@ -79,11 +79,17 @@ export class GameEngine {
 
   /**
    * 应用房主设置的初始状态
-   * 仅在第一局应用（dealerPlayerIndex为null时）
+   * 仅在第一局应用（通过 initialSettingsApplied 标记判断）
    */
   applyInitialSettings() {
     const config = this.room.config;
     const gameState = this.room.gameState;
+
+    // 如果已经应用过初始设置，则跳过
+    if (gameState.initialSettingsApplied) {
+      logger.info(`房间 ${this.room.id} 初始设置已在第一局应用，跳过`);
+      return;
+    }
 
     // 应用初始队伍等级
     if (config.initialTeam1Level !== null && config.initialTeam1Level !== undefined) {
@@ -98,9 +104,8 @@ export class GameEngine {
       logger.info(`房间 ${this.room.id} 应用房主设置的队伍2初始等级: ${level}`);
     }
 
-    // 应用初始庄家索引（仅在第一局，即dealerPlayerIndex仍然为null时应用）
-    if (gameState.dealerPlayerIndex === null &&
-        config.initialDealerIndex !== null && config.initialDealerIndex !== undefined) {
+    // 应用初始庄家索引
+    if (config.initialDealerIndex !== null && config.initialDealerIndex !== undefined) {
       const maxIndex = this.room.players.length - 1;
       const dealerIndex = Math.max(0, Math.min(maxIndex, config.initialDealerIndex));
       gameState.dealerPlayerIndex = dealerIndex;
@@ -114,6 +119,10 @@ export class GameEngine {
       gameState.trumpRank = levelToRank(dealerLevel);
       logger.info(`房间 ${this.room.id} 根据庄家队伍等级设置级牌: ${gameState.trumpRank}`);
     }
+
+    // 标记初始设置已应用，防止后续游戏重复应用
+    gameState.initialSettingsApplied = true;
+    logger.info(`房间 ${this.room.id} 初始设置已应用完成`);
   }
 
   /**

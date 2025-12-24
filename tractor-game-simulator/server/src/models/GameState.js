@@ -40,6 +40,7 @@ export class GameState {
     this.team1Level = 2; // 索引0和2的队伍等级
     this.team2Level = 2; // 索引1和3的队伍等级
     this.dealerPlayerIndex = null; // 当前庄家玩家索引
+    this.initialSettingsApplied = false; // 是否已应用房主的初始设置（仅第一局应用）
   }
 
   reset() {

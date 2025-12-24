@@ -8,7 +8,7 @@ import CreateRoomModal from './components/Room/CreateRoomModal';
 import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
 import GameBoard from './components/Game/GameBoard';
-import { SOCKET_EVENTS, GamePhases, BotTypes } from './utils/constants';
+import { SOCKET_EVENTS, GamePhases, BotTypes, LEVEL_OPTIONS, levelToDisplay } from './utils/constants';
 import './styles/App.css';
 
 const { Header, Content } = Layout;
@@ -535,9 +535,9 @@ function App() {
                   allowClear
                   placeholder={t('createRoomForm.defaultLevel')}
                 >
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                  {LEVEL_OPTIONS.map(level => (
                     <Select.Option key={level} value={level}>
-                      {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                      {levelToDisplay(level)}
                     </Select.Option>
                   ))}
                 </Select>
@@ -552,9 +552,9 @@ function App() {
                   allowClear
                   placeholder={t('createRoomForm.defaultLevel')}
                 >
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                  {LEVEL_OPTIONS.map(level => (
                     <Select.Option key={level} value={level}>
-                      {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                      {levelToDisplay(level)}
                     </Select.Option>
                   ))}
                 </Select>

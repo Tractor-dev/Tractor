@@ -3,7 +3,7 @@ import { Button, Space, Typography, Modal, Select, InputNumber, Input, message, 
 import { GlobalOutlined, EyeOutlined, SettingOutlined } from '@ant-design/icons';
 import { useGameStore } from '../../store/gameStore';
 import socketService from '../../services/socket';
-import { SOCKET_EVENTS, GamePhases, PlayModes, BotTypes, Suits } from '../../utils/constants';
+import { SOCKET_EVENTS, GamePhases, PlayModes, BotTypes, Suits, LEVEL_OPTIONS, levelToDisplay } from '../../utils/constants';
 import { detectAvailableDeclarations } from '../../utils/trumpUtils';
 import { validateLeadingPlay, validateFollowingPlay } from '../../utils/cardPatternUtils';
 import { useI18n, LANGUAGE_NAMES, LANGUAGE_LIST } from '../../locales/index.jsx';
@@ -2281,9 +2281,9 @@ export default function GameBoard() {
                 allowClear
                 placeholder={t('createRoomForm.defaultLevel')}
               >
-                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                {LEVEL_OPTIONS.map(level => (
                   <Select.Option key={level} value={level}>
-                    {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                    {levelToDisplay(level)}
                   </Select.Option>
                 ))}
               </Select>
@@ -2298,9 +2298,9 @@ export default function GameBoard() {
                 allowClear
                 placeholder={t('createRoomForm.defaultLevel')}
               >
-                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(level => (
+                {LEVEL_OPTIONS.map(level => (
                   <Select.Option key={level} value={level}>
-                    {level === 11 ? 'J' : level === 12 ? 'Q' : level === 13 ? 'K' : level === 14 ? 'A' : level}
+                    {levelToDisplay(level)}
                   </Select.Option>
                 ))}
               </Select>
