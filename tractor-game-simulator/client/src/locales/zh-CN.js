@@ -118,7 +118,17 @@ export default {
     botTypeDesc: 'WhoDesigned Bot只能在基础模式下使用',
     settingsEffectNote: '设置将在下一局游戏开始时生效',
     bottomCardsValidation: '底牌数量必须在1-20之间',
-    dealIntervalValidation: '发牌间隔必须在10-5000毫秒之间'
+    dealIntervalValidation: '发牌间隔必须在10-5000毫秒之间',
+    // 初始状态设置
+    initialSettingsTitle: '初始状态设置',
+    initialSettingsDesc: '设置后，第一局游戏将使用您指定的初始等级和庄家，而非默认值',
+    team1InitialLevel: '队伍1初始等级',
+    team2InitialLevel: '队伍2初始等级',
+    defaultLevel: '默认（2）',
+    initialDealerLabel: '初始庄家',
+    initialDealerDesc: '如不设置，庄家将由亮主决定或随机指定',
+    defaultDealer: '默认（亮主决定）',
+    position: '位置'
   },
 
   // Bot类型

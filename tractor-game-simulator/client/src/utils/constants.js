@@ -123,3 +123,17 @@ export const RANK_ORDER = {
 // 开发环境：使用 localhost:5001
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL ||
   (import.meta.env.PROD ? window.location.origin : 'http://localhost:5001');
+
+// 等级数值到显示文本的映射（用于级别选择下拉框）
+// 2-10 显示数字，11=J, 12=Q, 13=K, 14=A
+export const LEVEL_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+
+export const levelToDisplay = (level) => {
+  switch (level) {
+    case 11: return 'J';
+    case 12: return 'Q';
+    case 13: return 'K';
+    case 14: return 'A';
+    default: return String(level);
+  }
+};

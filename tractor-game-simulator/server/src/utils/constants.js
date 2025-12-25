@@ -95,7 +95,11 @@ export const DEFAULT_CONFIG = {
   botType: BotTypes.WHO_DESIGNED,  // 默认使用WhoDesigned bot
   playMode: PlayModes.ORDERED,  // 默认使用基础模式（有序出牌）
   allowSpectators: true,  // 是否允许观战
-  allowSpectatorViewHands: false  // 是否允许观战者查看手牌
+  allowSpectatorViewHands: false,  // 是否允许观战者查看手牌
+  // 房主设置的初始状态 (null 表示使用默认规则)
+  initialTeam1Level: null,  // 队伍1初始等级 (null表示默认为2)
+  initialTeam2Level: null,  // 队伍2初始等级 (null表示默认为2)
+  initialDealerIndex: null  // 初始庄家索引 (null表示按亮牌规则或随机)
 };
 
 // 默认玩家属性

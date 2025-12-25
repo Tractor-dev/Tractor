@@ -118,7 +118,17 @@ export default {
     botTypeDesc: 'WhoDesigned Bot can only be used in Basic Mode',
     settingsEffectNote: 'Settings will take effect in the next game',
     bottomCardsValidation: 'Bottom cards count must be between 1-20',
-    dealIntervalValidation: 'Deal interval must be between 10-5000ms'
+    dealIntervalValidation: 'Deal interval must be between 10-5000ms',
+    // Initial state settings
+    initialSettingsTitle: 'Initial State Settings',
+    initialSettingsDesc: 'When set, the first game will use your specified initial levels and dealer instead of defaults',
+    team1InitialLevel: 'Team 1 Initial Level',
+    team2InitialLevel: 'Team 2 Initial Level',
+    defaultLevel: 'Default (2)',
+    initialDealerLabel: 'Initial Dealer',
+    initialDealerDesc: 'If not set, dealer will be determined by trump declaration or randomly',
+    defaultDealer: 'Default (By Declaration)',
+    position: 'Position'
   },
 
   // Bot types
