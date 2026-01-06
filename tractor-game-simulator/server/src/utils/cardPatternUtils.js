@@ -459,26 +459,43 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank) {
   const grouped1 = groupComponentsByType(components1);
   const grouped2 = groupComponentsByType(components2);
 
-  // 依次比较拖拉机、对子、单牌
+  // 甩牌比较规则：跟牌必须匹配首发的牌型结构才能赢
+  // 如果结构不匹配（例如首发是2个对子，跟牌是1个拖拉机），则首发的牌大
+  // 只有当跟牌完全匹配结构且每个对应类型的强度都更大时，跟牌才能赢
+  
+  // 检查每种类型是否结构匹配
+  let hasAnyComparison = false;
+  let followerWinsAllTypes = true;
+  
   for (const type of [PatternTypes.TRACTOR, PatternTypes.PAIR, PatternTypes.SINGLE]) {
     const comps1 = grouped1[type] || [];
     const comps2 = grouped2[type] || [];
 
-    // 比较该类型的最大强度
+    // 如果结构不匹配（一方有该类型组件，另一方没有），跟牌无法赢
+    if ((comps1.length > 0) !== (comps2.length > 0)) {
+      return 0; // 结构不匹配，先出的大
+    }
+    
+    // 两方都有该类型组件时，比较强度
     if (comps1.length > 0 && comps2.length > 0) {
+      hasAnyComparison = true;
       const max1 = Math.max(...comps1.map(c => c.strength));
       const max2 = Math.max(...comps2.map(c => c.strength));
 
-      if (max1 > max2) return 1;
-      if (max1 < max2) return -1;
-    } else if (comps1.length > 0) {
-      return 1;
-    } else if (comps2.length > 0) {
-      return -1;
+      if (max1 >= max2) {
+        // play1在这个类型上更强或相同，play2无法赢（先出的大）
+        followerWinsAllTypes = false;
+      }
+      // max1 < max2 的情况下，play2在这个类型上更强，继续检查其他类型
     }
   }
 
-  return 0; // 完全相同，先出的大
+  // 只有当play2在所有有组件的类型上都更强时，play2才能赢
+  if (hasAnyComparison && followerWinsAllTypes) {
+    return -1; // play2赢
+  }
+
+  return 0; // 完全相同或结构不匹配，先出的大
 }
 
 /**
