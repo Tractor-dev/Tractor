@@ -1,0 +1,12 @@
+name: Tractor Card Game
+description: 拖拉机纸牌游戏模拟器 - 一个功能完整的在线多人拖拉机纸牌游戏
+icon: https://zeabur.com/favicon.ico
+
+services:
+  - name: tractor-game
+    type: nodejs
+    env:
+      NODE_ENV: production
+      PORT: 5001
+    buildCommand: npm run postinstall
+    startCommand: npm start
