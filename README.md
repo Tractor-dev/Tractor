@@ -4,7 +4,7 @@
 
 一个功能完整的在线多人拖拉机纸牌游戏模拟器，支持2-4名玩家实时对战。
 
-[![一键部署到 Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates)
+[![一键部署到 Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/YLTDJL)
 
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18-blue)](https://react.dev/)

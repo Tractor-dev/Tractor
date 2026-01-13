@@ -96,13 +96,12 @@ zeabur deploy
 在 Zeabur 控制台设置以下环境变量：
 
 ```
-PORT=5001
 CLIENT_URL=https://your-app.zeabur.app
 NODE_ENV=production
 ```
 
 **注意**：
-- `PORT` 会由 Zeabur 自动提供，通常不需要手动设置
+- `PORT` 会由 Zeabur 自动提供，不需要手动设置
 - `CLIENT_URL` 需要设置为你的 Zeabur 应用域名
 
 ### 4. 查看部署
