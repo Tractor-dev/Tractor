@@ -35,27 +35,125 @@
 
 ## 部署方案
 
-### 方案一：Railway 一键部署（推荐新手）⭐
+### 方案一：Zeabur 一键部署（推荐新手）⭐
 
 最简单快速的部署方式，适合快速上线和演示。
 
-### 方案二：手动部署（推荐学习）
+### 方案二：Railway 一键部署（备选方案）
+
+另一个简单的部署平台，同样支持快速部署。
+
+### 方案三：手动部署（推荐学习）
 
 适合小规模部署，便于理解整个流程。
 
-### 方案三：Docker部署（推荐生产）
+### 方案四：Docker部署（推荐生产）
 
 适合生产环境，易于维护和扩展。
 
-### 方案四：进程管理器部署（PM2）
+### 方案五：进程管理器部署（PM2）
 
 适合需要自动重启和日志管理的场景。
 
 ---
 
+## Zeabur 一键部署
+
+Zeabur 是最简单的部署方式，Git push 即可自动部署，自带 HTTPS，支持中文界面。
+
+### 1. 准备工作
+
+确保项目根目录有以下配置文件（已包含在项目中）：
+- `package.json` - 根目录包配置
+- `zbpack.json` - Zeabur 配置（可选）
+
+### 2. 部署步骤
+
+**方式 A: 从 GitHub 部署（推荐）**
+
+1. 访问 [Zeabur.com](https://zeabur.com/)
+2. 使用 GitHub 账号登录
+3. 点击 "新建项目" 或 "New Project"
+4. 选择 "从 GitHub 部署" 或 "Deploy from GitHub"
+5. 授权并选择你的仓库 `Tractor-dev/Tractor`
+6. Zeabur 会自动检测并开始构建
+
+**方式 B: 使用 Zeabur CLI**
+
+```bash
+# 安装 Zeabur CLI
+npm install -g @zeabur/cli
+
+# 登录
+zeabur auth login
+
+# 在项目根目录部署
+zeabur deploy
+```
+
+### 3. 配置环境变量
+
+在 Zeabur 控制台设置以下环境变量：
+
+```
+PORT=5001
+CLIENT_URL=https://your-app.zeabur.app
+NODE_ENV=production
+```
+
+**注意**：
+- `PORT` 会由 Zeabur 自动提供，通常不需要手动设置
+- `CLIENT_URL` 需要设置为你的 Zeabur 应用域名
+
+### 4. 查看部署
+
+Zeabur 会自动：
+- ✅ 安装所有依赖
+- ✅ 构建前端
+- ✅ 启动后端服务
+- ✅ 提供 HTTPS 域名
+- ✅ 提供日志查看
+- ✅ 自动扩容
+
+访问 Zeabur 提供的域名即可使用应用！
+
+### 5. 自定义域名（可选）
+
+在 Zeabur 控制台：
+1. 进入服务设置
+2. 点击 "域名" 或 "Domains"
+3. 添加自定义域名
+4. 配置 DNS CNAME 记录
+
+### Zeabur 优势
+
+- ✅ **零配置**：自动检测和构建
+- ✅ **免费额度**：每月免费额度（足够小型项目）
+- ✅ **自动 HTTPS**：内置 SSL 证书
+- ✅ **Git 集成**：推送代码自动部署
+- ✅ **实时日志**：方便调试
+- ✅ **环境变量管理**：安全便捷
+- ✅ **中文支持**：完整的中文界面和文档
+- ✅ **快速部署**：国内访问速度更快
+
+### Zeabur 故障排查
+
+**构建失败**：
+1. 检查 Zeabur 控制台的构建日志
+2. 确认 `package.json` 中的脚本配置正确
+3. 检查依赖是否都在 `package.json` 中声明
+
+**环境变量问题**：
+确保在 Zeabur 控制台正确设置了 `CLIENT_URL`
+
+**WebSocket 连接问题**：
+Zeabur 完全支持 WebSocket，确保前端代码中的 Socket.IO 客户端连接到正确的 URL。
+
+---
+
 ## Railway 一键部署
 
-Railway 是最简单的部署方式，Git push 即可自动部署，自带 HTTPS。
+Railway 是另一个简单的部署方式，Git push 即可自动部署，自带 HTTPS。
 
 ### 1. 准备工作
 

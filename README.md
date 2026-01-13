@@ -7,6 +7,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18-blue)](https://react.dev/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.x-orange)](https://socket.io/)
+[![Deploy on Zeabur](https://img.shields.io/badge/Deploy%20on-Zeabur-blue)](https://zeabur.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](./LICENSE)
 
 [功能特性](#功能特性) • [快速开始](#快速开始) • [游戏规则](#游戏规则) • [技术栈](#技术栈) • [部署指南](./DEPLOYMENT.md) • [文档](#文档)
@@ -57,6 +58,21 @@
 ---
 
 ## 快速开始
+
+### 一键部署到 Zeabur（推荐）🚀
+
+最快的上线方式，无需配置服务器：
+
+1. 访问 [Zeabur.com](https://zeabur.com/)
+2. 使用 GitHub 登录
+3. 选择 "从 GitHub 部署"
+4. 选择本仓库 `Tractor-dev/Tractor`
+5. 等待自动构建完成
+6. 获得你的专属游戏链接！
+
+完整部署指南请查看 [部署文档](./DEPLOYMENT.md)
+
+### 本地开发环境
 
 ### 环境要求
 
