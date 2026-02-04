@@ -7,5 +7,5 @@ services:
     type: nodejs
     env:
       NODE_ENV: production
-    buildCommand: npm run postinstall
+    buildCommand: npm run build
     startCommand: npm start
