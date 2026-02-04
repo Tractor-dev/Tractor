@@ -3,3 +3,4 @@ rotate_svg.py
 rotate.py
 .DS_Store
 node_modules/
+dist/
