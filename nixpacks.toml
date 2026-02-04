@@ -8,7 +8,7 @@ cmds = [
 
 [phases.build]
 cmds = [
-  "cd tractor-game-simulator/client && npm install && npm run build"
+  "cd tractor-game-simulator/client && npm install --include=dev && npm run build"
 ]
 
 [start]
