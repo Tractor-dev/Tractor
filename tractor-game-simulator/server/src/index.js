@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { RoomManager } from './services/RoomManager.js';
 import { setupSocketIO } from './socket/index.js';
@@ -72,6 +73,15 @@ httpServer.listen(PORT, () => {
   logger.info(`📡 端口: ${PORT}`);
   logger.info(`🌐 客户端URL: ${CLIENT_URL}`);
   logger.info(`⏰ 启动时间: ${new Date().toLocaleString()}`);
+  if (NODE_ENV === 'production') {
+    const lanAddresses = Object.values(os.networkInterfaces()).flat()
+      .filter(n => n.family === 'IPv4' && !n.internal);
+    if (lanAddresses.length > 0) {
+      logger.info(`--- 局域网访问地址 ---`);
+      lanAddresses.forEach(n => logger.info(`  http://${n.address}:${PORT}`));
+      logger.info(`将以上地址分享给同局域网的朋友即可加入`);
+    }
+  }
   logger.info(`=========================================`);
 });
 
