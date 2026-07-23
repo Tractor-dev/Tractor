@@ -9,13 +9,25 @@ import { getCardStrength, getEffectiveSuit } from './cardPatternUtils.js';
  * @returns {Boolean} 是否为主牌
  */
 export function isTrumpCard(card, trumpSuit, trumpRank) {
+  if (card?.isForbiddenMagicDemoted) {
+    return false;
+  }
+  if (card.isLastStandTrump) {
+    return true;
+  }
+  if (card.isThreeTigersTrump) {
+    return true;
+  }
+  if (card.rank === Ranks.NO_TRUMP_MINUS) {
+    return true;
+  }
   // 大小王总是主牌
   if (card.suit === Suits.JOKER) {
     return true;
   }
 
   // 主点数的牌是主牌
-  if (trumpRank && card.rank === trumpRank) {
+  if (!card.isUnarmed && trumpRank && card.rank === trumpRank) {
     return true;
   }
 
@@ -31,7 +43,11 @@ export function isTrumpCard(card, trumpSuit, trumpRank) {
  * 获取主牌的优先级（用于排序）
  * 顺序：大王、小王、主花色级牌、其他花色级牌（按花色顺序）、主花色其他牌
  */
-function getTrumpPriority(card, trumpSuit, trumpRank) {
+function getTrumpPriority(card, trumpSuit, trumpRank, inferiorSuit = null) {
+  // 白王是队友加油/取长补短延拓后高于大王的一档。
+  if (card.suit === Suits.JOKER && card.rank === Ranks.WHITE_JOKER) {
+    return -1;
+  }
   // 大王
   if (card.suit === Suits.JOKER && card.rank === Ranks.BIG_JOKER) {
     return 0;
@@ -43,13 +59,20 @@ function getTrumpPriority(card, trumpSuit, trumpRank) {
   }
 
   // 级牌排序
-  if (trumpRank && card.rank === trumpRank) {
+  if (!card.isUnarmed && trumpRank && card.rank === trumpRank) {
     // 主花色级牌优先级最高（排在王后面）
     if (trumpSuit && trumpSuit !== Suits.NO_TRUMP && card.suit === trumpSuit) {
       return 2;
     }
+    if (inferiorSuit && card.suit === inferiorSuit) {
+      return 7;
+    }
     // 其他花色级牌按 SUIT_ORDER 排序
     return 3 + (SUIT_ORDER[card.suit] ?? 0);
+  }
+
+  if (card.rank === Ranks.NO_TRUMP_MINUS) {
+    return 7 + (SUIT_ORDER[card.suit] ?? 0);
   }
 
   // 其他主花色牌（在级牌之后）
@@ -71,7 +94,10 @@ function isJoker(card) {
  * 判断一张牌是否为级牌（非王）
  */
 function isTrumpRank(card, trumpRank) {
-  return trumpRank && card.rank === trumpRank && card.suit !== Suits.JOKER;
+  return card.suit !== Suits.JOKER && (
+    (!card.isUnarmed && trumpRank && card.rank === trumpRank)
+    || card.rank === Ranks.NO_TRUMP_MINUS
+  );
 }
 
 /**
@@ -91,7 +117,7 @@ function isTrumpSuitCard(card, trumpSuit, trumpRank) {
   }
 
   // 不是级牌
-  if (trumpRank && card.rank === trumpRank) {
+  if (!card.isUnarmed && trumpRank && card.rank === trumpRank) {
     return false;
   }
 
@@ -116,7 +142,7 @@ function isTrumpSuitCard(card, trumpSuit, trumpRank) {
  * @param {String} trumpRank - 主牌点数 (可选)
  * @returns {Array} 排序后的牌数组
  */
-export function sortCards(cards, trumpSuit = null, trumpRank = null) {
+export function sortCards(cards, trumpSuit = null, trumpRank = null, inferiorSuit = null) {
   if (!Array.isArray(cards) || cards.length === 0) {
     return cards;
   }
@@ -138,8 +164,8 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
 
     // 都是王或级牌，按主牌优先级排序
     if (aIsJokerOrTrumpRank && bIsJokerOrTrumpRank) {
-      const priorityA = getTrumpPriority(a, trumpSuit, trumpRank);
-      const priorityB = getTrumpPriority(b, trumpSuit, trumpRank);
+      const priorityA = getTrumpPriority(a, trumpSuit, trumpRank, inferiorSuit);
+      const priorityB = getTrumpPriority(b, trumpSuit, trumpRank, inferiorSuit);
       return priorityA - priorityB;
     }
 
@@ -158,6 +184,12 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
       return rankB - rankA;
     }
 
+    // 三六九等：劣花色普通牌整体排在所有普通副花色之后。
+    const aIsInferiorSuitCard = Boolean(inferiorSuit && a.suit === inferiorSuit);
+    const bIsInferiorSuitCard = Boolean(inferiorSuit && b.suit === inferiorSuit);
+    if (aIsInferiorSuitCard && !bIsInferiorSuitCard) return 1;
+    if (!aIsInferiorSuitCard && bIsInferiorSuitCard) return -1;
+
     // 都是副牌，按花色和点数排序
     const suitA = SUIT_ORDER[a.suit] ?? 999;
     const suitB = SUIT_ORDER[b.suit] ?? 999;
@@ -174,7 +206,12 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
 
   // 第二步：如果有主牌信息，调整拖拉机使其组件相连
   if (trumpSuit && trumpRank && sorted.length >= 4) {
-    sorted = adjustTractorsForVisualContinuity(sorted, trumpSuit, trumpRank);
+    sorted = adjustTractorsForVisualContinuity(
+      sorted,
+      trumpSuit,
+      trumpRank,
+      inferiorSuit
+    );
   }
 
   return sorted;
@@ -187,7 +224,7 @@ export function sortCards(cards, trumpSuit = null, trumpRank = null) {
  * @param {String} trumpRank - 级牌
  * @returns {Array} 调整后的牌数组
  */
-function adjustTractorsForVisualContinuity(cards, trumpSuit, trumpRank) {
+function adjustTractorsForVisualContinuity(cards, trumpSuit, trumpRank, inferiorSuit = null) {
   // 只处理主牌区域的拖拉机
   const trumpCards = cards.filter(c => isTrumpCard(c, trumpSuit, trumpRank));
   if (trumpCards.length < 4) {
@@ -210,7 +247,12 @@ function adjustTractorsForVisualContinuity(cards, trumpSuit, trumpRank) {
       if (card1.rank === card2.rank && card1.suit === card2.suit) {
         pairs.push({
           cards: [card1, card2],
-          strength: getCardStrength(card1, trumpSuit, trumpRank),
+          strength: getCardStrength(
+            card1,
+            trumpSuit,
+            trumpRank,
+            inferiorSuit ? { id: 'three_six_nine_grades', inferiorSuit } : null
+          ),
           indices: [
             cards.findIndex(c => c.id === card1.id),
             cards.findIndex(c => c.id === card2.id)
@@ -304,8 +346,9 @@ function adjustTractorsForVisualContinuity(cards, trumpSuit, trumpRank) {
     // 提取拖拉机的所有牌（按强度排序，保证从小到大）
     const tractorCards = tractorCardIds.map(id => result.find(c => c.id === id));
     tractorCards.sort((a, b) => {
-      const strengthA = getCardStrength(a, trumpSuit, trumpRank);
-      const strengthB = getCardStrength(b, trumpSuit, trumpRank);
+      const activeRule = inferiorSuit ? { id: 'three_six_nine_grades', inferiorSuit } : null;
+      const strengthA = getCardStrength(a, trumpSuit, trumpRank, activeRule);
+      const strengthB = getCardStrength(b, trumpSuit, trumpRank, activeRule);
       return strengthA - strengthB;
     });
 

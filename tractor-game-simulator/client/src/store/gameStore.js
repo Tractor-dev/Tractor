@@ -17,24 +17,31 @@ export const useGameStore = create((set, get) => ({
   // 主牌信息
   trumpSuit: null,
   trumpRank: null,
+  inferiorSuit: null,
 
   // Actions
   setCurrentRoom: (room) => set({ currentRoom: room }),
   setCurrentPlayer: (player) => set({ currentPlayer: player }),
   setMyCards: (cards) => set((state) => ({
-    myCards: sortCards(cards, state.trumpSuit, state.trumpRank)
+    myCards: sortCards(cards, state.trumpSuit, state.trumpRank, state.inferiorSuit)
   })),
   setSelectedCards: (cards) => set({ selectedCards: cards }),
   setRoomList: (rooms) => set({ roomList: rooms }),
   setIsConnected: (status) => set({ isConnected: status }),
 
   // 设置主牌信息
-  setTrumpInfo: (trumpSuit, trumpRank) => set((state) => ({
-    trumpSuit,
-    trumpRank,
-    // 主牌变更时自动重新排序手牌
-    myCards: sortCards(state.myCards, trumpSuit, trumpRank)
-  })),
+  setTrumpInfo: (trumpSuit, trumpRank, inferiorSuit) => set((state) => {
+    const nextInferiorSuit = inferiorSuit === undefined
+      ? state.inferiorSuit
+      : inferiorSuit;
+    return {
+      trumpSuit,
+      trumpRank,
+      inferiorSuit: nextInferiorSuit,
+      // 主牌或劣花色变更时自动重新排序手牌
+      myCards: sortCards(state.myCards, trumpSuit, trumpRank, nextInferiorSuit)
+    };
+  }),
 
   // 切换选中的牌
   toggleCardSelection: (cardId) => set((state) => {
@@ -51,7 +58,12 @@ export const useGameStore = create((set, get) => ({
 
   // 添加手牌
   addCard: (card) => set((state) => ({
-    myCards: sortCards([...state.myCards, card], state.trumpSuit, state.trumpRank)
+    myCards: sortCards(
+      [...state.myCards, card],
+      state.trumpSuit,
+      state.trumpRank,
+      state.inferiorSuit
+    )
   })),
 
   // 移除手牌
@@ -72,6 +84,7 @@ export const useGameStore = create((set, get) => ({
     selectedCards: [],
     isConnected: false,
     trumpSuit: null,
-    trumpRank: null
+    trumpRank: null,
+    inferiorSuit: null
   })
 }));

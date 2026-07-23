@@ -1,224 +1,128 @@
-import { useState, useEffect } from 'react';
-import { Modal, Button, Input, List, Space, Typography, Divider, message } from 'antd';
-import { SearchOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { Modal, Button, Typography, Space, Empty } from 'antd';
+import { CheckCircleFilled, ReloadOutlined } from '@ant-design/icons';
 import './RuleSelector.css';
 
 const { Text, Title } = Typography;
-const { TextArea } = Input;
 
-/**
- * 规则选择器组件
- * @param {Object} props
- * @param {Boolean} props.visible - 是否显示弹窗
- * @param {Function} props.onClose - 关闭弹窗的回调
- * @param {Function} props.onRuleSelected - 选择规则的回调，参数为 { name, content }
- */
-export default function RuleSelector({ visible, onClose, onRuleSelected }) {
-  const [rules, setRules] = useState([]);
-  const [filteredRules, setFilteredRules] = useState([]);
-  const [searchText, setSearchText] = useState('');
-  const [customRuleName, setCustomRuleName] = useState('');
-  const [customRuleContent, setCustomRuleContent] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const [messageApi, contextHolder] = message.useMessage();
+export default function RuleSelector({
+  visible,
+  rules = [],
+  selectionMode = 'single',
+  canChoose = true,
+  canRefresh = false,
+  onRuleSelected,
+  onRefreshRule,
+  onClose
+}) {
+  const isDoubleHappiness = selectionMode === 'double_happiness';
+  const [selectedRuleIds, setSelectedRuleIds] = useState([]);
 
-  // 加载规则数据
   useEffect(() => {
-    if (visible) {
-      fetch('/DLC.json')
-        .then(res => res.json())
-        .then(data => {
-          setRules(data);
-          setFilteredRules(data);
-        })
-        .catch(err => {
-          console.error('加载规则失败:', err);
-          messageApi.error('加载规则失败，请检查DLC.json文件');
-        });
-    }
-  }, [visible]);
+    setSelectedRuleIds(previous => (
+      previous.filter(id => rules.some(rule => rule.id === id))
+    ));
+  }, [rules]);
 
-  // 搜索规则
   useEffect(() => {
-    if (searchText.trim() === '') {
-      setFilteredRules(rules);
-    } else {
-      const filtered = rules.filter(rule =>
-        rule.name.includes(searchText) || rule.content.includes(searchText)
-      );
-      setFilteredRules(filtered);
-    }
-  }, [searchText, rules]);
+    if (!visible || !isDoubleHappiness) setSelectedRuleIds([]);
+  }, [visible, isDoubleHappiness]);
 
-  // 随机选择规则
-  const handleRandomSelect = () => {
-    if (rules.length === 0) {
-      messageApi.warning('没有可用的规则');
-      return;
-    }
-    const randomIndex = Math.floor(Math.random() * rules.length);
-    const selectedRule = rules[randomIndex];
-    onRuleSelected(selectedRule);
-    messageApi.success(`已随机选择规则: ${selectedRule.name}`);
-    handleClose();
+  const toggleRule = ruleId => {
+    if (!canChoose) return;
+    setSelectedRuleIds(previous => {
+      if (previous.includes(ruleId)) {
+        return previous.filter(id => id !== ruleId);
+      }
+      if (previous.length >= 2) return previous;
+      return [...previous, ruleId];
+    });
   };
 
-  // 选择指定规则
-  const handleSelectRule = (rule) => {
-    onRuleSelected(rule);
-    messageApi.success(`已选择规则: ${rule.name}`);
-    handleClose();
-  };
-
-  // 保存自定义规则
-  const handleSaveCustomRule = () => {
-    const trimmedName = customRuleName.trim();
-    const trimmedContent = customRuleContent.trim();
-
-    if (!trimmedName) {
-      messageApi.warning('规则名称不能为空');
-      return;
-    }
-    if (!trimmedContent) {
-      messageApi.warning('规则内容不能为空');
-      return;
-    }
-    if (trimmedName.length > 20) {
-      messageApi.warning('规则名称不能超过20个字符');
-      return;
-    }
-    if (trimmedContent.length > 200) {
-      messageApi.warning('规则内容不能超过200个字符');
-      return;
-    }
-
-    const customRule = {
-      name: trimmedName,
-      content: trimmedContent
-    };
-
-    onRuleSelected(customRule);
-    messageApi.success(`已保存自定义规则: ${trimmedName}`);
-    handleClose();
-  };
-
-  // 关闭弹窗
-  const handleClose = () => {
-    setSearchText('');
-    setCustomRuleName('');
-    setCustomRuleContent('');
-    setShowCustomInput(false);
-    onClose();
+  const submitDoubleHappiness = () => {
+    if (selectedRuleIds.length !== 2) return;
+    onRuleSelected?.(selectedRuleIds);
   };
 
   return (
-    <>
-      {contextHolder}
-      <Modal
-        title="选择游戏规则"
-        open={visible}
-        onCancel={handleClose}
-        footer={null}
-        width={700}
-        destroyOnClose
-      >
-        {!showCustomInput ? (
-          <>
-            {/* 操作按钮区域 */}
-            <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<ReloadOutlined />}
-                  onClick={handleRandomSelect}
-                >
-                  随机选择
-                </Button>
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => setShowCustomInput(true)}
-                >
-                  自定义规则
-                </Button>
-              </Space>
-            </Space>
+    <Modal
+      title={isDoubleHappiness ? '双喜临门 · 三选二' : '选择本局特殊规则'}
+      open={visible}
+      footer={isDoubleHappiness && canChoose ? (
+        <Button
+          type="primary"
+          disabled={selectedRuleIds.length !== 2}
+          onClick={submitDoubleHappiness}
+        >
+          确认采用这两条规则
+        </Button>
+      ) : null}
+      closable={!canChoose && Boolean(onClose)}
+      maskClosable={false}
+      keyboard={!canChoose}
+      onCancel={!canChoose ? onClose : undefined}
+      width={760}
+      destroyOnClose
+    >
+      <Text type="secondary">
+        {isDoubleHappiness
+          ? canChoose
+            ? '请选择两条同时生效的规则。若候选组合不合理，可以请房主刷新其中一条。'
+            : canRefresh
+              ? '本局选择者正在挑选两条规则；你可以刷新任意一条不合理的候选。'
+              : '本局选择者正在挑选两条规则；所有玩家都可以查看当前候选。'
+          : '你是本局的规则选择者。请选择一条规则，选择后本局立即采用且不能更换。'}
+      </Text>
 
-            {/* 搜索框 */}
-            <Input
-              placeholder="搜索规则名称或内容..."
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-              style={{ marginBottom: 16 }}
-            />
-
-            {/* 规则列表 */}
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <List
-                dataSource={filteredRules}
-                renderItem={(rule) => (
-                  <List.Item
-                    style={{ cursor: 'pointer', padding: '12px' }}
-                    onClick={() => handleSelectRule(rule)}
-                    hoverable
+      {rules.length === 0 ? (
+        <Empty description="正在等待服务端生成候选规则" />
+      ) : (
+        <Space direction="vertical" size={12} style={{ width: '100%', marginTop: 20 }}>
+          {rules.map((rule, index) => {
+            const selected = selectedRuleIds.includes(rule.id);
+            const selectionLocked = (
+              isDoubleHappiness
+              && !selected
+              && selectedRuleIds.length >= 2
+            );
+            return (
+              <div
+                className={`rule-option-shell ${selected ? 'is-selected' : ''}`}
+                key={rule.id}
+              >
+                <Button
+                  className="rule-option"
+                  block
+                  disabled={!canChoose || selectionLocked}
+                  onClick={() => (
+                    isDoubleHappiness
+                      ? toggleRule(rule.id)
+                      : onRuleSelected?.(rule)
+                  )}
+                >
+                  <span className="rule-option-layout">
+                    <Title className="rule-option-name" level={5}>
+                      {selected && <CheckCircleFilled className="rule-option-check" />}
+                      {rule.name}
+                    </Title>
+                    <Text className="rule-option-description">{rule.content}</Text>
+                  </span>
+                </Button>
+                {isDoubleHappiness && canRefresh && (
+                  <Button
+                    className="rule-option-refresh"
+                    icon={<ReloadOutlined />}
+                    onClick={() => onRefreshRule?.(index)}
+                    title={`刷新“${rule.name}”`}
                   >
-                    <List.Item.Meta
-                      title={<Text strong>{rule.name}</Text>}
-                      description={rule.content}
-                    />
-                  </List.Item>
+                    换一条
+                  </Button>
                 )}
-                locale={{ emptyText: '没有找到匹配的规则' }}
-              />
-            </div>
-
-            <Divider style={{ margin: '12px 0' }} />
-
-            <div style={{ textAlign: 'center' }}>
-              <Text type="secondary">
-                共 {filteredRules.length} 条规则
-                {searchText && ` (从 ${rules.length} 条中筛选)`}
-              </Text>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* 自定义规则输入 */}
-            <div>
-              <Title level={5}>自定义规则</Title>
-
-              <Text strong>规则名称：</Text>
-              <Input
-                placeholder="请输入规则名称（最多20字符）"
-                maxLength={20}
-                value={customRuleName}
-                onChange={(e) => setCustomRuleName(e.target.value)}
-                style={{ marginTop: 8, marginBottom: 16 }}
-              />
-
-              <Text strong>规则内容：</Text>
-              <TextArea
-                placeholder="请输入规则内容（最多200字符）"
-                maxLength={200}
-                rows={6}
-                value={customRuleContent}
-                onChange={(e) => setCustomRuleContent(e.target.value)}
-                style={{ marginTop: 8, marginBottom: 16 }}
-              />
-
-              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button onClick={() => setShowCustomInput(false)}>
-                  返回
-                </Button>
-                <Button type="primary" onClick={handleSaveCustomRule}>
-                  确认
-                </Button>
-              </Space>
-            </div>
-          </>
-        )}
-      </Modal>
-    </>
+              </div>
+            );
+          })}
+        </Space>
+      )}
+    </Modal>
   );
 }

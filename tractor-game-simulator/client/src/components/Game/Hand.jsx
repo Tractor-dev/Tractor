@@ -1,11 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useLayoutEffect, useRef } from 'react';
 import Card from './Card';
 import { getCardStrength, getEffectiveSuit } from '../../utils/cardPatternUtils';
 import { RANK_ORDER } from '../../utils/constants.js';
 import './Hand.css';
 
-export default function Hand({ cards, selectedCards = [], onCardClick, disabled = false, small = false, onReorder, trumpSuit = null, trumpRank = null }) {
+export default function Hand({ cards, selectedCards = [], disabledCardIds = [], disabledCardReason = '', virtualizedCardIds = [], revealedCardIds = [], transformableCardIds = [], onCardClick, onRequestCardTransformation, onCancelCardTransformation, disabled = false, faceDown = false, small = false, anticipateNextCard = false, showWinningBadge = false, onReorder, trumpSuit = null, trumpRank = null, minimumVisibleWidth = null }) {
   const [draggedCard, setDraggedCard] = useState(null);
+  const handRef = useRef(null);
+  const cardWrapperRefs = useRef(new Map());
+  const [layoutMetrics, setLayoutMetrics] = useState(null);
   const cardIndexMap = useMemo(() => {
     const map = new Map();
     cards.forEach((card, index) => {
@@ -13,6 +16,12 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
     });
     return map;
   }, [cards]);
+  // 转化牌会在牌数不变的情况下重新排序。布局测量必须感知实际牌序，
+  // 否则拖拉机标线会继续读取这些牌转换前所在位置的旧坐标。
+  const cardOrderKey = useMemo(
+    () => cards.map(card => card.id).join('|'),
+    [cards]
+  );
 
   const getCardIndex = (cardId) => cardIndexMap.get(cardId) ?? -1;
 
@@ -24,7 +33,7 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
 
   // 检测手牌中的所有拖拉机
   const tractorGroups = useMemo(() => {
-    if (!trumpSuit || !trumpRank || cards.length < 4) {
+    if (cards.length < 4) {
       return [];
     }
 
@@ -127,40 +136,6 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
     return tractors;
   }, [cards, trumpSuit, trumpRank]);
 
-  // 获取卡片所属的拖拉机索引
-  const getCardTractorIndex = (cardId) => {
-    for (let i = 0; i < tractorGroups.length; i++) {
-      if (tractorGroups[i].cardIds.includes(cardId)) {
-        return i;
-      }
-    }
-    return -1;
-  };
-
-  // 检查卡片是否是拖拉机的第一张
-  const isTractorStart = (cardId) => {
-    for (const tractor of tractorGroups) {
-      const cardIndex = getCardIndex(cardId);
-      const firstTractorCardIndex = getCardIndex(tractor.cardIds[0]);
-      if (cardIndex === firstTractorCardIndex) {
-        return tractor;
-      }
-    }
-    return null;
-  };
-
-  // 检查卡片是否是拖拉机的最后一张
-  const isTractorEnd = (cardId) => {
-    for (const tractor of tractorGroups) {
-      const cardIndex = getCardIndex(cardId);
-      const lastTractorCardIndex = getCardIndex(tractor.cardIds[tractor.cardIds.length - 1]);
-      if (cardIndex === lastTractorCardIndex) {
-        return true;
-      }
-    }
-    return false;
-  };
-
   // 根据牌数计算紧凑程度
   const getCompactClass = () => {
     const cardCount = cards.length;
@@ -172,6 +147,84 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
   };
 
   const compactClass = getCompactClass();
+
+  // 按容器的真实宽度连续计算叠牌量，并提前预留一张牌的露出宽度。
+  useLayoutEffect(() => {
+    const handElement = handRef.current;
+    if (!handElement) return undefined;
+
+    const updateOverlap = () => {
+      const cardCount = cards.length;
+      const cardWidth = small ? 50 : 78;
+      const naturalOverlap = small ? 18 : 25;
+      const minimumCardReveal = Number.isFinite(minimumVisibleWidth)
+        ? Math.max(1, Math.min(cardWidth, minimumVisibleWidth))
+        : (small ? 12 : 18);
+      const computedStyle = window.getComputedStyle(handElement);
+      const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
+      const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
+      const horizontalPadding = paddingLeft + paddingRight;
+      const nextCardReserve = anticipateNextCard && cardCount > 1 ? cardWidth - naturalOverlap : 0;
+      const usableWidth = Math.max(
+        cardWidth,
+        handElement.clientWidth - horizontalPadding - nextCardReserve
+      );
+      const requiredOverlap = cardCount > 1
+        ? cardWidth - (usableWidth - cardWidth) / (cardCount - 1)
+        : naturalOverlap;
+      const overlap = Math.min(
+        cardWidth - minimumCardReveal,
+        Math.max(naturalOverlap, Math.ceil(requiredOverlap))
+      );
+
+      handElement.style.setProperty('--card-overlap', `${overlap}px`);
+      const cardPositions = {};
+      cards.forEach((card) => {
+        const wrapper = cardWrapperRefs.current.get(card.id);
+        if (!wrapper) return;
+        // 弹窗入场会用 transform 缩放整只手牌。视觉矩形会暂时变小，
+        // 而 offset 坐标始终对应最终布局，可避免拖拉机标线停在动画中的旧位置。
+        cardPositions[card.id] = {
+          left: wrapper.offsetLeft,
+          right: wrapper.offsetLeft + wrapper.offsetWidth,
+          bottom: wrapper.offsetTop + wrapper.offsetHeight
+        };
+      });
+      const nextMetrics = {
+        width: handElement.clientWidth,
+        height: handElement.clientHeight,
+        paddingLeft,
+        paddingRight,
+        paddingBottom,
+        cardWidth,
+        overlap,
+        cardPositions
+      };
+      setLayoutMetrics((previous) => {
+        const sameScalarMetrics = previous && [
+          'width', 'height', 'paddingLeft', 'paddingRight', 'paddingBottom', 'cardWidth', 'overlap'
+        ].every((key) => previous[key] === nextMetrics[key]);
+        const sameCardPositions = sameScalarMetrics && cards.every((card) => {
+          const previousPosition = previous.cardPositions?.[card.id];
+          const nextPosition = cardPositions[card.id];
+          return previousPosition && nextPosition &&
+            previousPosition.left === nextPosition.left &&
+            previousPosition.right === nextPosition.right &&
+            previousPosition.bottom === nextPosition.bottom;
+        });
+        if (sameCardPositions) {
+          return previous;
+        }
+        return nextMetrics;
+      });
+    };
+
+    updateOverlap();
+    const resizeObserver = new ResizeObserver(updateOverlap);
+    resizeObserver.observe(handElement);
+    return () => resizeObserver.disconnect();
+  }, [cards.length, cardOrderKey, small, anticipateNextCard, minimumVisibleWidth]);
 
   // 拖拽开始
   const handleDragStart = (e, card) => {
@@ -219,52 +272,43 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
     setDraggedCard(null);
   };
 
-  // 拖拉机颜色数组
-  const tractorColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7'];
-
   return (
-    <div className={`hand ${small ? 'small' : ''} ${compactClass}`}>
+    <div ref={handRef} className={`hand ${small ? 'small' : ''} ${faceDown ? 'face-down-hand' : ''} ${compactClass}`}>
       {cards.map((card) => {
-        const tractorIndex = getCardTractorIndex(card.id);
-        const tractorStart = isTractorStart(card.id);
-        const isLastInTractor = isTractorEnd(card.id);
-        const isTractor = tractorIndex !== -1;
-        const tractorColor = isTractor ? tractorColors[tractorIndex % tractorColors.length] : null;
         const cardIndex = getCardIndex(card.id);
         const isRightmostCard = cardIndex === cards.length - 1;
-
-        // 计算拖拉机线的样式
-        // 如果是拖拉机的最后一张牌，限制线的宽度，不延伸到右边
-        const tractorLineStyle = {
-          position: 'absolute',
-          bottom: small ? '-2px' : '-4px',
-          left: 0,
-          height: small ? '2px' : '3px',
-          backgroundColor: tractorColor,
-          borderRadius: '2px'
-        };
-
-        if (isLastInTractor) {
-          // 最后一张牌：根据是否到手牌末尾决定宽度
-          if (isRightmostCard) {
-            tractorLineStyle.width = 'var(--card-width, 80px)';
-          } else {
-            tractorLineStyle.width = 'calc(var(--card-width, 80px) - var(--card-overlap, 25px))';
-          }
-        } else {
-          // 非最后一张：延伸到右边，会被下一张牌覆盖
-          tractorLineStyle.right = 0;
-        }
+        const isSelected = selectedCards.includes(card.id);
+        const isRuleDisabled = disabledCardIds.includes(card.id);
+        const isVirtualized = virtualizedCardIds.includes(card.id);
+        const isPubliclyRevealed = revealedCardIds.includes(card.id);
 
         return (
-          <div key={card.id} className="card-wrapper" style={{ position: 'relative' }}>
+          <div
+            key={card.id}
+            ref={(element) => {
+              if (element) cardWrapperRefs.current.set(card.id, element);
+              else cardWrapperRefs.current.delete(card.id);
+            }}
+            className={`card-wrapper ${isPubliclyRevealed ? 'is-publicly-revealed' : ''} ${isVirtualized ? 'is-virtualized' : ''}`}
+            style={{ zIndex: cardIndex + 1 }}
+          >
             <Card
               card={card}
-              selected={selectedCards.includes(card.id)}
+              selected={isSelected}
               onClick={() => onCardClick && onCardClick(card.id)}
-              disabled={disabled}
+              onRequestTransformation={transformableCardIds.includes(card.id) && onRequestCardTransformation
+                ? () => onRequestCardTransformation(card.id)
+                : undefined}
+              onCancelTransformation={card.explicitTransformationPreview && onCancelCardTransformation
+                ? () => onCancelCardTransformation(card.id)
+                : undefined}
+              disabled={disabled || isRuleDisabled || isVirtualized}
+              ruleDisabled={isRuleDisabled}
+              ruleDisabledReason={disabledCardReason}
+              virtualized={isVirtualized}
+              faceDown={faceDown}
               small={small}
-              draggable={!disabled && !!onReorder}
+              draggable={!disabled && !isRuleDisabled && !isVirtualized && !!onReorder}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDragOver={handleDragOver}
@@ -272,30 +316,38 @@ export default function Hand({ cards, selectedCards = [], onCardClick, disabled 
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
             />
-            {isTractor && (
-              <div
-                className="tractor-line"
-                style={tractorLineStyle}
-              />
+            {showWinningBadge && isRightmostCard && (
+              <span className="winning-play-badge" aria-label="当前最大">大</span>
             )}
-            {tractorStart && (
-              <div
-                className="tractor-label"
-                style={{
-                  position: 'absolute',
-                  bottom: small ? '-16px' : '-20px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  fontSize: small ? '9px' : '10px',
-                  color: tractorColor,
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
-                  textShadow: '0 0 2px white, 0 0 2px white'
-                }}
-              >
-                拖拉机
-              </div>
-            )}
+          </div>
+        );
+      })}
+      {layoutMetrics && tractorGroups.map((tractor, tractorIndex) => {
+        const indices = tractor.cardIds.map(getCardIndex).filter((index) => index >= 0);
+        if (indices.length === 0) return null;
+        const firstIndex = Math.min(...indices);
+        const lastIndex = Math.max(...indices);
+        const firstPosition = layoutMetrics.cardPositions?.[cards[firstIndex]?.id];
+        const lastPosition = layoutMetrics.cardPositions?.[cards[lastIndex]?.id];
+        if (!firstPosition || !lastPosition) return null;
+        const nextPosition = layoutMetrics.cardPositions?.[cards[lastIndex + 1]?.id];
+        const groupLeft = firstPosition.left;
+        const groupRight = lastIndex === cards.length - 1
+          ? lastPosition.right
+          : nextPosition?.left ?? lastPosition.right;
+        const groupWidth = Math.max(3, groupRight - groupLeft);
+
+        return (
+          <div
+            key={`tractor-label-${tractorIndex}`}
+            className="tractor-group-marker"
+            style={{
+              left: `${groupLeft}px`,
+              top: `${firstPosition.bottom - (small ? 4 : 5)}px`,
+              width: `${groupWidth}px`
+            }}
+          >
+            <span className="tractor-group-label">拖拉机</span>
           </div>
         );
       })}

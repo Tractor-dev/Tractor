@@ -1,26 +1,27 @@
 .hand {
-  --card-width: 80px;
+  --card-width: 78px;
   --card-overlap: 25px;
   display: flex;
   flex-direction: row;
   justify-content: center; /* 改为居中对齐 */
   align-items: flex-end;
-  padding: 10px 5px; /* 减小内边距，增加可用空间 */
-  min-height: 150px;
+  padding: 9px 5px 5px;
+  min-height: 138px;
   flex-wrap: nowrap;
   width: 100%; /* 添加100%宽度 */
   max-width: 100%;
   box-sizing: border-box; /* 添加box-sizing */
   overflow-x: visible; /* 允许溢出可见，而不是滚动 */
+  position: relative;
 }
 
 /* 根据牌数自动调整间距 - 使用负margin-left让牌重叠 */
-.hand > * {
+.hand > .card-wrapper {
   margin-left: calc(var(--card-overlap, 25px) * -1);
   flex-shrink: 0;
 }
 
-.hand > *:first-child {
+.hand > .card-wrapper:first-child {
   margin-left: 0;
 }
 
@@ -64,20 +65,106 @@
   --card-overlap: 38px; /* 小卡片33张时的重叠度 */
 }
 
+@media (max-width: 1180px) {
+  .hand.compact-1 { --card-overlap: 38px; }
+  .hand.compact-2 { --card-overlap: 46px; }
+  .hand.compact-3 { --card-overlap: 52px; }
+  .hand.compact-4 { --card-overlap: 57px; }
+}
+
+@media (max-width: 780px) {
+  .hand.compact-1 { --card-overlap: 48px; }
+  .hand.compact-2 { --card-overlap: 57px; }
+  .hand.compact-3 { --card-overlap: 61px; }
+  .hand.compact-4 { --card-overlap: 64px; }
+}
+
 /* 拖拉机标记样式 */
 .card-wrapper {
   position: relative;
+  isolation: isolate;
   display: inline-block;
   width: var(--card-width, 80px);
+  height: 110px;
+  line-height: 0;
+  vertical-align: bottom;
   flex-shrink: 0;
 }
 
-.tractor-line {
-  pointer-events: none;
-  z-index: 10;
+.card-wrapper.is-publicly-revealed .card {
+  border-color: #bd8618 !important;
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.72), transparent 42%),
+    linear-gradient(180deg, #fff6bd 0%, #f5d76e 62%, #d9aa36 100%) !important;
+  box-shadow: 0 3px 0 #8c6418, 0 8px 16px rgba(0, 25, 18, 0.3), 0 0 0 2px rgba(255, 225, 111, 0.42) !important;
+  animation: revealedCardGlow 0.42s ease-out both;
 }
 
-.tractor-label {
+@keyframes revealedCardGlow {
+  from { filter: brightness(1.28); }
+  to { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-wrapper.is-publicly-revealed .card { animation: none; }
+}
+
+.hand.small .card-wrapper {
+  height: 70px;
+}
+
+.card-wrapper > .card {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.my-hand .hand {
+  filter: drop-shadow(0 6px 6px rgba(0, 24, 18, 0.28));
+}
+
+.my-hand .card:not(.selected) {
+  box-shadow: 0 3px 0 #aeb3ad;
+}
+
+.tractor-group-marker {
+  position: absolute;
   pointer-events: none;
-  z-index: 11;
+  z-index: 200;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #d98512, #f3b62e 18%, #f3b62e 82%, #d98512);
+  box-shadow: 0 1px 3px rgba(83, 43, 0, 0.48);
+}
+
+.tractor-group-marker::before,
+.tractor-group-marker::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  width: 3px;
+  height: 7px;
+  border-radius: 2px;
+  background: #f3b62e;
+}
+
+.tractor-group-marker::before { left: 0; }
+.tractor-group-marker::after { right: 0; }
+
+.tractor-group-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  padding: 3px 9px 4px;
+  border: 1px solid rgba(247, 195, 72, 0.72);
+  border-radius: 7px;
+  color: #ffe36d;
+  background: rgba(55, 47, 28, 0.88);
+  box-shadow: 0 2px 6px rgba(21, 17, 7, 0.32);
+  backdrop-filter: blur(3px);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
 }

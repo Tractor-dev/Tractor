@@ -44,6 +44,26 @@ export class DeckService {
     return shuffled;
   }
 
+  static transformSpadesToHearts(deck) {
+    return deck.map(card => {
+      if (card.suit === Suits.SPADES) {
+        card.originalSuit = Suits.SPADES;
+        card.suit = Suits.HEARTS;
+        card.value = card.calculateValue();
+      }
+      return card;
+    });
+  }
+
+  static prepareUnarmedDeck(deck) {
+    return deck
+      .filter(card => card.suit !== Suits.JOKER)
+      .map(card => {
+        card.isUnarmed = true;
+        return card;
+      });
+  }
+
   /**
    * 准备发牌：分离底牌和剩余牌堆
    */

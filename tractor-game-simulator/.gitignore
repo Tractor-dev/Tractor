@@ -33,3 +33,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 .cache/
+test-results/
+playwright-report/

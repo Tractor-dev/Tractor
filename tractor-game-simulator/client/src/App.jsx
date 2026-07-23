@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber } from 'antd';
+import { Layout, Typography, Button, message, Space, Tabs, Tag, Divider, Modal, InputNumber, Checkbox, Select } from 'antd';
 import socketService from './services/socket';
 import { useGameStore } from './store/gameStore';
 import CreateRoomModal from './components/Room/CreateRoomModal';
 import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
 import GameBoard from './components/Game/GameBoard';
-import { SOCKET_EVENTS, GamePhases } from './utils/constants';
+import { SOCKET_EVENTS } from './utils/constants';
+import { shouldShowGameBoard } from './utils/gameViewUtils';
+import { RULE_SELECT_OPTIONS } from './utils/ruleCatalog';
 import './styles/App.css';
 
 const { Header, Content } = Layout;
@@ -20,8 +22,9 @@ function App() {
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [newBottomCardsCount, setNewBottomCardsCount] = useState(8);
   const [newDealInterval, setNewDealInterval] = useState(500);
+  const [testMode, setTestMode] = useState(false);
+  const [testRuleId, setTestRuleId] = useState('normal_game');
 
   useEffect(() => {
     // 连接Socket
@@ -131,8 +134,9 @@ function App() {
       name: values.roomName,
       playerName: values.playerName,
       config: {
-        bottomCardsCount: values.bottomCardsCount,
-        dealInterval: values.dealInterval
+        dealInterval: values.dealInterval,
+        testMode: values.testMode === true,
+        testRuleId: values.testMode ? values.testRuleId : null
       }
     });
   };
@@ -184,10 +188,6 @@ function App() {
   };
 
   const handleUpdateConfig = () => {
-    if (newBottomCardsCount < 1 || newBottomCardsCount > 20) {
-      messageApi.warning('底牌数量必须在1-20之间');
-      return;
-    }
     if (newDealInterval < 10 || newDealInterval > 5000) {
       messageApi.warning('发牌间隔必须在10-5000毫秒之间');
       return;
@@ -196,8 +196,9 @@ function App() {
     socket.emit(SOCKET_EVENTS.UPDATE_CONFIG, {
       roomId: currentRoom.id,
       config: {
-        bottomCardsCount: newBottomCardsCount,
-        dealInterval: newDealInterval
+        dealInterval: newDealInterval,
+        testMode,
+        testRuleId: testMode ? testRuleId : null
       }
     });
     setShowConfigModal(false);
@@ -213,17 +214,16 @@ function App() {
   // 同步房间配置
   useEffect(() => {
     if (currentRoom?.config) {
-      setNewBottomCardsCount(currentRoom.config.bottomCardsCount);
       setNewDealInterval(currentRoom.config.dealInterval);
+      setTestMode(currentRoom.config.testMode === true);
+      setTestRuleId(currentRoom.config.testRuleId || 'normal_game');
     }
   }, [currentRoom]);
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
-    // 如果游戏已开始（不在WAITING阶段）或正在等待准备，显示游戏界面
-    const gamePhase = currentRoom.gameState?.phase || GamePhases.WAITING;
-    const isWaitingForReady = currentRoom.gameState?.isWaitingForReady || false;
-    if (gamePhase !== GamePhases.WAITING || isWaitingForReady) {
+    // 规则选择属于两局之间的牌桌流程，不能因为阶段暂时回到 WAITING 就卸载牌桌。
+    if (shouldShowGameBoard(currentRoom.gameState)) {
       return <GameBoard />;
     }
 
@@ -263,8 +263,11 @@ function App() {
             </div>
             <div style={{ marginBottom: '24px' }}>
               <Title level={4}>房间配置:</Title>
-              <p>底牌数量: {currentRoom.config.bottomCardsCount} 张</p>
+              <p>默认底牌: 8 张（特殊规则可能调整）</p>
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
+              <p>规则模式: {currentRoom.config.testMode
+                ? `测试模式（${RULE_SELECT_OPTIONS.find(option => option.value === currentRoom.config.testRuleId)?.label || currentRoom.config.testRuleId}）`
+                : '正常随机二选一'}</p>
             </div>
 
             {/* Bot管理区域 - 仅房主可见 */}
@@ -333,16 +336,6 @@ function App() {
           cancelText="取消"
         >
           <div>
-            <Typography.Text strong>底牌数量:</Typography.Text>
-            <br />
-            <InputNumber
-              style={{ width: '100%', marginTop: 8, marginBottom: 16 }}
-              min={1}
-              max={20}
-              value={newBottomCardsCount}
-              onChange={setNewBottomCardsCount}
-            />
-            <br />
             <Typography.Text strong>发牌间隔（毫秒）:</Typography.Text>
             <br />
             <InputNumber
@@ -353,6 +346,22 @@ function App() {
               value={newDealInterval}
               onChange={setNewDealInterval}
             />
+            <br />
+            <br />
+            <Checkbox checked={testMode} onChange={event => setTestMode(event.target.checked)}>
+              规则测试模式
+            </Checkbox>
+            {testMode && (
+              <Select
+                aria-label="测试规则"
+                style={{ width: '100%', marginTop: 12 }}
+                value={testRuleId}
+                options={RULE_SELECT_OPTIONS}
+                onChange={setTestRuleId}
+                showSearch
+                optionFilterProp="label"
+              />
+            )}
             <br />
             <br />
             <Typography.Text type="secondary">设置将在下一局游戏开始时生效</Typography.Text>

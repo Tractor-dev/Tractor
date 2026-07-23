@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wooden ox layout visual fixture</title>
+    <style>
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        box-sizing: border-box;
+        padding: 16px;
+        background: #052f27;
+      }
+
+      #root {
+        height: calc(100% - 32px);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-testid="wooden-ox-layout-preview"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { Button, Space } from 'antd';
+      import GameTable from '/src/components/Game/GameTable.jsx';
+
+      const players = Array.from({ length: 4 }, (_, index) => ({
+        id: `player-${index}`,
+        name: index === 0 ? '玩家1' : `AI Bot ${index}`,
+        isBot: index !== 0,
+        level: 2,
+        cards: []
+      }));
+      const suits = ['spades', 'hearts', 'clubs', 'diamonds'];
+      const ranks = ['2', 'K', '10', '9', '8', '7'];
+      const myCards = Array.from({ length: 24 }, (_, index) => ({
+        id: `my-${index}`,
+        suit: suits[Math.floor(index / 6)],
+        rank: ranks[index % 6]
+      }));
+      const woodenOxCard = { id: 'wooden-ox-9', suit: 'hearts', rank: '9', isWoodenOxCard: true };
+      const declaredCards = [
+        { id: 'declared-spades-2-a', suit: 'spades', rank: '2' },
+        { id: 'declared-spades-2-b', suit: 'spades', rank: '2' }
+      ];
+      const controls = React.createElement(
+        Space,
+        { size: 8 },
+        React.createElement(Button, { type: 'primary' }, '出牌(0)'),
+        React.createElement(Button, null, '撤回'),
+        React.createElement(Button, null, '查看上轮'),
+        React.createElement(Button, null, '聊天'),
+        React.createElement(Button, null, '全选')
+      );
+
+      createRoot(document.getElementById('root')).render(React.createElement(GameTable, {
+        players,
+        currentPlayer: players[0],
+        myCards,
+        woodenOxCard,
+        onCardClick: () => {},
+        currentTurnPlayerId: players[0].id,
+        trumpSuit: 'spades',
+        trumpRank: '2',
+        currentTrumpDeclaration: {
+          playerId: players[0].id,
+          suit: 'spades',
+          cards: declaredCards
+        },
+        selectedRule: {
+          id: 'wooden_ox_flowing_horse',
+          name: '木牛流马',
+          content: '游戏开始时2、3号位各持有一具木牛流马。'
+        },
+        ruleRuntimeStatus: {
+          woodenOx: {
+            mules: [
+              { teamIndex: 0, holderPlayerId: players[0].id, hasStoredCard: true, completedRoundTrips: 0, maxRoundTrips: 2 },
+              { teamIndex: 1, holderPlayerId: players[3].id, hasStoredCard: false, completedRoundTrips: 0, maxRoundTrips: 2 }
+            ]
+          }
+        },
+        renderControls: controls,
+        dealerPlayerIndex: 0,
+        team1Level: 2,
+        team2Level: 2
+      }));
+    </script>
+  </body>
+</html>

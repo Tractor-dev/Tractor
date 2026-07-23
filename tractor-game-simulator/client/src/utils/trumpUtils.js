@@ -163,6 +163,71 @@ export function detectAvailableDeclarations(cards, trumpRank, currentTrump = nul
 }
 
 /**
+ * 三六九等的亮主/亮劣候选。两条反亮链独立比较强度，但普通花色声明全桌共用。
+ */
+export function detectThreeSixNineDeclarations(
+  cards,
+  trumpRank,
+  {
+    currentTrumpDeclaration = null,
+    currentInferiorDeclaration = null,
+    claimedSuits = {}
+  } = {},
+  currentPlayerId = null
+) {
+  const decorate = (declaration, declarationRole, currentDeclaration) => {
+    const claim = claimedSuits?.[declaration.suit] || null;
+    const isOwnCurrentReinforcement = Boolean(
+      declaration.isReinforce
+      && claim?.playerId === currentPlayerId
+      && claim?.declarationRole === declarationRole
+      && currentDeclaration?.playerId === currentPlayerId
+      && currentDeclaration?.suit === declaration.suit
+    );
+    const blockedByClaim = declaration.suit !== Suits.JOKER
+      && Boolean(claim)
+      && !isOwnCurrentReinforcement;
+    const roleName = declarationRole === 'inferior' ? '劣' : '主';
+    return {
+      ...declaration,
+      declarationRole,
+      canDeclare: declaration.canDeclare && !blockedByClaim,
+      description: blockedByClaim
+        ? `${getSuitSymbol(declaration.suit)} 已用于亮${claim.declarationRole === 'inferior' ? '劣' : '主'}`
+        : declaration.description.replaceAll('主', roleName)
+    };
+  };
+
+  const trumpDeclarations = detectAvailableDeclarations(
+    cards,
+    trumpRank,
+    currentTrumpDeclaration,
+    currentPlayerId
+  ).map(declaration => decorate(
+    declaration,
+    'trump',
+    currentTrumpDeclaration
+  ));
+
+  const inferiorDeclarations = currentTrumpDeclaration?.suit === 'joker'
+    ? []
+    : detectAvailableDeclarations(
+        cards,
+        trumpRank,
+        currentInferiorDeclaration,
+        currentPlayerId
+      )
+        .filter(declaration => declaration.suit !== Suits.JOKER)
+        .map(declaration => decorate(
+          declaration,
+          'inferior',
+          currentInferiorDeclaration
+        ));
+
+  return [...trumpDeclarations, ...inferiorDeclarations];
+}
+
+/**
  * 获取花色对应的类型名称
  */
 function getSuitType(suit) {

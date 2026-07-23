@@ -8,6 +8,19 @@ export class Card {
     this.value = this.calculateValue();
     this.displayOrder = 0;
     this.isShown = false;
+    this.originalSuit = null;
+    this.originalRank = null;
+    this.isLastStandTrump = false;
+    this.isDivineWeaponTransformed = false;
+    this.divineWeaponCardId = null;
+    this.isStrengthCompensated = false;
+    this.strengthCompensationDelta = 0;
+    this.isDefenseAsOffenseBoosted = false;
+    this.defenseAsOffenseDelta = 0;
+    this.isTeammateCheered = false;
+    this.isAfterglowBoosted = false;
+    this.isUnarmed = false;
+    this.isRiceToMulberryTransformed = false;
   }
 
   calculateValue() {
@@ -23,7 +36,24 @@ export class Card {
       rank: this.rank,
       value: this.value,
       displayOrder: this.displayOrder,
-      isShown: this.isShown
+      isShown: this.isShown,
+      ...(this.originalSuit ? { originalSuit: this.originalSuit } : {}),
+      ...(this.originalRank ? { originalRank: this.originalRank } : {}),
+      ...(this.isDivineWeaponTransformed ? { isDivineWeaponTransformed: true } : {}),
+      ...(this.divineWeaponCardId ? { divineWeaponCardId: this.divineWeaponCardId } : {}),
+      ...(this.isStrengthCompensated ? {
+        isStrengthCompensated: true,
+        strengthCompensationDelta: this.strengthCompensationDelta
+      } : {}),
+      ...(this.isDefenseAsOffenseBoosted ? {
+        isDefenseAsOffenseBoosted: true,
+        defenseAsOffenseDelta: this.defenseAsOffenseDelta
+      } : {}),
+      ...(this.isTeammateCheered ? { isTeammateCheered: true } : {}),
+      ...(this.isAfterglowBoosted ? { isAfterglowBoosted: true } : {}),
+      ...(this.isUnarmed ? { isUnarmed: true } : {}),
+      ...(this.isRiceToMulberryTransformed ? { isRiceToMulberryTransformed: true } : {}),
+      ...(this.isLastStandTrump ? { isLastStandTrump: true } : {})
     };
   }
 }

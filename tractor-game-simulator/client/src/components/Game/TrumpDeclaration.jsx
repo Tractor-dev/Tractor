@@ -10,7 +10,12 @@ import './TrumpDeclaration.css';
  * @param {Function} props.onDeclare - 亮主回调 (type, count) => void
  * @param {Object} props.currentTrump - 当前主牌 {suit: string, declarationType: 'single'|'pair'|'pair_joker'}
  */
-export default function TrumpDeclaration({ availableDeclarations = [], onDeclare, currentTrump }) {
+export default function TrumpDeclaration({
+  availableDeclarations = [],
+  onDeclare,
+  currentTrump,
+  isThreeSixNine = false
+}) {
   const [hoveredSlot, setHoveredSlot] = useState(null);
 
   // 定义五个格子：王、♠、♥、♣、♦
@@ -23,20 +28,23 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
   ];
 
   // 获取某个格子的可用亮主选项
-  const getSlotOptions = (slotType) => {
-    return availableDeclarations.filter(d => d.type === slotType);
+  const getSlotOptions = (slotType, declarationRole = 'trump') => {
+    return availableDeclarations.filter(d => (
+      d.type === slotType
+      && (d.declarationRole || 'trump') === declarationRole
+    ));
   };
 
   // 处理点击格子
-  const handleSlotClick = (slotType) => {
-    const options = getSlotOptions(slotType);
+  const handleSlotClick = (slotType, declarationRole = 'trump') => {
+    const options = getSlotOptions(slotType, declarationRole);
     if (options.length === 0) return;
 
     // 如果只有一个选项，直接亮主
     if (options.length === 1) {
       const option = options[0];
       if (option.canDeclare) {
-        onDeclare(slotType, option.count);
+        onDeclare(slotType, option.count, declarationRole);
       }
       return;
     }
@@ -45,7 +53,7 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
     if (slotType === 'joker') {
       const pairOption = options.find(o => o.count === 2 && o.canDeclare);
       if (pairOption) {
-        onDeclare(slotType, 2);
+        onDeclare(slotType, 2, declarationRole);
       }
       return;
     }
@@ -54,32 +62,32 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
     const reinforceOption = options.find(o => o.isReinforce && o.canDeclare);
     if (reinforceOption) {
       // 加固：亮一对
-      onDeclare(slotType, 2);
+      onDeclare(slotType, 2, declarationRole);
       return;
     }
 
     // 花色牌：默认亮一张，后续可以加固
     const singleOption = options.find(o => o.count === 1 && o.canDeclare);
     if (singleOption) {
-      onDeclare(slotType, 1);
+      onDeclare(slotType, 1, declarationRole);
     } else {
       // 没有单张选项（可能被别人亮过单张了），尝试一对
       const pairOption = options.find(o => o.count === 2 && o.canDeclare);
       if (pairOption) {
-        onDeclare(slotType, 2);
+        onDeclare(slotType, 2, declarationRole);
       }
     }
   };
 
   // 判断格子是否应该高亮（只在玩家可以亮或反时高亮）
-  const isSlotActive = (slotType) => {
-    const options = getSlotOptions(slotType);
+  const isSlotActive = (slotType, declarationRole = 'trump') => {
+    const options = getSlotOptions(slotType, declarationRole);
     return options.some(o => o.canDeclare);
   };
 
   // 获取格子的提示文本
-  const getSlotTooltip = (slotType) => {
-    const options = getSlotOptions(slotType);
+  const getSlotTooltip = (slotType, declarationRole = 'trump') => {
+    const options = getSlotOptions(slotType, declarationRole);
     if (options.length === 0) return '';
 
     const tips = options.map(o => o.description).join('\n');
@@ -93,6 +101,36 @@ export default function TrumpDeclaration({ availableDeclarations = [], onDeclare
         {slots.map(slot => {
           const isActive = isSlotActive(slot.type);
           const tooltip = getSlotTooltip(slot.type);
+
+          if (isThreeSixNine && slot.type !== 'joker') {
+            return (
+              <div className="declaration-slot declaration-slot-split" key={slot.type}>
+                <span className="slot-label">{slot.label}</span>
+                <div className="declaration-role-actions">
+                  {['trump', 'inferior'].map(declarationRole => {
+                    const roleActive = isSlotActive(slot.type, declarationRole);
+                    const roleTooltip = getSlotTooltip(slot.type, declarationRole);
+                    return (
+                      <Tooltip
+                        key={declarationRole}
+                        title={roleTooltip}
+                        placement="top"
+                      >
+                        <button
+                          type="button"
+                          className={`declaration-role-button ${declarationRole} ${roleActive ? 'active' : ''}`}
+                          disabled={!roleActive}
+                          onClick={() => handleSlotClick(slot.type, declarationRole)}
+                        >
+                          {declarationRole === 'trump' ? '主' : '劣'}
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
 
           return (
             <Tooltip key={slot.type} title={tooltip} placement="top">

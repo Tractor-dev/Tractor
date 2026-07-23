@@ -1,4 +1,5 @@
 import { PlayModes, TurnOrders } from '../utils/constants.js';
+import { isStriveUpstreamRule } from '../rules/ruleRegistry.js';
 
 export class RoundManager {
   constructor(room) {
@@ -89,19 +90,56 @@ export class RoundManager {
    * 默认逆时针（从玩家视角，向右传递）
    */
   moveToNextPlayer(currentPlayerIndex) {
-    const { turnOrder, customTurnOrder } = this.config;
     const playerCount = this.room.players.length;
 
-    if (turnOrder === TurnOrders.CUSTOM && customTurnOrder) {
-      // 自定义顺序
-      const currentPos = customTurnOrder.indexOf(currentPlayerIndex);
-      const nextPos = (currentPos + 1) % playerCount;
-      this.gameState.currentPlayerIndex = customTurnOrder[nextPos];
-    } else {
-      // 默认逆时针：索引递增
-      this.gameState.currentPlayerIndex =
-        (currentPlayerIndex + 1) % playerCount;
+    if (
+      isStriveUpstreamRule(this.gameState.selectedRule)
+      && this.gameState.striveUpstreamPlayOrder.length === playerCount
+    ) {
+      const currentOrderIndex = this.gameState.striveUpstreamPlayOrder.indexOf(currentPlayerIndex);
+      if (currentOrderIndex >= 0) {
+        for (let offset = 1; offset <= playerCount; offset += 1) {
+          const candidateIndex = this.gameState.striveUpstreamPlayOrder[
+            (currentOrderIndex + offset) % playerCount
+          ];
+          if (!this.gameState.playersPlayedThisRound.has(candidateIndex)) {
+            this.gameState.currentPlayerIndex = candidateIndex;
+            return candidateIndex;
+          }
+        }
+        return null;
+      }
     }
+
+    // 部分规则会临时调换同一轮内的出牌次序。此时不能简单落到物理下家，
+    // 否则可能再次轮到已经出过牌的玩家。
+    for (let offset = 1; offset <= playerCount; offset += 1) {
+      const candidateIndex = this.getPlayerIndexAtOffset(currentPlayerIndex, offset);
+      if (!this.gameState.playersPlayedThisRound.has(candidateIndex)) {
+        this.gameState.currentPlayerIndex = candidateIndex;
+        return candidateIndex;
+      }
+    }
+
+    return null;
+  }
+
+  /** 按本房间的固定出牌方向，取得相对座位。 */
+  getPlayerIndexAtOffset(currentPlayerIndex, offset = 1) {
+    const { turnOrder, customTurnOrder } = this.config;
+    const playerCount = this.room.players.length;
+    const directionMultiplier = this.gameState.turnDirection === TurnOrders.CLOCKWISE ? -1 : 1;
+    const directedOffset = offset * directionMultiplier;
+
+    if (turnOrder === TurnOrders.CUSTOM && customTurnOrder) {
+      const currentPos = customTurnOrder.indexOf(currentPlayerIndex);
+      if (currentPos >= 0) {
+        const targetPos = (currentPos + directedOffset + playerCount) % playerCount;
+        return customTurnOrder[targetPos];
+      }
+    }
+
+    return (currentPlayerIndex + directedOffset + playerCount) % playerCount;
   }
 
   /**

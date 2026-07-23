@@ -48,9 +48,9 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
       }
     },
     {
-      title: '底牌',
+      title: '默认底牌',
       key: 'bottomCards',
-      render: (_, record) => `${record.config?.bottomCardsCount || 8} 张`
+      render: () => '8 张'
     },
     {
       title: '操作',

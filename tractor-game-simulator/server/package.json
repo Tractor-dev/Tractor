@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test:rules && npm run test:bot",
+    "test:bot": "node test/botIntegration.mjs",
+    "test:rules": "node --test test/specialRules.test.mjs test/whoDesignedStrategy.test.mjs"
   },
   "keywords": ["tractor", "card-game", "socket.io"],
   "author": "",

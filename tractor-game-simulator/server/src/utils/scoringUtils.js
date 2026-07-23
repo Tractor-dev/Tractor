@@ -1,25 +1,58 @@
 import { Ranks, levelToRank } from './constants.js';
 import { PatternTypes } from './cardPatternUtils.js';
 
+const METICULOUS_ACCOUNTING_POINT_VALUES = Object.freeze({
+  A: 1,
+  '2': 2,
+  '3': 3,
+  '4': 4,
+  '5': 5,
+  '6': 6,
+  '7': 7
+});
+
+function getScoringRank(card) {
+  // 临时转化只改变牌面与牌力；分值始终来自被转化的实体牌。
+  const usesOriginalRank = card?.isDivineWeaponTransformed
+    || card?.isJokerSubstitution
+    || card?.isClusterAnalysisTransformed
+    || card?.isForbiddenMagicDemoted
+    || card?.isStrengthCompensated
+    || card?.isDefenseAsOffenseBoosted
+    || card?.isTeammateCheered
+    || card?.isAfterglowBoosted
+    || card?.isThreeTigersTransformed;
+  return usesOriginalRank && card?.originalRank
+    ? card.originalRank
+    : card?.rank;
+}
+
 /**
  * 获取单张牌的分数
  * @param {Object} card - 牌对象
  * @returns {Number} 分数 (0, 5, 或 10)
  */
 export function getCardPoints(card) {
+  if (card?.isRiceToMulberryTransformed) return 0;
+  const scoringRank = getScoringRank(card);
   // 5 = 5分
-  if (card.rank === Ranks.FIVE || card.rank === '5') {
+  if (scoringRank === Ranks.FIVE || scoringRank === '5') {
     return 5;
   }
   // 10 = 10分
-  if (card.rank === Ranks.TEN || card.rank === '10') {
+  if (scoringRank === Ranks.TEN || scoringRank === '10') {
     return 10;
   }
   // K = 10分
-  if (card.rank === Ranks.KING || card.rank === 'K') {
+  if (scoringRank === Ranks.KING || scoringRank === 'K') {
     return 10;
   }
   return 0;
+}
+
+/** “锱铢必较”中 A、2、3、4、5、6、7 分别计 1 至 7 分。 */
+export function getMeticulousAccountingCardPoints(card) {
+  return METICULOUS_ACCOUNTING_POINT_VALUES[String(getScoringRank(card))] || 0;
 }
 
 /**
@@ -27,11 +60,11 @@ export function getCardPoints(card) {
  * @param {Array} cards - 牌数组
  * @returns {Number} 总分
  */
-export function calculateRoundPoints(cards) {
+export function calculateRoundPoints(cards, pointResolver = getCardPoints) {
   if (!cards || cards.length === 0) {
     return 0;
   }
-  return cards.reduce((total, card) => total + getCardPoints(card), 0);
+  return cards.reduce((total, card) => total + pointResolver(card), 0);
 }
 
 /**
@@ -39,11 +72,11 @@ export function calculateRoundPoints(cards) {
  * @param {Array} cards - 牌数组
  * @returns {Array} 分数牌数组
  */
-export function extractPointCards(cards) {
+export function extractPointCards(cards, pointResolver = getCardPoints) {
   if (!cards || cards.length === 0) {
     return [];
   }
-  return cards.filter(card => getCardPoints(card) > 0);
+  return cards.filter(card => pointResolver(card) > 0);
 }
 
 /**
@@ -167,8 +200,8 @@ function calculateThrowMultiplier(leadingPattern) {
  * @param {Array} bottomCards - 底牌数组
  * @returns {Number} 底牌总分
  */
-export function calculateBottomPoints(bottomCards) {
-  return calculateRoundPoints(bottomCards);
+export function calculateBottomPoints(bottomCards, pointResolver = getCardPoints) {
+  return calculateRoundPoints(bottomCards, pointResolver);
 }
 
 /**
@@ -189,10 +222,20 @@ export function generateScoringSummary(params) {
     bottomCards,
     attackerWonLastRound,
     bottomMultiplier,
-    bottomPoints
+    bottomPoints,
+    bottomScoreGained: suppliedBottomScoreGained = null,
+    ambushRank = null,
+    ambushCardCount = 0,
+    ambushPoints = 0,
+    ambushScoreDelta = 0,
+    ambushAttackerNetCardDelta = 0,
+    ambushAttackerNetCardCount = 0,
+    ambushRevealedFromBottom = false
   } = params;
 
-  const bottomScoreGained = attackerWonLastRound ? bottomPoints * bottomMultiplier : 0;
+  const bottomScoreGained = Number.isFinite(suppliedBottomScoreGained)
+    ? suppliedBottomScoreGained
+    : (attackerWonLastRound ? bottomPoints * bottomMultiplier : 0);
 
   return {
     // 闲家收集的分数牌
@@ -205,6 +248,14 @@ export function generateScoringSummary(params) {
     bottomMultiplier,
     // 从底牌获得的分数
     bottomScoreGained,
+    // “十面埋伏”底牌中的反向五分牌结算。
+    ambushRank,
+    ambushCardCount,
+    ambushPoints,
+    ambushScoreDelta,
+    ambushAttackerNetCardDelta,
+    ambushAttackerNetCardCount,
+    ambushRevealedFromBottom,
     // 闲家总得分
     totalScore: attackerScore,
     // 是否闲家拿底

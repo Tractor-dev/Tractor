@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Joker visual fixture</title>
+    <style>
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        background: #103f32;
+      }
+
+      #root {
+        display: flex;
+        gap: 24px;
+        padding: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-testid="joker-preview"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import Card from '/src/components/Game/Card.jsx';
+
+      const jokers = [
+        { id: 'small-joker-preview', suit: 'joker', rank: 'small_joker' },
+        { id: 'big-joker-preview', suit: 'joker', rank: 'big_joker' }
+      ];
+
+      createRoot(document.getElementById('root')).render(
+        jokers.map((card) => React.createElement(Card, {
+          key: card.id,
+          card,
+          disabled: true,
+          trumpSuit: 'hearts',
+          trumpRank: '2'
+        }))
+      );
+    </script>
+  </body>
+</html>

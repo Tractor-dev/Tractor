@@ -1,135 +1,608 @@
 .card {
   position: relative;
-  width: 80px;
-  height: 112px;
-  background: white;
-  border: 2px solid #d9d9d9;
+  width: 78px;
+  height: 110px;
+  box-sizing: border-box;
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #c8cbc7;
   border-radius: 8px;
+  color: #121513;
+  background: linear-gradient(118deg, rgba(255,255,255,0.85), transparent 42%), linear-gradient(180deg, #fff 0%, #f7f7f3 72%, #e4e7e1 100%);
+  box-shadow: 0 3px 0 #aeb3ad, 0 7px 13px rgba(0, 21, 15, 0.28);
   cursor: pointer;
-  transition: all 0.2s ease;
   user-select: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: inline-block;
-  margin: 0 -10px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
-.card.small {
-  width: 50px;
-  height: 70px;
-  margin: 0 -6px;
+.card::after { content: ''; position: absolute; inset: 1px; border: 1px solid rgba(255,255,255,0.8); border-radius: 6px; pointer-events: none; }
+.card.small { width: 50px; height: 70px; margin: 0; border-radius: 6px; }
+.card.micro { width: 28px; height: 40px; border-radius: 4px; box-shadow: 0 2px 0 #aeb3ad, 0 3px 7px rgba(0, 21, 15, 0.24); }
+.card:not(.disabled):hover { border-color: #f1ce5c; box-shadow: 0 3px 0 #b49231, 0 9px 16px rgba(0, 27, 18, 0.3), 0 0 0 2px rgba(247, 216, 105, 0.28); }
+.card.selected { transform: translateY(-20px); border-color: #f4cf58 !important; box-shadow: 0 3px 0 #9f7920, 0 10px 16px rgba(0, 25, 18, 0.34), 0 0 0 2px rgba(255, 222, 103, 0.3); }
+.card.disabled { cursor: default !important; }
+.card.disabled:hover { transform: none; }
+.card.virtualized {
+  opacity: 0.28;
+  filter: grayscale(0.82) saturate(0.25) blur(0.35px);
+  border-color: rgba(183, 202, 195, 0.55) !important;
+  box-shadow: 0 2px 0 rgba(91, 112, 104, 0.45), 0 5px 12px rgba(0, 21, 15, 0.12);
+  transform: translateY(5px) scale(0.98);
 }
-
-.card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.card.selected {
-  transform: translateY(-37px);
-  border-color: #1890ff;
-  border-width: 3px;
-  box-shadow: 0 6px 12px rgba(24, 144, 255, 0.4);
-}
-
-.card.disabled {
-  cursor: not-allowed;
-}
-
-.card.disabled:hover {
-  transform: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.card-corner {
+.card.virtualized::before {
+  content: '虚置';
   position: absolute;
-  font-weight: bold;
+  z-index: 20;
+  left: 50%;
+  top: 50%;
+  padding: 3px 6px;
+  border: 1px solid rgba(224, 244, 237, 0.85);
+  border-radius: 999px;
+  color: #f0fff9;
+  background: rgba(13, 71, 56, 0.78);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+}
+.card.virtualized.disabled:hover { transform: translateY(5px) scale(0.98); }
+.card.rule-disabled {
+  filter: grayscale(0.78) saturate(0.32);
+  opacity: 1;
+  border-color: #858b86;
+  background:
+    linear-gradient(118deg, rgba(232, 234, 231, 0.42), transparent 42%),
+    linear-gradient(180deg, #c7cbc6 0%, #adb2ad 72%, #959b96 100%);
+  box-shadow: 0 2px 0 #747a75, 0 5px 9px rgba(0, 21, 15, 0.24);
+}
+.card.rule-disabled::after { border-color: rgba(238, 240, 237, 0.34); }
+.card.rule-disabled .trump-badge { filter: grayscale(1); opacity: 0.62; }
+.card.joker-card { background: linear-gradient(118deg, rgba(255,255,255,0.9), transparent 42%), linear-gradient(180deg, #fff 0%, #f7f7f3 72%, #e4e7e1 100%); }
+.card.joker-card.big-joker { background-color: rgba(216, 32, 53, 0.035); }
+.card.joker-card.small-joker { background-color: rgba(18, 21, 19, 0.025); }
+.card.no-trump-minus {
+  border-color: #b99742;
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.9), transparent 42%),
+    linear-gradient(180deg, #fffdf1 0%, #f6efd0 100%);
+}
+.card.joker-card.white-joker {
+  border-color: #d9ad3f !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 226, 121, 0.28), transparent 45%),
+    linear-gradient(145deg, #fffef5 0%, #fff9d8 57%, #ead79a 100%);
+  box-shadow: 0 2px 0 #a47b20, 0 5px 11px rgba(91, 57, 0, 0.34);
 }
 
-.card-corner.top-left {
-  top: 4px;
-  left: 6px;
-  text-align: left;
+/* 铁证如山：手牌跟随当前轮模式；桌面牌携带出牌时的模式快照。 */
+[data-iron-evidence-mode="multiply"] .card.iron-evidence-card:not(.iron-evidence-multiply):not(.iron-evidence-zero):not(.face-down),
+.card.iron-evidence-card.iron-evidence-multiply:not(.face-down) {
+  border-color: #ff4d4f !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 91, 91, 0.28), transparent 52%),
+    linear-gradient(145deg, #fff2f0 0%, #ffc9c5 58%, #f28c88 100%) !important;
+  box-shadow:
+    0 3px 0 #a63c3e,
+    0 7px 14px rgba(111, 18, 22, 0.34),
+    0 0 0 2px rgba(255, 77, 79, 0.26) !important;
 }
 
-.card-corner.bottom-right {
-  bottom: 4px;
-  right: 6px;
-  text-align: right;
-  transform: rotate(180deg);
+[data-iron-evidence-mode="zero"] .card.iron-evidence-card:not(.iron-evidence-multiply):not(.iron-evidence-zero):not(.face-down),
+.card.iron-evidence-card.iron-evidence-zero:not(.face-down) {
+  border-color: #858b86 !important;
+  color: #555b57 !important;
+  background:
+    linear-gradient(118deg, rgba(240, 242, 239, 0.56), transparent 42%),
+    linear-gradient(180deg, #d8dbd7 0%, #aeb3ae 100%) !important;
+  box-shadow:
+    0 3px 0 #6f746f,
+    0 6px 12px rgba(26, 32, 28, 0.3) !important;
+  filter: grayscale(1) saturate(0) brightness(0.88);
 }
 
-.card-rank {
-  font-size: 18px;
-  line-height: 1;
-  margin-bottom: 2px;
-}
+.card-corner { position: absolute; z-index: 2; font-weight: 900; }
+.card-corner.top-left { top: 6px; left: 7px; text-align: left; }
+.card-corner.bottom-right { right: 7px; bottom: 6px; text-align: right; transform: rotate(180deg); opacity: 0.78; }
+.card-rank { margin-bottom: 1px; font-family: 'Times New Roman', 'Liberation Serif', Times, serif; font-size: 20px; line-height: 0.92; letter-spacing: -0.05em; font-variant-numeric: lining-nums tabular-nums; }
+.card-suit { font-size: 17px; line-height: 1; }
+.card.small .card-rank { font-size: 13px; }
+.card.small .card-suit { font-size: 11px; }
+.card.micro .card-corner.top-left { top: 3px; left: 4px; }
+.card.micro .card-corner.bottom-right,
+.card.micro .card-center { display: none; }
+.card.micro .card-rank { font-size: 10px; }
+.card.micro .card-suit { font-size: 9px; }
 
-.card.small .card-rank {
-  font-size: 12px;
-}
+.card-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.suit-symbol { font-size: 35px; line-height: 1; opacity: 0.82; filter: saturate(1.08); }
+.card.small .suit-symbol { font-size: 24px; }
+.joker-center { display: grid; place-items: center; transform: none; }
+.joker-text { display: flex; flex-direction: column; align-items: center; font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: 900; line-height: 0.92; text-shadow: 0 1px white; }
+.joker-letter { display: block; width: 1em; height: 0.92em; text-align: center; }
+.joker-card .card-rank { letter-spacing: 0; }
+.card.small .joker-text { font-size: 9px; }
+.white-joker .joker-text { color: #bf8810; text-shadow: 0 1px #fff5bf; }
 
-.card-suit {
+.trump-badge { position: absolute; left: 5px; bottom: 5px; z-index: 10; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid #f6d65d; border-radius: 50%; background: linear-gradient(145deg, #ffdf62, #c68b18); box-shadow: 0 2px 5px rgba(91, 54, 0, 0.34); }
+.trump-star { color: #fff8c9; font-size: 13px; line-height: 1; text-shadow: 0 1px 2px #774000; animation: twinkle 2.2s ease-in-out infinite; }
+.card.small .trump-badge { left: 3px; bottom: 3px; width: 15px; height: 15px; }
+.card.small .trump-star { font-size: 9px; }
+.card.micro .trump-badge { right: 2px; bottom: 2px; left: auto; width: 8px; height: 8px; border-width: 0; }
+.card.micro .trump-star { font-size: 6px; }
+
+.inferior-badge {
+  display: none;
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  z-index: 10;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid #e2a48c;
+  border-radius: 50%;
+  color: #fff2e8;
+  background: linear-gradient(145deg, #a7634d, #6f372d);
+  box-shadow: 0 2px 5px rgba(77, 31, 21, 0.34);
   font-size: 16px;
+  font-weight: 900;
   line-height: 1;
 }
 
-.card.small .card-suit {
+[data-inferior-suit="hearts"] .card.card-suit-hearts .inferior-badge,
+[data-inferior-suit="diamonds"] .card.card-suit-diamonds .inferior-badge,
+[data-inferior-suit="clubs"] .card.card-suit-clubs .inferior-badge,
+[data-inferior-suit="spades"] .card.card-suit-spades .inferior-badge,
+.inferior-declaration-zone .inferior-badge {
+  display: grid;
+}
+
+/* 劣花色级牌以减号标识优先，避免与同位置的主牌星标重叠。 */
+[data-inferior-suit="hearts"] .card.card-suit-hearts .trump-badge,
+[data-inferior-suit="diamonds"] .card.card-suit-diamonds .trump-badge,
+[data-inferior-suit="clubs"] .card.card-suit-clubs .trump-badge,
+[data-inferior-suit="spades"] .card.card-suit-spades .trump-badge,
+.inferior-declaration-zone .trump-badge {
+  display: none;
+}
+
+.card.small .inferior-badge {
+  left: 3px;
+  bottom: 3px;
+  width: 15px;
+  height: 15px;
   font-size: 10px;
 }
 
-.card-center {
+.card.micro .inferior-badge {
+  left: 2px;
+  bottom: 2px;
+  width: 8px;
+  height: 8px;
+  border-width: 0;
+  font-size: 7px;
+}
+
+.converted-spade-badge {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  z-index: 11;
+  top: 5px;
+  right: 5px;
+  padding: 1px 4px;
+  border: 1px solid rgba(32, 35, 34, 0.28);
+  border-radius: 999px;
+  color: #202322;
+  background: rgba(255, 247, 219, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 20, 12, 0.16);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.card.small .converted-spade-badge {
+  top: 3px;
+  right: 3px;
+  padding: 0 2px;
+  font-size: 6px;
+}
+
+.card.micro .converted-spade-badge { display: none; }
+.card.last-stand-trump { box-shadow: 0 3px 0 #a8791a, 0 7px 13px rgba(0, 21, 15, 0.28), inset 0 0 0 2px rgba(255, 214, 75, 0.35); }
+
+.card.divine-weapon-transformed {
+  border-color: #ffe070 !important;
+  background:
+    linear-gradient(118deg, rgba(255, 244, 171, 0.7), transparent 44%),
+    linear-gradient(180deg, #fffdf0 0%, #f7edbc 72%, #d7bd61 100%);
+  box-shadow:
+    0 3px 0 #9d7516,
+    0 8px 18px rgba(73, 44, 0, 0.34),
+    0 0 0 2px rgba(255, 220, 91, 0.32),
+    0 0 22px rgba(255, 207, 54, 0.34);
+}
+
+.card.divine-weapon-preview {
+  animation: divineWeaponPreviewPulse 1.05s ease-in-out infinite;
+}
+
+.divine-weapon-card-badge {
+  position: absolute;
+  z-index: 12;
+  top: 5px;
+  right: 5px;
+  padding: 2px 5px;
+  border: 1px solid rgba(119, 76, 0, 0.38);
+  border-radius: 999px;
+  color: #6d4300;
+  background: linear-gradient(180deg, #fff3a4, #eab938);
+  box-shadow: 0 2px 5px rgba(78, 45, 0, 0.24);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.card.small .divine-weapon-card-badge {
+  top: 3px;
+  right: 3px;
+  padding: 1px 3px;
+  font-size: 6px;
+}
+
+.card.micro .divine-weapon-card-badge { display: none; }
+
+.card.rice-to-mulberry-transformed {
+  border-color: #56b88b !important;
+  background:
+    linear-gradient(132deg, rgba(122, 220, 171, 0.28), transparent 48%),
+    linear-gradient(180deg, #fcfffd 0%, #e0f3e7 74%, #a8d1b7 100%);
+  box-shadow:
+    0 3px 0 #377c5b,
+    0 8px 17px rgba(13, 74, 47, 0.28),
+    0 0 0 2px rgba(89, 192, 139, 0.24);
+}
+
+.rice-to-mulberry-card-badge {
+  position: absolute;
+  z-index: 13;
+  top: 5px;
+  right: 5px;
+  padding: 2px 4px;
+  border: 1px solid rgba(226, 255, 238, 0.92);
+  border-radius: 999px;
+  color: #effff5;
+  background: linear-gradient(145deg, #29976a, #176040);
+  box-shadow: 0 2px 5px rgba(8, 66, 40, 0.34);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.card.small .rice-to-mulberry-card-badge {
+  top: 3px;
+  right: 3px;
+  padding: 1px 3px;
+  font-size: 6px;
+}
+
+.card.micro .rice-to-mulberry-card-badge { display: none; }
+
+.card.cluster-analysis-transformed {
+  border-color: #6de3ff !important;
+  background:
+    linear-gradient(125deg, rgba(169, 240, 255, 0.42), transparent 48%),
+    linear-gradient(180deg, #fbffff 0%, #dff7f7 72%, #a8d8dd 100%);
+  box-shadow: 0 3px 0 #287b8b, 0 8px 17px rgba(4, 61, 75, 0.3), 0 0 0 2px rgba(99, 224, 255, 0.28);
+}
+
+.cluster-analysis-card-badge {
+  position: absolute;
+  z-index: 12;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 1px solid rgba(14, 93, 112, 0.48);
+  border-radius: 50%;
+  color: #eaffff;
+  background: linear-gradient(145deg, #28a9c5, #13687b);
+  box-shadow: 0 2px 5px rgba(4, 53, 65, 0.3);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.card.small .cluster-analysis-card-badge {
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
+  font-size: 7px;
+}
+
+.card.micro .cluster-analysis-card-badge { display: none; }
+
+.joker-substitution-card-badge {
+  position: absolute;
+  z-index: 12;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  color: #fff4dc;
+  background: linear-gradient(145deg, #9a55c6, #54256f);
+  box-shadow: 0 2px 5px rgba(47, 12, 66, 0.34);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.card.small .joker-substitution-card-badge {
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
+  font-size: 7px;
+}
+
+.card.micro .joker-substitution-card-badge { display: none; }
+
+.strength-compensation-card-badge {
+  position: absolute;
+  z-index: 13;
+  top: 5px;
+  right: 5px;
+  min-width: 24px;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 999px;
+  color: #fff;
+  background: #227447;
+  box-shadow: 0 2px 5px rgba(0, 40, 24, 0.35);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.1;
   text-align: center;
 }
 
-.suit-symbol {
-  font-size: 48px;
-  opacity: 0.2;
+.strength-compensation-card-badge.is-minus { background: #9a442f; }
+.card.small .strength-compensation-card-badge {
+  top: 3px;
+  right: 3px;
+  min-width: 18px;
+  padding: 1px 3px;
+  font-size: 7px;
+}
+.card.micro .strength-compensation-card-badge { display: none; }
+
+.card.teammate-cheered {
+  border-color: #f0bd45 !important;
+  background:
+    linear-gradient(135deg, rgba(255, 226, 123, 0.24), transparent 48%),
+    linear-gradient(180deg, #fffef8 0%, #fff3c7 76%, #e6c96f 100%);
+  box-shadow:
+    0 3px 0 #a87819,
+    0 8px 17px rgba(91, 59, 3, 0.3),
+    0 0 0 2px rgba(255, 207, 71, 0.28);
 }
 
-.card.small .suit-symbol {
-  font-size: 30px;
-}
-
-.joker-text {
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.card.small .joker-text {
-  font-size: 14px;
-}
-
-/* 主牌星标 */
-.trump-badge {
+.teammate-cheer-card-badge {
   position: absolute;
-  bottom: 4px;
-  left: 4px;
-  z-index: 10;
+  z-index: 13;
+  top: 5px;
+  right: 5px;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 248, 202, 0.9);
+  border-radius: 999px;
+  color: #fff7ce;
+  background: linear-gradient(145deg, #d59b1d, #8b5d08);
+  box-shadow: 0 2px 5px rgba(82, 51, 0, 0.35);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.1;
 }
 
-.trump-star {
-  font-size: 16px;
-  color: #ffd700;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
-  display: inline-block;
-  animation: twinkle 2s ease-in-out infinite;
+.card.small .teammate-cheer-card-badge {
+  top: 3px;
+  right: 3px;
+  padding: 1px 3px;
+  font-size: 6px;
 }
 
-.card.small .trump-star {
-  font-size: 12px;
+.card.micro .teammate-cheer-card-badge { display: none; }
+
+.card.afterglow-boosted {
+  border-color: #e58a4d !important;
+  background:
+    linear-gradient(135deg, rgba(255, 145, 76, 0.19), transparent 48%),
+    linear-gradient(180deg, #fffdf8 0%, #ffe4c9 76%, #dca56d 100%);
+  box-shadow:
+    0 3px 0 #9a4d20,
+    0 8px 17px rgba(104, 42, 5, 0.31),
+    0 0 0 2px rgba(255, 126, 58, 0.27);
 }
 
-@keyframes twinkle {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(0.95);
-  }
+.afterglow-card-badge {
+  position: absolute;
+  z-index: 13;
+  top: 5px;
+  right: 5px;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 236, 211, 0.92);
+  border-radius: 999px;
+  color: #fff3df;
+  background: linear-gradient(145deg, #d86b2b, #873310);
+  box-shadow: 0 2px 5px rgba(82, 28, 0, 0.35);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.1;
 }
+
+.card.small .afterglow-card-badge {
+  top: 3px;
+  right: 3px;
+  padding: 1px 3px;
+  font-size: 6px;
+}
+
+.card.micro .afterglow-card-badge { display: none; }
+
+.card.three-tigers-transformed {
+  border-color: #e69635 !important;
+  background:
+    repeating-linear-gradient(135deg, rgba(196, 91, 21, 0.10) 0 7px, transparent 7px 15px),
+    linear-gradient(180deg, #fffdf6 0%, #f8e7c6 74%, #dbb36c 100%);
+  box-shadow:
+    0 3px 0 #8c4b19,
+    0 8px 17px rgba(75, 33, 5, 0.34),
+    0 0 0 2px rgba(255, 175, 61, 0.28);
+}
+
+.three-tigers-card-badge {
+  position: absolute;
+  z-index: 13;
+  top: 5px;
+  right: 5px;
+  padding: 2px 4px;
+  border: 1px solid rgba(100, 42, 7, 0.55);
+  border-radius: 999px;
+  color: #fff6dc;
+  background: linear-gradient(145deg, #dd7924, #87370e);
+  box-shadow: 0 2px 5px rgba(75, 28, 3, 0.34);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.card.small .three-tigers-card-badge {
+  top: 3px;
+  right: 3px;
+  padding: 1px 3px;
+  font-size: 6px;
+}
+
+.card.micro .three-tigers-card-badge { display: none; }
+
+.card.forbidden-magic-demoted {
+  border-color: #c89bff !important;
+  background:
+    linear-gradient(132deg, rgba(222, 198, 255, 0.38), transparent 48%),
+    linear-gradient(180deg, #fffefe 0%, #eee6f5 74%, #c9b7d8 100%);
+  box-shadow: 0 3px 0 #6b4a83, 0 8px 17px rgba(44, 20, 63, 0.28), 0 0 0 2px rgba(198, 145, 245, 0.22);
+}
+
+.card.forbidden-magic-transformed {
+  box-shadow: 0 3px 0 #6b4a83, 0 8px 17px rgba(44, 20, 63, 0.34), 0 0 0 2px rgba(221, 169, 255, 0.4), 0 0 20px rgba(184, 108, 237, 0.3);
+}
+
+.forbidden-magic-card-badge {
+  position: absolute;
+  z-index: 12;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 1px solid rgba(66, 28, 91, 0.5);
+  border-radius: 50%;
+  color: #fff5ff;
+  background: linear-gradient(145deg, #a05fc7, #58316f);
+  box-shadow: 0 2px 5px rgba(44, 17, 61, 0.35);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.card.small .forbidden-magic-card-badge {
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
+  font-size: 7px;
+}
+
+.card.micro .forbidden-magic-card-badge { display: none; }
+
+.card-transformation-control {
+  position: absolute;
+  z-index: 24;
+  left: 2px;
+  top: 48px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 5px;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(69, 11, 18, 0.42);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-transformation-trigger {
+  background: linear-gradient(145deg, #8b63d8, #553091);
+}
+
+.card-transformation-cancel {
+  background: linear-gradient(145deg, #d94b4b, #8d1e2a);
+}
+
+.card-transformation-control:hover {
+  filter: brightness(1.12);
+  transform: scale(1.06);
+}
+
+@keyframes divineWeaponPreviewPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+}
+
+.card.face-down {
+  border-color: #d5b548 !important;
+  color: #fff1a6 !important;
+  background: linear-gradient(145deg, #0d5b4b 0%, #073b33 52%, #062b27 100%);
+  box-shadow: 0 3px 0 #795f18, 0 7px 13px rgba(0, 21, 15, 0.38), inset 0 0 0 3px rgba(225, 190, 68, 0.34);
+}
+
+.card.face-down::after {
+  inset: 5px;
+  border: 1px solid rgba(255, 222, 106, 0.55);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 7px, rgba(255, 220, 100, 0.11) 7px 9px),
+    repeating-linear-gradient(-45deg, transparent 0 7px, rgba(255, 220, 100, 0.08) 7px 9px);
+}
+
+.card-back-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+}
+
+.card-back-surface span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(255, 223, 108, 0.7);
+  border-radius: 50%;
+  color: #ffeba0;
+  background: rgba(52, 34, 5, 0.34);
+  box-shadow: 0 0 16px rgba(255, 214, 72, 0.2);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.card.small .card-back-surface span { width: 26px; height: 26px; font-size: 13px; }
+.card.micro .card-back-surface span { width: 16px; height: 16px; font-size: 8px; }
+
+@keyframes twinkle { 50% { filter: brightness(1.2); transform: rotate(8deg) scale(0.9); } }
+@media (prefers-reduced-motion: reduce) { .card, .trump-star { transition: none; animation: none; } }

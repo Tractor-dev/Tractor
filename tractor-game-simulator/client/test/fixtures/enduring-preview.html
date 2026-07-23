@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enduring rule visual fixture</title>
+    <style>
+      html, body, #root { width: 100%; height: 100%; margin: 0; }
+      body { box-sizing: border-box; padding: 16px; background: #052f27; }
+      #root { height: calc(100% - 32px); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-testid="enduring-preview"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import GameTable from '/src/components/Game/GameTable.jsx';
+
+      const players = Array.from({ length: 4 }, (_, index) => ({
+        id: `player-${index}`,
+        name: index === 0 ? '玩家1' : `AI Bot ${index}`,
+        isBot: index !== 0,
+        level: 2,
+        score: 0,
+        cards: []
+      }));
+      const makeCard = (id, suit, rank) => ({ id, suit, rank });
+      const source = (prefix, suit, ranks) => ranks.map((rank, index) =>
+        makeCard(`${prefix}-${index}`, suit, rank)
+      );
+      const inherited = sourceCards => ({
+        sourceCards,
+        sourcePatternType: sourceCards.length === 1 ? 'single' : 'throw',
+        inheritedComponentCount: 1
+      });
+      const playedCards = {
+        'player-0': {
+          playerName: '玩家1',
+          cards: [makeCard('bottom-now', 'spades', '3')],
+          enduringInheritance: inherited([makeCard('bottom-source', 'joker', 'big_joker')])
+        },
+        'player-1': {
+          playerName: 'AI Bot 1',
+          cards: source('right-now', 'hearts', ['4', '4']),
+          enduringInheritance: inherited(source('right-source', 'hearts', ['A', 'A']))
+        },
+        'player-2': {
+          playerName: 'AI Bot 2',
+          cards: source('top-now', 'clubs', ['4', '4', '3']),
+          enduringInheritance: inherited(source('top-source', 'clubs', ['A', 'A', 'K', 'Q', 'J', '10', '9', '8']))
+        },
+        'player-3': {
+          playerName: 'AI Bot 3',
+          cards: [makeCard('left-now', 'diamonds', '5')],
+          enduringInheritance: inherited([makeCard('left-source', 'diamonds', 'A')])
+        }
+      };
+
+      createRoot(document.getElementById('root')).render(React.createElement(GameTable, {
+        players,
+        currentPlayer: players[0],
+        playedCards,
+        currentWinningPlayerId: players[0].id,
+        myCards: source('hand', 'hearts', ['K', '9']),
+        trumpSuit: 'spades',
+        trumpRank: '2',
+        selectedRule: {
+          id: 'enduring',
+          name: '经久不衰',
+          content: '同花色、同牌型及同组合结构时沿用上轮较高牌力。'
+        },
+        team1Level: 2,
+        team2Level: 2
+      }));
+    </script>
+  </body>
+</html>

@@ -16,6 +16,7 @@ export const PlayModes = {
 
 // 出牌顺序
 export const TurnOrders = {
+  CLOCKWISE: 'clockwise',
   COUNTER_CLOCKWISE: 'counter-clockwise',
   CUSTOM: 'custom'
 };
@@ -32,6 +33,10 @@ export const Suits = {
 
 // 牌面值
 export const Ranks = {
+  MINUS_TWO: '-2',
+  MINUS_ONE: '-1',
+  ZERO: '0',
+  ONE: '1',
   TWO: '2',
   THREE: '3',
   FOUR: '4',
@@ -45,9 +50,24 @@ export const Ranks = {
   QUEEN: 'Q',
   KING: 'K',
   ACE: 'A',
+  FIFTEEN: 'F',
+  NO_TRUMP_MINUS: 'M',
   SMALL_JOKER: 'small_joker',
-  BIG_JOKER: 'big_joker'
+  BIG_JOKER: 'big_joker',
+  WHITE_JOKER: 'white_joker'
 };
+
+export const STANDARD_ORDINARY_RANKS = Object.freeze([
+  Ranks.TWO, Ranks.THREE, Ranks.FOUR, Ranks.FIVE, Ranks.SIX,
+  Ranks.SEVEN, Ranks.EIGHT, Ranks.NINE, Ranks.TEN,
+  Ranks.JACK, Ranks.QUEEN, Ranks.KING, Ranks.ACE
+]);
+
+export const EXTENDED_ORDINARY_RANKS = Object.freeze([
+  Ranks.MINUS_TWO, Ranks.MINUS_ONE, Ranks.ZERO, Ranks.ONE,
+  ...STANDARD_ORDINARY_RANKS,
+  Ranks.FIFTEEN
+]);
 
 // 花色排序
 export const SUIT_ORDER = {
@@ -60,6 +80,10 @@ export const SUIT_ORDER = {
 
 // 牌面值排序
 export const RANK_ORDER = {
+  [Ranks.MINUS_TWO]: -2,
+  [Ranks.MINUS_ONE]: -1,
+  [Ranks.ZERO]: 0,
+  [Ranks.ONE]: 1,
   [Ranks.TWO]: 2,
   [Ranks.THREE]: 3,
   [Ranks.FOUR]: 4,
@@ -73,8 +97,11 @@ export const RANK_ORDER = {
   [Ranks.QUEEN]: 12,
   [Ranks.KING]: 13,
   [Ranks.ACE]: 14,
+  [Ranks.FIFTEEN]: 15,
+  [Ranks.NO_TRUMP_MINUS]: 16,
   [Ranks.SMALL_JOKER]: 100,
-  [Ranks.BIG_JOKER]: 101
+  [Ranks.BIG_JOKER]: 101,
+  [Ranks.WHITE_JOKER]: 102
 };
 
 // Bot类型
@@ -90,9 +117,11 @@ export const DEFAULT_CONFIG = {
   minDealInterval: 10,
   turnOrder: TurnOrders.COUNTER_CLOCKWISE,
   customTurnOrder: [0, 1, 2, 3],
-  minPlayers: 2,
+  minPlayers: 4,
   maxPlayers: 4,
-  botType: BotTypes.SIMPLE  // 默认使用简单bot
+  botType: BotTypes.WHO_DESIGNED,
+  testMode: false,
+  testRuleId: null
 };
 
 // 默认玩家属性

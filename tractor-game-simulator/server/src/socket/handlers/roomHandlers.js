@@ -42,6 +42,10 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('房间不存在');
       }
 
+      if (room.gameState.phase !== 'waiting' || room.gameState.isWaitingForReady) {
+        throw new Error('游戏已经开始，无法中途加入');
+      }
+
       if (room.players.length >= room.config.maxPlayers) {
         throw new Error('房间已满');
       }
@@ -105,6 +109,10 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('只有房主可以修改配置');
       }
 
+      if (room.gameState.phase !== 'waiting' || room.gameState.isWaitingForReady) {
+        throw new Error('只能在游戏开始前修改配置');
+      }
+
       room.updateConfig(config);
 
       // 广播配置更新
@@ -133,7 +141,7 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('只有房主可以设置Bot类型');
       }
 
-      if (room.gameState.phase !== 'waiting') {
+      if (room.gameState.phase !== 'waiting' || room.gameState.isWaitingForReady) {
         throw new Error('游戏进行中无法更改Bot类型');
       }
 
@@ -185,7 +193,7 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('房间已满');
       }
 
-      if (room.gameState.phase !== 'waiting') {
+      if (room.gameState.phase !== 'waiting' || room.gameState.isWaitingForReady) {
         throw new Error('游戏进行中无法添加bot');
       }
 
@@ -240,7 +248,7 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('该玩家不是bot');
       }
 
-      if (room.gameState.phase !== 'waiting') {
+      if (room.gameState.phase !== 'waiting' || room.gameState.isWaitingForReady) {
         throw new Error('游戏进行中无法移除bot');
       }
 

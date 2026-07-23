@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Table layout visual fixture</title>
+    <style>
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        box-sizing: border-box;
+        padding: 16px;
+        background: #052f27;
+      }
+
+      #root {
+        height: calc(100% - 32px);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-testid="table-layout-preview"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import GameTable from '/src/components/Game/GameTable.jsx';
+
+      const players = Array.from({ length: 4 }, (_, index) => ({
+        id: `player-${index}`,
+        name: index === 0 ? '玩家1' : `AI Bot ${index}`,
+        isBot: index !== 0,
+        level: 2,
+        score: 0,
+        cards: []
+      }));
+      const makeCards = (prefix, suit) => ['Q', 'J', '10', '9', '8', '7', '6', '5'].map((rank, index) => ({
+        id: `${prefix}-${index}`,
+        suit,
+        rank
+      }));
+      const myCards = [
+        { id: 'my-1', suit: 'clubs', rank: 'K' },
+        { id: 'my-2', suit: 'hearts', rank: '9' }
+      ];
+      const declaredCard = { id: 'declared-1', suit: 'spades', rank: '2' };
+      const playedCards = {
+        'player-1': { playerName: 'AI Bot 1', cards: makeCards('right', 'diamonds') },
+        'player-3': { playerName: 'AI Bot 3', cards: makeCards('left', 'spades') }
+      };
+
+      createRoot(document.getElementById('root')).render(React.createElement(GameTable, {
+        players,
+        currentPlayer: players[0],
+        playedCards,
+        myCards,
+        trumpSuit: 'spades',
+        trumpRank: '2',
+        currentTrumpDeclaration: {
+          playerId: 'player-0',
+          cards: [declaredCard]
+        },
+        selectedRule: {
+          name: '倒反天罡',
+          content: '除级牌和王外，每个花色内普通牌的大小顺序颠倒。'
+        },
+        team1Level: 2,
+        team2Level: 2
+      }));
+    </script>
+  </body>
+</html>
