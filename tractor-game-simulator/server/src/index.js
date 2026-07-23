@@ -13,8 +13,12 @@ import logger from './utils/logger.js';
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const RAILWAY_PUBLIC_URL = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : null;
+const CLIENT_URL = process.env.CLIENT_URL || RAILWAY_PUBLIC_URL || 'http://localhost:3000';
+const NODE_ENV = process.env.NODE_ENV
+  || (process.env.RAILWAY_ENVIRONMENT ? 'production' : 'development');
 
 // 获取当前文件的目录路径
 const __filename = fileURLToPath(import.meta.url);
