@@ -118,10 +118,14 @@ export const Ranks = {
   QUEEN: 'Q',
   KING: 'K',
   ACE: 'A',
-  FIFTEEN: 'F',
+  BONUS_ONE: 'B',
+  BONUS_TWO: 'C',
+  BONUS_THREE: 'D',
   NO_TRUMP_MINUS: 'M',
   SMALL_JOKER: 'small_joker',
   BIG_JOKER: 'big_joker',
+  COUNTY_PRINCE_JOKER: 'county_prince_joker',
+  PRINCE_JOKER: 'prince_joker',
   WHITE_JOKER: 'white_joker'
 };
 
@@ -131,10 +135,16 @@ export const STANDARD_ORDINARY_RANKS = Object.freeze([
   Ranks.JACK, Ranks.QUEEN, Ranks.KING, Ranks.ACE
 ]);
 
+export const PROMOTED_ORDINARY_RANKS = Object.freeze([
+  Ranks.BONUS_ONE,
+  Ranks.BONUS_TWO,
+  Ranks.BONUS_THREE
+]);
+
 export const EXTENDED_ORDINARY_RANKS = Object.freeze([
   Ranks.MINUS_TWO, Ranks.MINUS_ONE, Ranks.ZERO, Ranks.ONE,
   ...STANDARD_ORDINARY_RANKS,
-  Ranks.FIFTEEN
+  ...PROMOTED_ORDINARY_RANKS
 ]);
 
 // 花色排序 (黑桃、红桃、梅花、方片)
@@ -165,11 +175,15 @@ export const RANK_ORDER = {
   [Ranks.QUEEN]: 12,
   [Ranks.KING]: 13,
   [Ranks.ACE]: 14,
-  [Ranks.FIFTEEN]: 15,
-  [Ranks.NO_TRUMP_MINUS]: 16,
+  [Ranks.BONUS_ONE]: 15,
+  [Ranks.BONUS_TWO]: 16,
+  [Ranks.BONUS_THREE]: 17,
+  [Ranks.NO_TRUMP_MINUS]: 18,
   [Ranks.SMALL_JOKER]: 100,
   [Ranks.BIG_JOKER]: 101,
-  [Ranks.WHITE_JOKER]: 102
+  [Ranks.COUNTY_PRINCE_JOKER]: 102,
+  [Ranks.PRINCE_JOKER]: 103,
+  [Ranks.WHITE_JOKER]: 104
 };
 
 // 服务器URL配置

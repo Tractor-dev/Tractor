@@ -340,7 +340,9 @@ export default function GameTable({
     if (!card) return '未知牌';
     if (card.rank === 'small_joker') return '小王';
     if (card.rank === 'big_joker') return '大王';
-    if (card.rank === 'white_joker') return '白王';
+    if (card.rank === 'county_prince_joker') return '郡王';
+    if (card.rank === 'prince_joker') return '亲王';
+    if (card.rank === 'white_joker') return '白王（皇）';
     return `${getSuitSymbolExtended(card.suit)}${card.rank}`;
   };
 

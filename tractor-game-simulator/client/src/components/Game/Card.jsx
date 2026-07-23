@@ -36,12 +36,30 @@ const RANK_DISPLAY = {
   J: 'J',
   Q: 'Q',
   K: 'K',
-  F: 'F',
+  B: 'B',
+  C: 'C',
+  D: 'D',
   M: 'M',
   small_joker: 'JOKER',
   big_joker: 'JOKER',
+  county_prince_joker: 'JOKER',
+  prince_joker: 'JOKER',
   white_joker: 'JOKER'
 };
+
+const JOKER_META = {
+  small_joker: { className: 'small-joker', color: '#121513', label: '小王' },
+  big_joker: { className: 'big-joker', color: '#d82035', label: '大王' },
+  county_prince_joker: {
+    className: 'county-prince-joker',
+    color: '#7b4bb7',
+    label: '郡王'
+  },
+  prince_joker: { className: 'prince-joker', color: '#276fa8', label: '亲王' },
+  white_joker: { className: 'white-joker', color: '#c28b12', label: '白王（皇）' }
+};
+
+const getRankLabel = rank => JOKER_META[rank]?.label || (rank === 'M' ? 'M（Minus）' : rank);
 
 export default function Card({
   card,
@@ -65,8 +83,7 @@ export default function Card({
   trumpRank = null
 }) {
   const isJoker = card.suit === 'joker';
-  const isBigJoker = isJoker && card.rank === 'big_joker';
-  const isWhiteJoker = isJoker && card.rank === 'white_joker';
+  const jokerMeta = isJoker ? JOKER_META[card.rank] || JOKER_META.small_joker : null;
   const isNoTrumpMinus = card.rank === 'M';
   const isTrump = isTrumpCard(card, trumpSuit, trumpRank);
   const isDivineWeaponTransformed = Boolean(
@@ -101,18 +118,20 @@ export default function Card({
 
   const suitSymbol = SUIT_SYMBOLS[card.suit] || '';
   const color = isJoker
-    ? (isWhiteJoker ? '#c28b12' : isBigJoker ? '#d82035' : '#121513')
+    ? jokerMeta.color
     : (SUIT_COLORS[card.suit] || 'black');
   const cornerRank = isJoker ? '♛' : displayRank;
 
   return (
     <div
       data-card-id={card.id}
-      className={`card card-suit-${card.suit} ${faceDown ? 'face-down' : ''} ${isJoker ? `joker-card ${isWhiteJoker ? 'white-joker' : isBigJoker ? 'big-joker' : 'small-joker'}` : ''} ${isNoTrumpMinus ? 'no-trump-minus' : ''} ${isConvertedSpade ? 'converted-spade' : ''} ${isDivineWeaponTransformed ? 'divine-weapon-transformed' : ''} ${isClusterAnalysisTransformed ? 'cluster-analysis-transformed' : ''} ${isForbiddenMagicDemoted ? 'forbidden-magic-demoted' : ''} ${isStrengthCompensated ? 'strength-compensated' : ''} ${isDefenseAsOffenseBoosted ? 'defense-as-offense-boosted' : ''} ${isTeammateCheered ? 'teammate-cheered' : ''} ${isAfterglowBoosted ? 'afterglow-boosted' : ''} ${isThreeTigersTransformed ? 'three-tigers-transformed' : ''} ${isRiceToMulberryTransformed ? 'rice-to-mulberry-transformed' : ''} ${isIronEvidenceCard ? 'iron-evidence-card' : ''} ${ironEvidenceModeClass} ${card.isForbiddenMagicTransformed ? 'forbidden-magic-transformed' : ''} ${card.divineWeaponPreview ? 'divine-weapon-preview' : ''} ${card.isLastStandTrump ? 'last-stand-trump' : ''} ${virtualized ? 'virtualized' : ''} ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''} ${ruleDisabled ? 'rule-disabled' : ''} ${small ? 'small' : ''} ${micro ? 'micro' : ''}`}
+      className={`card card-suit-${card.suit} ${faceDown ? 'face-down' : ''} ${isJoker ? `joker-card ${jokerMeta.className}` : ''} ${isNoTrumpMinus ? 'no-trump-minus' : ''} ${isConvertedSpade ? 'converted-spade' : ''} ${isDivineWeaponTransformed ? 'divine-weapon-transformed' : ''} ${isClusterAnalysisTransformed ? 'cluster-analysis-transformed' : ''} ${isForbiddenMagicDemoted ? 'forbidden-magic-demoted' : ''} ${isStrengthCompensated ? 'strength-compensated' : ''} ${isDefenseAsOffenseBoosted ? 'defense-as-offense-boosted' : ''} ${isTeammateCheered ? 'teammate-cheered' : ''} ${isAfterglowBoosted ? 'afterglow-boosted' : ''} ${isThreeTigersTransformed ? 'three-tigers-transformed' : ''} ${isRiceToMulberryTransformed ? 'rice-to-mulberry-transformed' : ''} ${isIronEvidenceCard ? 'iron-evidence-card' : ''} ${ironEvidenceModeClass} ${card.isForbiddenMagicTransformed ? 'forbidden-magic-transformed' : ''} ${card.divineWeaponPreview ? 'divine-weapon-preview' : ''} ${card.isLastStandTrump ? 'last-stand-trump' : ''} ${virtualized ? 'virtualized' : ''} ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''} ${ruleDisabled ? 'rule-disabled' : ''} ${small ? 'small' : ''} ${micro ? 'micro' : ''}`}
       onClick={disabled ? undefined : onClick}
       title={virtualized
         ? '虚虚实实：本次出牌视为手中没有这张副花色牌'
-        : ruleDisabled ? ruleDisabledReason || '当前规则下本轮不能打出这张牌' : undefined}
+        : ruleDisabled
+          ? ruleDisabledReason || '当前规则下本轮不能打出这张牌'
+          : jokerMeta?.label}
       aria-disabled={disabled}
       draggable={draggable && !disabled}
       onDragStart={(e) => onDragStart && onDragStart(e, card)}
@@ -138,7 +157,7 @@ export default function Card({
       <div className="card-center">
         {isJoker ? (
           <div className="joker-center">
-            <span className="joker-text" aria-label={displayRank}>
+            <span className="joker-text" aria-label={jokerMeta?.label || displayRank}>
               {displayRank.split('').map((letter, index) => (
                 <span className="joker-letter" key={`${letter}-${index}`} aria-hidden="true">
                   {letter}
@@ -210,7 +229,7 @@ export default function Card({
       {isStrengthCompensated && (
         <div
           className={`strength-compensation-card-badge ${card.strengthCompensationDelta > 0 ? 'is-plus' : 'is-minus'}`}
-          title={`取长补短：原 ${card.originalRank || card.rank} ${card.strengthCompensationDelta > 0 ? '升' : '降'}一级，当前为 ${card.rank === 'white_joker' ? '白王' : isNoTrumpMinus ? 'M（Minus）' : card.rank}`}
+          title={`取长补短：原 ${getRankLabel(card.originalRank || card.rank)} ${card.strengthCompensationDelta > 0 ? '升' : '降'}一级，当前为 ${getRankLabel(card.rank)}`}
         >
           {card.strengthCompensationDelta > 0 ? '+1' : '−1'}
         </div>
@@ -218,7 +237,7 @@ export default function Card({
       {isTeammateCheered && (
         <div
           className="teammate-cheer-card-badge"
-          title={`队友加油：原 ${card.originalRank || card.rank} 提升一级，当前为 ${card.rank === 'white_joker' ? '白王' : card.rank}`}
+          title={`队友加油：原 ${getRankLabel(card.originalRank || card.rank)} 提升一级，当前为 ${getRankLabel(card.rank)}`}
         >
           油+1
         </div>
@@ -226,7 +245,7 @@ export default function Card({
       {isAfterglowBoosted && (
         <div
           className="afterglow-card-badge"
-          title={`回光返照：原 ${card.originalRank || card.rank} 提升一级，当前为 ${card.rank === 'white_joker' ? '白王' : card.rank}`}
+          title={`回光返照：原 ${getRankLabel(card.originalRank || card.rank)} 提升一级，当前为 ${getRankLabel(card.rank)}`}
         >
           返+1
         </div>

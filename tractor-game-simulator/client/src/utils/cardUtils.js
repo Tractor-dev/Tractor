@@ -44,8 +44,14 @@ export function isTrumpCard(card, trumpSuit, trumpRank) {
  * 顺序：大王、小王、主花色级牌、其他花色级牌（按花色顺序）、主花色其他牌
  */
 function getTrumpPriority(card, trumpSuit, trumpRank, inferiorSuit = null) {
-  // 白王是队友加油/取长补短延拓后高于大王的一档。
+  // 扩展王依次排在大王之上：郡王、亲王、白王（皇）。
   if (card.suit === Suits.JOKER && card.rank === Ranks.WHITE_JOKER) {
+    return -3;
+  }
+  if (card.suit === Suits.JOKER && card.rank === Ranks.PRINCE_JOKER) {
+    return -2;
+  }
+  if (card.suit === Suits.JOKER && card.rank === Ranks.COUNTY_PRINCE_JOKER) {
     return -1;
   }
   // 大王

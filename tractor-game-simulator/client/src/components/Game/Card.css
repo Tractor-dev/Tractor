@@ -61,6 +61,18 @@
 .card.joker-card { background: linear-gradient(118deg, rgba(255,255,255,0.9), transparent 42%), linear-gradient(180deg, #fff 0%, #f7f7f3 72%, #e4e7e1 100%); }
 .card.joker-card.big-joker { background-color: rgba(216, 32, 53, 0.035); }
 .card.joker-card.small-joker { background-color: rgba(18, 21, 19, 0.025); }
+.card.joker-card.county-prince-joker {
+  border-color: #9a76c7 !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(135, 83, 190, 0.18), transparent 48%),
+    linear-gradient(145deg, #fff 0%, #f5eefc 62%, #d7c4eb 100%);
+}
+.card.joker-card.prince-joker {
+  border-color: #5b96c2 !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(51, 126, 180, 0.2), transparent 48%),
+    linear-gradient(145deg, #fff 0%, #edf7fc 62%, #bcd9e9 100%);
+}
 .card.no-trump-minus {
   border-color: #b99742;
   background:
@@ -123,6 +135,8 @@
 .joker-card .card-rank { letter-spacing: 0; }
 .card.small .joker-text { font-size: 9px; }
 .white-joker .joker-text { color: #bf8810; text-shadow: 0 1px #fff5bf; }
+.county-prince-joker .joker-text { color: #7542aa; text-shadow: 0 1px #f9f0ff; }
+.prince-joker .joker-text { color: #236b9e; text-shadow: 0 1px #edfaff; }
 
 .trump-badge { position: absolute; left: 5px; bottom: 5px; z-index: 10; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid #f6d65d; border-radius: 50%; background: linear-gradient(145deg, #ffdf62, #c68b18); box-shadow: 0 2px 5px rgba(91, 54, 0, 0.34); }
 .trump-star { color: #fff8c9; font-size: 13px; line-height: 1; text-shadow: 0 1px 2px #774000; animation: twinkle 2.2s ease-in-out infinite; }

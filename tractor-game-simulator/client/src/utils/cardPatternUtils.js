@@ -3,7 +3,8 @@ import {
   Ranks,
   RANK_ORDER,
   STANDARD_ORDINARY_RANKS,
-  EXTENDED_ORDINARY_RANKS
+  EXTENDED_ORDINARY_RANKS,
+  PROMOTED_ORDINARY_RANKS
 } from './constants.js';
 import { ruleIncludesId } from './ruleCatalog.js';
 
@@ -112,6 +113,12 @@ export function getCardStrength(card, trumpSuit, trumpRank, activeRule = null) {
   }
   const isUnarmed = isUnarmedRule(activeRule) || Boolean(card?.isUnarmed);
   if (card.rank === Ranks.WHITE_JOKER) {
+    return 1003;
+  }
+  if (card.rank === Ranks.PRINCE_JOKER) {
+    return 1002;
+  }
+  if (card.rank === Ranks.COUNTY_PRINCE_JOKER) {
     return 1001;
   }
   if (card.rank === Ranks.BIG_JOKER) {
@@ -163,7 +170,7 @@ export function getCardStrength(card, trumpSuit, trumpRank, activeRule = null) {
 
   if (card.isThreeTigersTrump) {
     const ordinaryTrumpRanks = EXTENDED_ORDINARY_RANKS
-      .filter(rank => rank !== Ranks.FIFTEEN && rank !== trumpRank);
+      .filter(rank => !PROMOTED_ORDINARY_RANKS.includes(rank) && rank !== trumpRank);
     const lowestTrumpStrength = 997 - ordinaryTrumpRanks.length;
     return lowestTrumpStrength + ordinaryTrumpRanks.indexOf(card.rank);
   }
@@ -183,7 +190,7 @@ export function getCardStrength(card, trumpSuit, trumpRank, activeRule = null) {
       return 985 + dayNightOrderedRanks.indexOf(card.rank);
     }
     const orderedTrumpRanks = (usesExtendedRanks
-      ? EXTENDED_ORDINARY_RANKS.filter(rank => rank !== Ranks.FIFTEEN)
+      ? EXTENDED_ORDINARY_RANKS.filter(rank => !PROMOTED_ORDINARY_RANKS.includes(rank))
       : ORDINARY_RANKS
     );
     const ordinaryTrumpRanks = isUnarmed

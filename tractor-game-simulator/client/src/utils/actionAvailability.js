@@ -819,6 +819,7 @@ export function validatePlaySelection({
 
   const afterglowActive = Boolean(
     ruleIncludesId(gameState?.selectedRule, 'afterglow')
+    && trumpSuit !== 'no_trump'
     && gameState?.afterglow?.activePlayerIds?.includes(currentPlayerId)
   );
   const afterglowHeldTrumps = afterglowActive

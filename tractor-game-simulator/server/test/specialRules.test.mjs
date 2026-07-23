@@ -8094,14 +8094,34 @@ test('取长补短注册特殊牌面，并为未来叠加变动保留完整边�
   const shift = (suit, rank, trumpSuit, trumpRank, delta) => (
     shiftStrengthCompensationCardFace({ suit, rank }, trumpSuit, trumpRank, delta)
   );
-  assert.deepEqual(shift('hearts', 'A', 'spades', '2', 1), { suit: 'hearts', rank: 'F' });
+  assert.deepEqual(shift('hearts', 'A', 'spades', '2', 1), { suit: 'hearts', rank: 'B' });
+  assert.deepEqual(shift('hearts', 'A', 'spades', '2', 2), { suit: 'hearts', rank: 'C' });
+  assert.deepEqual(shift('hearts', 'A', 'spades', '2', 3), { suit: 'hearts', rank: 'D' });
   assert.deepEqual(shift('hearts', '3', 'spades', '2', -1), { suit: 'hearts', rank: '1' });
   assert.deepEqual(shift('hearts', '1', 'spades', '2', -1), { suit: 'hearts', rank: '0' });
   assert.deepEqual(shift('hearts', '0', 'spades', '2', -1), { suit: 'hearts', rank: '-1' });
   assert.deepEqual(shift('hearts', '-1', 'spades', '2', -1), { suit: 'hearts', rank: '-2' });
   assert.deepEqual(shift('joker', 'big_joker', 'spades', '2', 1), {
+    suit: 'joker', rank: 'county_prince_joker'
+  });
+  assert.deepEqual(shift('joker', 'big_joker', 'spades', '2', 2), {
+    suit: 'joker', rank: 'prince_joker'
+  });
+  assert.deepEqual(shift('joker', 'big_joker', 'spades', '2', 3), {
     suit: 'joker', rank: 'white_joker'
   });
+  assert.deepEqual(
+    ['A', 'B', 'C', 'D'].map(rank => (
+      getCardStrength(card('hearts', rank), 'spades', '2', STRENGTH_COMPENSATION_RULE)
+    )),
+    [14, 15, 16, 17]
+  );
+  assert.deepEqual(
+    ['big_joker', 'county_prince_joker', 'prince_joker', 'white_joker'].map(rank => (
+      getCardStrength(card('joker', rank), 'spades', '2', STRENGTH_COMPENSATION_RULE)
+    )),
+    [1000, 1001, 1002, 1003]
+  );
 });
 
 test('取长补短沿主牌完整序列平移，不把主级牌按普通点数改写', () => {
@@ -8110,7 +8130,7 @@ test('取长补短沿主牌完整序列平移，不把主级牌按普通点数�
     [card('hearts', '2'), { suit: 'spades', rank: '2' }],
     [card('spades', '2'), { suit: 'joker', rank: 'small_joker' }],
     [card('joker', 'small_joker'), { suit: 'joker', rank: 'big_joker' }],
-    [card('joker', 'big_joker'), { suit: 'joker', rank: 'white_joker' }]
+    [card('joker', 'big_joker'), { suit: 'joker', rank: 'county_prince_joker' }]
   ];
   const minusCases = [
     [card('joker', 'big_joker'), { suit: 'joker', rank: 'small_joker' }],
@@ -8164,12 +8184,12 @@ test('取长补短的无主M牌仍是主牌，副牌再大也不能跨入主牌�
   );
   assert.deepEqual(
     shiftStrengthCompensationCardFace(card('hearts', 'A'), 'no_trump', '2', 10000),
-    { suit: 'hearts', rank: 'F' }
+    { suit: 'hearts', rank: 'D' }
   );
 
   const compensatedUnderLevel = { ...underLevel, isStrengthCompensated: true };
   const noTrumpLevel = card('spades', '2');
-  const maximumSideCard = card('clubs', 'F');
+  const maximumSideCard = card('clubs', 'D');
   assert.equal(isTrumpCard(compensatedUnderLevel, 'no_trump', '2'), true);
   assert.ok(
     getCardStrength(compensatedUnderLevel, 'no_trump', '2', STRENGTH_COMPENSATION_RULE)
@@ -8209,12 +8229,12 @@ test('取长补短开局实际把主A、副级、主级和王按整条主牌链�
       ['spades', '2'],
       ['joker', 'small_joker'],
       ['joker', 'big_joker'],
-      ['joker', 'white_joker']
+      ['joker', 'county_prince_joker']
     ]
   );
 });
 
-test('取长补短以庄家为0逆时针编号，F和白王参与真实牌力但沿用实体分值', () => {
+test('取长补短以庄家为0逆时针编号，B和郡王参与真实牌力但沿用实体分值', () => {
   const room = createRoom();
   const io = createIo();
   const engine = new GameEngine(room, io);
@@ -8234,7 +8254,10 @@ test('取长补短以庄家为0逆时针编号，F和白王参与真实牌力但
 
   engine.setFirstPlayer(room.players[2].id);
 
-  assert.deepEqual(room.players[3].cards.map(value => value.rank), ['F', 'white_joker', '6']);
+  assert.deepEqual(
+    room.players[3].cards.map(value => value.rank),
+    ['B', 'county_prince_joker', '6']
+  );
   assert.deepEqual(room.players[1].cards.map(value => value.rank), ['1', 'small_joker']);
   assert.ok(room.players[3].cards.every(value => value.isStrengthCompensated));
   assert.equal(room.players[3].cards[0].originalRank, 'A');
@@ -8297,7 +8320,7 @@ test('取长补短在完整一轮结算后恢复旧牌面并轮换到下一组�
   assert.equal(result.roundUpdate.strengthCompensation.minusSeatNumber, 0);
 });
 
-test('以守为攻按力争上游全序给上一轮首家临时加牌面，并在F与白王封顶', () => {
+test('以守为攻按力争上游全序给上一轮首家临时加牌面，并区分A与大王以上三级', () => {
   const room = createRoom();
   const io = createIo();
   const engine = new GameEngine(room, io);
@@ -8321,16 +8344,18 @@ test('以守为攻按力争上游全序给上一轮首家临时加牌面，并�
     card('hearts', '7', 1823)
   ];
   const cappedBigJoker = card('joker', 'big_joker', 1830);
-  const cappedF = card('hearts', 'F', 1831);
+  const promotedAce = card('hearts', 'A', 1831);
   const cappedWhiteJoker = card('joker', 'white_joker', 1832);
   const nextTargetBigJoker = card('joker', 'big_joker', 1833);
+  const cappedD = card('hearts', 'D', 1834);
 
   room.players[0].cards = [
     firstRoundCards[0],
     secondRoundCards[0],
     cappedBigJoker,
-    cappedF,
-    cappedWhiteJoker
+    promotedAce,
+    cappedWhiteJoker,
+    cappedD
   ];
   room.players[1].cards = [
     firstRoundCards[1],
@@ -8375,7 +8400,8 @@ test('以守为攻按力争上游全序给上一轮首家临时加牌面，并�
   assert.equal(secondRoundCards[0].isDefenseAsOffenseBoosted, true);
   assert.equal(getCardPoints(secondRoundCards[0]), 5);
   assert.equal(cappedBigJoker.rank, 'white_joker');
-  assert.equal(cappedF.rank, 'F');
+  assert.equal(promotedAce.rank, 'D');
+  assert.equal(cappedD.rank, 'D');
   assert.equal(cappedWhiteJoker.rank, 'white_joker');
 
   engine.emitDefenseAsOffenseHands(firstRoundResult.roundUpdate.defenseAsOffense);
@@ -8403,14 +8429,15 @@ test('以守为攻按力争上游全序给上一轮首家临时加牌面，并�
   assert.equal(secondRoundResult.roundWinner.playerId, room.players[0].id);
   assert.equal(cappedBigJoker.rank, 'big_joker');
   assert.equal(cappedBigJoker.isDefenseAsOffenseBoosted, false);
-  assert.equal(cappedF.rank, 'F');
+  assert.equal(promotedAce.rank, 'A');
+  assert.equal(cappedD.rank, 'D');
   assert.equal(cappedWhiteJoker.rank, 'white_joker');
   assert.equal(room.gameState.defenseAsOffense.playerId, room.players[3].id);
   assert.equal(room.gameState.defenseAsOffense.delta, 1);
   assert.equal(room.gameState.defenseAsOffenseLastRound.playerId, room.players[0].id);
   assert.equal(room.gameState.defenseAsOffenseLastRound.round, 2);
   assert.equal(room.gameState.defenseAsOffenseLastRound.delta, 3);
-  assert.equal(nextTargetBigJoker.rank, 'white_joker');
+  assert.equal(nextTargetBigJoker.rank, 'county_prince_joker');
 });
 
 test('以守为攻只统计严格大于一号位的玩家，同牌力不会增加X', () => {
@@ -9665,7 +9692,7 @@ test('队友加油在出牌后无主时询问，并沿完整牌力链给对家�
   const transformedById = new Map(room.players[2].cards.map(value => [value.id, value]));
   assert.deepEqual(
     [transformedById.get(targetCards[0].id).suit, transformedById.get(targetCards[0].id).rank],
-    ['clubs', 'F']
+    ['clubs', 'B']
   );
   assert.deepEqual(
     [transformedById.get(targetCards[1].id).suit, transformedById.get(targetCards[1].id).rank],
@@ -9677,7 +9704,7 @@ test('队友加油在出牌后无主时询问，并沿完整牌力链给对家�
   );
   assert.equal(transformedById.get(targetCards[3].id).rank, 'small_joker');
   assert.equal(transformedById.get(targetCards[4].id).rank, 'big_joker');
-  assert.equal(transformedById.get(targetCards[5].id).rank, 'white_joker');
+  assert.equal(transformedById.get(targetCards[5].id).rank, 'county_prince_joker');
   assert.equal(transformedById.get(targetCards[6].id).rank, '6');
   assert.ok(room.players[2].cards.every(value => value.isTeammateCheered));
   assert.equal(getCardPoints(transformedById.get(targetCards[6].id)), 5);
@@ -9809,6 +9836,51 @@ test('回光返照允许持有1至3张主牌的开局一号位在首次出牌前
   assert.equal(firstPlay.playedCards[0].rank, 'A');
 });
 
+test('回光返照在无主局不询问且不能强制发动', () => {
+  const room = createRoom();
+  const io = createIo();
+  const engine = new GameEngine(room, io);
+  const player = room.players[0];
+  [
+    card('spades', '2', 1518),
+    card('joker', 'small_joker', 1519),
+    card('clubs', '4', 1520)
+  ].forEach(value => player.addCard(value));
+  room.players[1].addCard(card('clubs', '5', 1521));
+  room.players[2].addCard(card('clubs', '6', 1522));
+  room.players[3].addCard(card('clubs', '7', 1523));
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = AFTERGLOW_RULE;
+  room.gameState.trumpSuit = 'no_trump';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = player.id;
+
+  engine.setFirstPlayer(player.id);
+
+  assert.equal(engine.isEligibleForAfterglow(player), false);
+  assert.equal(engine.requestAfterglowIfEligible(player), null);
+  assert.equal(room.gameState.afterglowPending, null);
+  assert.equal(
+    io.events.some(event => event.event === 'afterglow_decision_required'),
+    false
+  );
+
+  room.gameState.afterglowPending = {
+    playerId: player.id,
+    playerName: player.name,
+    trumpCount: 2,
+    remainingCount: player.cards.length,
+    triggerTiming: 'before_first_play',
+    triggerRound: 1
+  };
+  assert.throws(
+    () => engine.respondAfterglow(player.id, true),
+    /无主局不能发动回光返照/
+  );
+  assert.equal(room.gameState.afterglowPending, null);
+  assert.equal(room.gameState.afterglowUsedPlayerIds.has(player.id), false);
+});
+
 test('回光返照只在出牌后仍有手牌且剩余1至3张主牌时询问，暂拒不消耗机会', () => {
   const room = createRoom();
   const engine = new GameEngine(room, createIo());
@@ -9859,7 +9931,7 @@ test('回光返照只在出牌后仍有手牌且剩余1至3张主牌时询问，
     [
       ['joker', 'small_joker', 'clubs', '2'],
       ['joker', 'big_joker', 'joker', 'small_joker'],
-      ['joker', 'white_joker', 'joker', 'big_joker']
+      ['joker', 'county_prince_joker', 'joker', 'big_joker']
     ]
   );
   assert.ok(room.players[0].cards.every(value => value.isAfterglowBoosted));

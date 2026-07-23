@@ -1,4 +1,9 @@
-import { EXTENDED_ORDINARY_RANKS, Ranks, Suits } from './constants.js';
+import {
+  EXTENDED_ORDINARY_RANKS,
+  PROMOTED_ORDINARY_RANKS,
+  Ranks,
+  Suits
+} from './constants.js';
 
 const STANDARD_SUITS = Object.freeze([
   Suits.HEARTS,
@@ -17,10 +22,10 @@ function shiftWithin(rank, direction, ranks) {
   return ranks[Math.max(0, Math.min(ranks.length - 1, index + direction))];
 }
 
-function getOrdinaryRanks(trumpRank, includeF) {
+function getOrdinaryRanks(trumpRank, includePromotedRanks) {
   return EXTENDED_ORDINARY_RANKS.filter(rank => (
     String(rank) !== String(trumpRank)
-    && (includeF || rank !== Ranks.FIFTEEN)
+    && (includePromotedRanks || !PROMOTED_ORDINARY_RANKS.includes(rank))
   ));
 }
 
@@ -43,13 +48,25 @@ function shiftFaceOnce(face, trumpSuit, trumpRank, direction) {
 
   if (face.rank === Ranks.WHITE_JOKER) {
     return direction < 0
-      ? { suit: Suits.JOKER, rank: Ranks.BIG_JOKER }
+      ? { suit: Suits.JOKER, rank: Ranks.PRINCE_JOKER }
       : face;
+  }
+  if (face.rank === Ranks.PRINCE_JOKER) {
+    return {
+      suit: Suits.JOKER,
+      rank: direction > 0 ? Ranks.WHITE_JOKER : Ranks.COUNTY_PRINCE_JOKER
+    };
+  }
+  if (face.rank === Ranks.COUNTY_PRINCE_JOKER) {
+    return {
+      suit: Suits.JOKER,
+      rank: direction > 0 ? Ranks.PRINCE_JOKER : Ranks.BIG_JOKER
+    };
   }
   if (face.rank === Ranks.BIG_JOKER) {
     return {
       suit: Suits.JOKER,
-      rank: direction > 0 ? Ranks.WHITE_JOKER : Ranks.SMALL_JOKER
+      rank: direction > 0 ? Ranks.COUNTY_PRINCE_JOKER : Ranks.SMALL_JOKER
     };
   }
   if (face.rank === Ranks.SMALL_JOKER) {
@@ -99,9 +116,9 @@ function shiftFaceOnce(face, trumpSuit, trumpRank, direction) {
 
 /**
  * 沿当前牌局的真实牌力序列移动牌面。主牌链为：
- * 有花色主牌链：主普通牌 < 副级牌 < 主级牌 < 小王 < 大王 < 白王。
- * 无主主牌链：M（Minus）< 无主级牌 < 小王 < 大王 < 白王。
- * 副牌始终留在副牌类别内，跳过级牌点数，A 之上使用 F，绝不跨入主牌链。
+ * 有花色主牌链：主普通牌 < 副级牌 < 主级牌 < 小王 < 大王 < 郡王 < 亲王 < 白王（皇）。
+ * 无主主牌链：M（Minus）< 无主级牌 < 小王 < 大王 < 郡王 < 亲王 < 白王（皇）。
+ * 副牌始终留在副牌类别内，跳过级牌点数，A 之上依次使用 B、C、D，绝不跨入主牌链。
  */
 export function shiftStrengthCompensationCardFace(card, trumpSuit, trumpRank, delta) {
   const numericDelta = getDelta(delta);

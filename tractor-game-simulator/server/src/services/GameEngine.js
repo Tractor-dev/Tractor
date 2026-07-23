@@ -3416,6 +3416,7 @@ export class GameEngine {
       !player
       || !isAfterglowRule(gameState.selectedRule)
       || gameState.phase !== GamePhases.PLAYING
+      || gameState.trumpSuit === Suits.NO_TRUMP
       || player.cards.length === 0
       || gameState.afterglowPending
       || gameState.afterglowUsedPlayerIds.has(player.id)
@@ -3482,6 +3483,10 @@ export class GameEngine {
     let transformedCards = [];
     let boostedCardsBefore = [];
     if (accept) {
+      if (gameState.trumpSuit === Suits.NO_TRUMP) {
+        gameState.afterglowPending = null;
+        throw new Error('无主局不能发动回光返照');
+      }
       const trumpCount = this.getAfterglowTrumpCards(player).length;
       if (player.cards.length === 0) {
         throw new Error('手牌已经出完，不能发动回光返照');
@@ -9534,6 +9539,7 @@ export class GameEngine {
     }
     const afterglowWasActive = Boolean(
       isAfterglowRule(this.room.gameState.selectedRule)
+      && trumpSuit !== Suits.NO_TRUMP
       && this.room.gameState.afterglowActivePlayerIds.has(player.id)
     );
     const afterglowHeldTrumps = afterglowWasActive

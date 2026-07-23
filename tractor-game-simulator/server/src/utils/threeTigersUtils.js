@@ -1,8 +1,13 @@
-import { EXTENDED_ORDINARY_RANKS, Ranks, STANDARD_ORDINARY_RANKS } from './constants.js';
+import {
+  EXTENDED_ORDINARY_RANKS,
+  PROMOTED_ORDINARY_RANKS,
+  Ranks,
+  STANDARD_ORDINARY_RANKS
+} from './constants.js';
 
 const SHIFT = 4;
 const SHIFTABLE_RANKS = Object.freeze(
-  EXTENDED_ORDINARY_RANKS.filter(rank => rank !== Ranks.FIFTEEN)
+  EXTENDED_ORDINARY_RANKS.filter(rank => !PROMOTED_ORDINARY_RANKS.includes(rank))
 );
 
 /**

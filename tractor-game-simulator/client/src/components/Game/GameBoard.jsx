@@ -71,7 +71,9 @@ const formatPublicCard = card => {
   if (!card) return '未知牌';
   if (card.rank === 'small_joker') return '小王';
   if (card.rank === 'big_joker') return '大王';
-  if (card.rank === 'white_joker') return '白王';
+  if (card.rank === 'county_prince_joker') return '郡王';
+  if (card.rank === 'prince_joker') return '亲王';
+  if (card.rank === 'white_joker') return '白王（皇）';
   return `${CARD_SUIT_SYMBOLS[card.suit] || ''}${card.rank}`;
 };
 
@@ -6623,7 +6625,7 @@ export default function GameBoard() {
           令其余下牌面永久全部提升一级？
         </p>
         <p className="player-decision-secondary-text">
-          副牌不会跨入主牌链；副A升为F，大王升为白王，实体牌原有分值不变。
+          副牌不会跨入主牌链；副A升为B，大王升为郡王，实体牌原有分值不变。
           暂不发动不会消耗机会，之后仍满足条件时会再次询问。
         </p>
       </Modal>
@@ -6699,7 +6701,8 @@ export default function GameBoard() {
             : `你出牌后还剩 ${afterglowDecision?.trumpCount || 0} 张主牌，是否发动回光返照？`}
         </p>
         <p className="player-decision-secondary-text">
-          确认后剩余主牌会立即沿完整主牌序列提升一级。从下一次出牌起，只要手中仍有主牌
+          回光返照仅在非无主局生效。确认后剩余主牌会立即沿完整主牌序列提升一级。
+          从下一次出牌起，只要手中仍有主牌
           便无视通常的跟牌要求，但整次出牌只能由主牌组成，不能混入任何副牌；实体牌原有分值不变。
           主牌出尽后效果结束，
           暂不发动不会消耗机会。

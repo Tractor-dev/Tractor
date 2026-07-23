@@ -1474,11 +1474,11 @@ test('昼夜轮转的客户端牌力从第1轮的2开始，轮转到级牌时仍
     getCardStrength(two, 'spades', '3', roundTwoRule));
 });
 
-test('取长补短的F、1和白王按新牌面比较，分值仍读取实体原牌', () => {
+test('取长补短的B、1和郡王按新牌面比较，分值仍读取实体原牌', () => {
   const rule = { id: 'strength_compensation' };
   const ace = card('hA', 'hearts', 'A');
-  const fifteen = {
-    ...card('hA-shifted', 'hearts', 'F'),
+  const bonusOne = {
+    ...card('hA-shifted', 'hearts', 'B'),
     originalRank: 'A',
     isStrengthCompensated: true,
     strengthCompensationDelta: 1
@@ -1491,8 +1491,8 @@ test('取长补短的F、1和白王按新牌面比较，分值仍读取实体原
   };
   const two = card('h2', 'hearts', '2');
   const bigJoker = card('bj', 'joker', 'big_joker');
-  const whiteJoker = {
-    ...card('bj-shifted', 'joker', 'white_joker'),
+  const countyPrinceJoker = {
+    ...card('bj-shifted', 'joker', 'county_prince_joker'),
     originalRank: 'big_joker',
     isStrengthCompensated: true,
     strengthCompensationDelta: 1
@@ -1504,12 +1504,24 @@ test('取长补短的F、1和白王按新牌面比较，分值仍读取实体原
     strengthCompensationDelta: 1
   };
 
-  assert.ok(getCardStrength(fifteen, 'spades', '9', rule) >
+  assert.ok(getCardStrength(bonusOne, 'spades', '9', rule) >
     getCardStrength(ace, 'spades', '9', rule));
   assert.ok(getCardStrength(two, 'spades', '9', rule) >
     getCardStrength(one, 'spades', '9', rule));
-  assert.ok(getCardStrength(whiteJoker, 'spades', '9', rule) >
+  assert.ok(getCardStrength(countyPrinceJoker, 'spades', '9', rule) >
     getCardStrength(bigJoker, 'spades', '9', rule));
+  assert.deepEqual(
+    ['A', 'B', 'C', 'D'].map(rank => (
+      getCardStrength(card(`side-${rank}`, 'hearts', rank), 'spades', '9', rule)
+    )),
+    [14, 15, 16, 17]
+  );
+  assert.deepEqual(
+    ['big_joker', 'county_prince_joker', 'prince_joker', 'white_joker'].map(rank => (
+      getCardStrength(card(`joker-${rank}`, 'joker', rank), 'spades', '9', rule)
+    )),
+    [1000, 1001, 1002, 1003]
+  );
   assert.equal(getCardPoints(physicalFiveShownAsSix), 5);
 
   const shiftedMainChain = [
@@ -1517,7 +1529,7 @@ test('取长补短的F、1和白王按新牌面比较，分值仍读取实体原
     { ...card('vice-two-plus', 'spades', '2'), isStrengthCompensated: true },
     { ...card('main-two-plus', 'joker', 'small_joker'), isStrengthCompensated: true },
     { ...card('small-plus', 'joker', 'big_joker'), isStrengthCompensated: true },
-    whiteJoker
+    countyPrinceJoker
   ];
   assert.deepEqual(
     shiftedMainChain.map(value => getCardStrength(value, 'spades', '2', rule)),
@@ -1527,7 +1539,7 @@ test('取长补短的F、1和白王按新牌面比较，分值仍读取实体原
 
 test('取长补短在无主局把M留在主牌类别内', () => {
   const rule = { id: 'strength_compensation' };
-  const maximumSideCard = card('side-f', 'hearts', 'F');
+  const maximumSideCard = card('side-d', 'hearts', 'D');
   const underLevel = {
     ...card('under-level', 'clubs', 'M'),
     originalRank: '2',
@@ -2251,17 +2263,17 @@ test('布什戈门只允许二号位发动，并把退回的每张实体牌禁�
   }), []);
 });
 
-test('队友加油的F和白王进入扩展牌力，升面分牌仍按实体原牌计分', () => {
+test('队友加油的B和郡王进入扩展牌力，升面分牌仍按实体原牌计分', () => {
   const rule = { id: 'teammate_cheer' };
   const boostedSideAce = {
-    ...card('boosted-side-ace', 'clubs', 'F'),
+    ...card('boosted-side-ace', 'clubs', 'B'),
     originalSuit: 'clubs',
     originalRank: 'A',
     isTeammateCheered: true
   };
   const ordinarySideAce = card('ordinary-side-ace', 'clubs', 'A');
   const boostedBigJoker = {
-    ...card('boosted-big-joker', 'joker', 'white_joker'),
+    ...card('boosted-big-joker', 'joker', 'county_prince_joker'),
     originalSuit: 'joker',
     originalRank: 'big_joker',
     isTeammateCheered: true
@@ -2440,11 +2452,26 @@ test('回光返照生效时可无视花色跟牌，但整次出牌只能由主�
     currentPlayerId: 'player-1'
   });
   assert.equal(inactiveFollow.valid, false);
+
+  const noTrumpFollow = validatePlaySelection({
+    selectedCardIds: [trumpKing.id, trumpQueen.id],
+    handCards,
+    gameState: {
+      ...activeState,
+      trumpSuit: 'no_trump',
+      afterglow: { activePlayerIds: ['player-1'] }
+    },
+    trumpSuit: 'no_trump',
+    trumpRank: '2',
+    currentPlayerId: 'player-1'
+  });
+  assert.equal(noTrumpFollow.valid, false);
+  assert.equal(noTrumpFollow.afterglowActive, undefined);
 });
 
 test('回光返照的升面主牌使用扩展牌力但仍按实体牌面计分', () => {
   const boostedBigJoker = {
-    ...card('afterglow-big-joker', 'joker', 'white_joker'),
+    ...card('afterglow-big-joker', 'joker', 'county_prince_joker'),
     originalSuit: 'joker',
     originalRank: 'big_joker',
     isAfterglowBoosted: true

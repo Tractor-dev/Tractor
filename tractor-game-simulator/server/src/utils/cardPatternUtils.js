@@ -4,7 +4,8 @@ import {
   RANK_ORDER,
   normalizeRank,
   STANDARD_ORDINARY_RANKS,
-  EXTENDED_ORDINARY_RANKS
+  EXTENDED_ORDINARY_RANKS,
+  PROMOTED_ORDINARY_RANKS
 } from './constants.js';
 import {
   isReverseRankOrderRule,
@@ -134,6 +135,12 @@ export function getCardStrength(card, trumpSuit, trumpRank, activeRule = null) {
   const normTrumpRank = normalizeRank(trumpRank);
   const isUnarmed = isUnarmedRule(activeRule) || Boolean(card?.isUnarmed);
   if (card.rank === Ranks.WHITE_JOKER) {
+    return 1003;
+  }
+  if (card.rank === Ranks.PRINCE_JOKER) {
+    return 1002;
+  }
+  if (card.rank === Ranks.COUNTY_PRINCE_JOKER) {
     return 1001;
   }
   // 大王最大
@@ -195,7 +202,10 @@ export function getCardStrength(card, trumpSuit, trumpRank, activeRule = null) {
 
   if (card.isThreeTigersTrump) {
     const ordinaryTrumpRanks = EXTENDED_ORDINARY_RANKS
-      .filter(rank => rank !== Ranks.FIFTEEN && String(rank) !== String(normTrumpRank));
+      .filter(rank => (
+        !PROMOTED_ORDINARY_RANKS.includes(rank)
+        && String(rank) !== String(normTrumpRank)
+      ));
     const lowestTrumpStrength = 997 - ordinaryTrumpRanks.length;
     return lowestTrumpStrength + ordinaryTrumpRanks.indexOf(card.rank);
   }
@@ -211,13 +221,14 @@ export function getCardStrength(card, trumpSuit, trumpRank, activeRule = null) {
   }
 
   // 主花色的牌 - 需要连续排列在副花色级牌之下
-  // 主牌顺序: 大王(1000) > 小王(999) > 主级牌(998) > 副级牌(997) > 主A(996) > 主K(995) > ... > 主2(984)
+  // 标准主牌段仍为：大王(1000) > 小王(999) > 主级牌(998) > 副级牌(997) >
+  // 主A(996) > 主K(995) > ...；郡王、亲王、白王另占1001至1003。
   if (card.suit === trumpSuit) {
     if (dayNightOrderedRanks) {
       return 985 + dayNightOrderedRanks.indexOf(card.rank);
     }
     const baseOrderedRanks = usesExtendedRanks
-      ? EXTENDED_ORDINARY_RANKS.filter(rank => rank !== Ranks.FIFTEEN)
+      ? EXTENDED_ORDINARY_RANKS.filter(rank => !PROMOTED_ORDINARY_RANKS.includes(rank))
       : ORDINARY_RANKS;
     const orderedRanks = reverseRankOrder
       ? [...ORDINARY_RANKS].reverse()
