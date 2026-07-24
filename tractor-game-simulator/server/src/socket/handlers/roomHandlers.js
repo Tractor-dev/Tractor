@@ -433,24 +433,29 @@ function removePlayerPermanently(io, roomManager, room, player, socket) {
       playerName: player.name
     });
 
-    // 如果房主离开，转移房主权限或删除房间
+    // 如果房间内已无真人玩家（只剩 bot 或完全为空），直接清理房间，
+    // 避免仅剩 bot 时房间残留、房间列表不断堆积的问题。
+    const hasHumanPlayer = room.players.some(p => !p.isBot);
+    if (!hasHumanPlayer) {
+      const gameEngines = getGameEngines();
+      const botServices = getBotServices();
+      gameEngines.delete(room.id);
+      botServices.delete(room.id);
+      roomManager.deleteRoom(room.id);
+      logger.info(`玩家 ${player.name} 离开房间: ${room.id}，房间内已无真人玩家，房间已删除`);
+      return; // 房间已删除，不需要再广播
+    }
+
+    // 如果房主离开，将房主转移给下一位真人玩家（跳过 bot）
     if (room.hostId === player.socketId) {
-      if (room.players.length > 0) {
-        room.hostId = room.players[0].socketId;
+      const newHost = room.players.find(p => !p.isBot);
+      if (newHost) {
+        room.hostId = newHost.socketId;
         io.to(room.id).emit('host_changed', {
-          newHostId: room.players[0].id,
-          newHostName: room.players[0].name
+          newHostId: newHost.id,
+          newHostName: newHost.name
         });
-        logger.info(`房间 ${room.id} 房主转移给: ${room.players[0].name}`);
-      } else {
-        // 房间被删除时也清理游戏引擎和bot服务
-        const gameEngines = getGameEngines();
-        const botServices = getBotServices();
-        gameEngines.delete(room.id);
-        botServices.delete(room.id);
-        roomManager.deleteRoom(room.id);
-        logger.info(`玩家 ${player.name} 离开房间: ${room.id}，房间已删除`);
-        return; // 房间已删除，不需要再广播
+        logger.info(`房间 ${room.id} 房主转移给: ${newHost.name}`);
       }
     }
 
