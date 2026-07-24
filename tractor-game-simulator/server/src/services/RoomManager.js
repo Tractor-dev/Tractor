@@ -57,6 +57,10 @@ export class RoomManager {
       playerCount: room.players.length,
       maxPlayers: room.config.maxPlayers,
       phase: room.gameState.phase,
+      gameState: {
+        phase: room.gameState.phase,
+        isWaitingForReady: room.gameState.isWaitingForReady
+      },
       createdAt: room.createdAt
     }));
   }

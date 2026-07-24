@@ -57,7 +57,9 @@ export function registerRoomHandlers(io, socket, roomManager) {
         throw new Error('房间不存在');
       }
 
-      if (room.gameState.phase !== 'waiting' || room.gameState.isWaitingForReady) {
+      // “等待准备”仍未开始发牌，允许空位由玩家重新加入；只有进入
+      // 摸牌及后续阶段后才禁止陌生玩家中途补位。
+      if (room.gameState.phase !== 'waiting') {
         throw new Error('游戏已经开始，无法中途加入');
       }
 
@@ -68,6 +70,23 @@ export function registerRoomHandlers(io, socket, roomManager) {
       // 创建玩家
       const player = new Player(socket.id, playerName || `玩家${room.players.length + 1}`, room.players.length);
       room.addPlayer(player);
+
+      // 若离开的恰好是规则选择者，让补位玩家接管同一组选项，避免
+      // 准备阶段永远等待一个已经不存在的 playerId。
+      const chooserStillExists = room.findPlayerById(room.gameState.ruleChooserPlayerId);
+      if (
+        room.gameState.isWaitingForReady
+        && room.gameState.isRuleSelectionPending
+        && !chooserStillExists
+      ) {
+        room.gameState.ruleChooserPlayerId = player.id;
+        io.to(room.id).emit('rule_selection_started', {
+          chooserPlayerId: player.id,
+          chooserPlayerName: player.name,
+          selectionMode: room.gameState.ruleSelectionMode,
+          options: room.gameState.ruleOptions
+        });
+      }
 
       // 加入Socket.IO房间
       socket.join(room.id);

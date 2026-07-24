@@ -33,8 +33,11 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
       title: '状态',
       dataIndex: 'gameState',
       key: 'status',
-      render: (gameState) => {
-        const phase = gameState?.phase || 'waiting';
+      render: (gameState, record) => {
+        const phase = gameState?.phase || record.phase || 'waiting';
+        if (phase === 'waiting' && gameState?.isWaitingForReady) {
+          return <Tag color="gold">准备中</Tag>;
+        }
         const statusMap = {
           waiting: { text: '等待中', color: 'blue' },
           drawing: { text: '摸牌中', color: 'orange' },
@@ -57,7 +60,7 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
       key: 'action',
       render: (_, record) => {
         const isFull = record.playerCount >= record.maxPlayers;
-        const phase = record.gameState?.phase;
+        const phase = record.gameState?.phase || record.phase;
         const isPlaying = phase && phase !== 'waiting' && phase !== 'finished';
         const canJoin = !isFull && !isPlaying;
 

@@ -118,3 +118,40 @@ test('错误的恢复令牌不能认领已有座位', () => {
   assert.match(attackerSocket.last('resume_failed').message, /无法验证/);
   assert.equal(roomManager.getRoom(created.room.id).players[0].socketId, ownerSocket.id);
 });
+
+test('等待准备阶段允许空位重新加入，并接管已离线的规则选择职责', () => {
+  const io = createIo();
+  const roomManager = new RoomManager();
+  const ownerSocket = new FakeSocket('socket-owner');
+  registerRoomHandlers(io, ownerSocket, roomManager);
+  ownerSocket.trigger('create_room', {
+    name: '准备补位测试',
+    playerName: '房主',
+    config: {}
+  });
+  const created = ownerSocket.last('room_created');
+  const room = roomManager.getRoom(created.room.id);
+  room.gameState.isWaitingForReady = true;
+  room.gameState.isRuleSelectionPending = true;
+  room.gameState.ruleSelectionMode = 'single';
+  room.gameState.ruleOptions = [{ id: 'normal_game', name: '世事无常' }];
+  room.gameState.ruleChooserPlayerId = 'removed-player';
+
+  const replacementSocket = new FakeSocket('socket-replacement');
+  registerRoomHandlers(io, replacementSocket, roomManager);
+  replacementSocket.trigger('join_room', {
+    roomId: room.id,
+    playerName: '补位玩家'
+  });
+
+  const joined = replacementSocket.last('room_joined');
+  assert.ok(joined, '准备阶段的空位应允许加入');
+  assert.equal(room.gameState.ruleChooserPlayerId, joined.player.id);
+  assert.equal(replacementSocket.last('error'), undefined);
+  assert.ok(
+    io.broadcasts.some(entry =>
+      entry.event === 'rule_selection_started'
+      && entry.payload.chooserPlayerId === joined.player.id
+    )
+  );
+});
