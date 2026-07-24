@@ -10458,6 +10458,13 @@ export class GameEngine {
         if (playerIndexes.length === this.room.players.length) {
           this.room.gameState.striveUpstreamPlayOrder = playerIndexes;
           nextRoundLeaderIndex = playerIndexes[0];
+          // “力争上游”的桌面“大”表示完整牌力排序的第一名，也就是实际
+          // 取得下轮牌权的人；普通一墩的赢家仍单独用于本轮常规计分。
+          const strongestPlayer = this.room.findPlayerByIndex(playerIndexes[0]);
+          currentWinningPlayerId = strongestPlayer?.id || null;
+          publicCurrentWinningPlayerId = hasConcealedRoundPlay
+            ? null
+            : currentWinningPlayerId;
           striveUpstreamOrder = {
             triggerRound: roundUpdate?.round ?? this.room.gameState.currentRound,
             playerIndexes,

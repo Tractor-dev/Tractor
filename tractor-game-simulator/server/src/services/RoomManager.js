@@ -40,6 +40,16 @@ export class RoomManager {
     return null;
   }
 
+  findRoomByResumeToken(resumeToken) {
+    if (!resumeToken) return null;
+    for (const room of this.rooms.values()) {
+      if (room.players.some(player => player.resumeToken === resumeToken)) {
+        return room;
+      }
+    }
+    return null;
+  }
+
   getRoomList() {
     return this.getAllRooms().map(room => ({
       id: room.id,

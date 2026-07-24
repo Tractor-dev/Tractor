@@ -19,6 +19,7 @@ export const SOCKET_EVENTS = {
   // 房间相关
   CREATE_ROOM: 'create_room',
   JOIN_ROOM: 'join_room',
+  RESUME_ROOM: 'resume_room',
   LEAVE_ROOM: 'leave_room',
   GET_ROOM_LIST: 'get_room_list',
   UPDATE_CONFIG: 'update_config',

@@ -3,6 +3,20 @@ import logger from '../../utils/logger.js';
 import { getGameEngines, getBotServices } from './gameHandlers.js';
 import { BotTypes } from '../../utils/constants.js';
 
+export const DISCONNECT_GRACE_MS = 120_000;
+const disconnectTimers = new Map();
+
+function getDisconnectTimerKey(roomId, playerId) {
+  return `${roomId}:${playerId}`;
+}
+
+function clearDisconnectTimer(roomId, playerId) {
+  const key = getDisconnectTimerKey(roomId, playerId);
+  const timer = disconnectTimers.get(key);
+  if (timer) clearTimeout(timer);
+  disconnectTimers.delete(key);
+}
+
 export function registerRoomHandlers(io, socket, roomManager) {
 
   /**
@@ -22,7 +36,8 @@ export function registerRoomHandlers(io, socket, roomManager) {
       // 返回房间信息
       socket.emit('room_created', {
         room: room.toJSON(),
-        player: host.toJSON()
+        player: host.toJSON(),
+        resumeToken: host.resumeToken
       });
 
       logger.info(`玩家 ${host.name} 创建房间: ${room.id}`);
@@ -60,7 +75,8 @@ export function registerRoomHandlers(io, socket, roomManager) {
       // 通知该玩家
       socket.emit('room_joined', {
         room: room.toJSON(),
-        player: player.toJSON()
+        player: player.toJSON(),
+        resumeToken: player.resumeToken
       });
 
       // 广播给其他玩家
@@ -81,10 +97,49 @@ export function registerRoomHandlers(io, socket, roomManager) {
   });
 
   /**
+   * Reclaim an existing seat after refresh or a transient connection loss.
+   */
+  socket.on('resume_room', ({ roomId, playerId, resumeToken }) => {
+    try {
+      const room = roomManager.getRoom(roomId)
+        || roomManager.findRoomByResumeToken(resumeToken);
+      if (!room) throw new Error('原房间已不存在');
+
+      const player = room.findPlayerById(playerId);
+      if (!player || !resumeToken || player.resumeToken !== resumeToken) {
+        throw new Error('无法验证原座位');
+      }
+
+      const previousSocketId = player.socketId;
+      clearDisconnectTimer(room.id, player.id);
+      player.socketId = socket.id;
+      player.isOnline = true;
+      room.updatedAt = new Date();
+      if (room.hostId === previousSocketId) room.hostId = socket.id;
+      socket.join(room.id);
+
+      socket.emit('room_resumed', {
+        room: room.toJSON(),
+        player: player.toJSONWithCards(),
+        resumeToken: player.resumeToken
+      });
+      socket.to(room.id).emit('player_reconnected', {
+        playerId: player.id,
+        playerName: player.name
+      });
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+      logger.info(`玩家 ${player.name} 已恢复房间 ${room.id} 的座位`);
+    } catch (error) {
+      socket.emit('resume_failed', { message: error.message });
+      logger.warn(`恢复房间失败: ${error.message}`);
+    }
+  });
+
+  /**
    * 离开房间
    */
   socket.on('leave_room', ({ roomId }) => {
-    handlePlayerLeave(io, socket, roomManager, roomId);
+    handlePlayerLeave(io, socket, roomManager, roomId, { immediate: true });
   });
 
   /**
@@ -287,13 +342,47 @@ export function registerRoomHandlers(io, socket, roomManager) {
 /**
  * 处理玩家离开
  */
-function handlePlayerLeave(io, socket, roomManager, roomId) {
+function handlePlayerLeave(io, socket, roomManager, roomId, { immediate = false } = {}) {
   try {
     const room = roomManager.getRoom(roomId);
     if (!room) return;
 
     const player = room.findPlayerBySocketId(socket.id);
     if (!player) return;
+
+    if (!immediate) {
+      player.isOnline = false;
+      room.updatedAt = new Date();
+      io.to(room.id).emit('player_disconnected', {
+        playerId: player.id,
+        playerName: player.name,
+        graceMs: DISCONNECT_GRACE_MS
+      });
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+
+      clearDisconnectTimer(room.id, player.id);
+      const timer = setTimeout(() => {
+        disconnectTimers.delete(getDisconnectTimerKey(room.id, player.id));
+        // A successful resume changes both fields, so a stale timer can never
+        // evict the newly connected player.
+        if (player.isOnline || player.socketId !== socket.id) return;
+        removePlayerPermanently(io, roomManager, room, player, socket);
+      }, DISCONNECT_GRACE_MS);
+      timer.unref?.();
+      disconnectTimers.set(getDisconnectTimerKey(room.id, player.id), timer);
+      logger.info(`玩家 ${player.name} 断线，座位保留 ${DISCONNECT_GRACE_MS / 1000} 秒`);
+      return;
+    }
+
+    clearDisconnectTimer(room.id, player.id);
+    removePlayerPermanently(io, roomManager, room, player, socket);
+  } catch (error) {
+    logger.error('处理玩家离开失败:', error);
+  }
+}
+
+function removePlayerPermanently(io, roomManager, room, player, socket) {
+  try {
 
     // 如果游戏正在进行，终止游戏
     if (room.gameState.phase !== 'waiting' && room.gameState.phase !== 'finished') {
@@ -317,7 +406,7 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
     room.removePlayer(player.id);
 
     // 离开Socket.IO房间
-    socket.leave(room.id);
+    socket?.leave?.(room.id);
 
     // 广播玩家离开
     io.to(room.id).emit('player_left', {
@@ -326,7 +415,7 @@ function handlePlayerLeave(io, socket, roomManager, roomId) {
     });
 
     // 如果房主离开，转移房主权限或删除房间
-    if (room.hostId === socket.id) {
+    if (room.hostId === player.socketId) {
       if (room.players.length > 0) {
         room.hostId = room.players[0].socketId;
         io.to(room.id).emit('host_changed', {

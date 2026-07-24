@@ -4,6 +4,9 @@ import { DEFAULT_PLAYER } from '../utils/constants.js';
 export class Player {
   constructor(socketId, name, position, isBot = false) {
     this.id = uuidv4();
+    // Stable secret used to reclaim this seat after Socket.IO assigns a new id.
+    // It is deliberately omitted from toJSON() and is only returned to its owner.
+    this.resumeToken = isBot ? null : uuidv4();
     this.socketId = socketId;
     this.name = name;
     this.score = DEFAULT_PLAYER.score;

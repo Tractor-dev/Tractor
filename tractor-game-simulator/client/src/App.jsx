@@ -13,10 +13,33 @@ import './styles/App.css';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
+const ROOM_SESSION_KEY = 'tractorRoomSession';
+
+function loadRoomSession() {
+  try {
+    return JSON.parse(localStorage.getItem(ROOM_SESSION_KEY) || 'null');
+  } catch {
+    localStorage.removeItem(ROOM_SESSION_KEY);
+    return null;
+  }
+}
+
+function saveRoomSession(room, player, resumeToken) {
+  if (!room?.id || !player?.id || !resumeToken) return;
+  localStorage.setItem(ROOM_SESSION_KEY, JSON.stringify({
+    roomId: room.id,
+    playerId: player.id,
+    resumeToken
+  }));
+}
+
+function clearRoomSession() {
+  localStorage.removeItem(ROOM_SESSION_KEY);
+}
 
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
-  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, roomList, setRoomList } = useGameStore();
+  const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, setMyCards, roomList, setRoomList } = useGameStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -33,6 +56,10 @@ function App() {
     socket.on('connect', () => {
       setIsConnected(true);
       messageApi.success('已连接到服务器');
+      const session = loadRoomSession();
+      if (session?.roomId && session?.playerId && session?.resumeToken) {
+        socket.emit(SOCKET_EVENTS.RESUME_ROOM, session);
+      }
     });
 
     socket.on('disconnect', () => {
@@ -45,12 +72,13 @@ function App() {
     });
 
     // 监听房间创建成功
-    socket.on('room_created', ({ room, player }) => {
+    socket.on('room_created', ({ room, player, resumeToken }) => {
       console.log('收到房间创建成功事件:', { room, player });
       console.log('🎮 创建时 gameState.trumpRank =', room?.gameState?.trumpRank);
       messageApi.success('房间创建成功！');
       setCurrentRoom(room);
       setCurrentPlayer(player);
+      saveRoomSession(room, player, resumeToken);
       setShowCreateModal(false);
     });
 
@@ -73,12 +101,37 @@ function App() {
     });
 
     // 监听加入房间成功
-    socket.on('room_joined', ({ room, player }) => {
+    socket.on('room_joined', ({ room, player, resumeToken }) => {
       console.log('加入房间成功:', { room, player });
       messageApi.success('加入房间成功！');
       setCurrentRoom(room);
       setCurrentPlayer(player);
+      saveRoomSession(room, player, resumeToken);
       setShowJoinModal(false);
+    });
+
+    socket.on('room_resumed', ({ room, player, resumeToken }) => {
+      setCurrentRoom(room);
+      setCurrentPlayer(player);
+      setMyCards(player.cards || []);
+      saveRoomSession(room, player, resumeToken);
+      messageApi.success('已恢复原房间和座位');
+    });
+
+    socket.on('resume_failed', ({ message }) => {
+      clearRoomSession();
+      setCurrentRoom(null);
+      setCurrentPlayer(null);
+      setMyCards([]);
+      messageApi.warning(message || '原房间已无法恢复');
+    });
+
+    socket.on('player_disconnected', ({ playerName }) => {
+      messageApi.warning(`${playerName} 断线，正在为其保留座位`);
+    });
+
+    socket.on('player_reconnected', ({ playerName }) => {
+      messageApi.success(`${playerName} 已重新连接`);
     });
 
     // 监听房间列表
@@ -167,6 +220,8 @@ function App() {
     });
     setCurrentRoom(null);
     setCurrentPlayer(null);
+    setMyCards([]);
+    clearRoomSession();
     messageApi.info('已离开房间');
   };
 

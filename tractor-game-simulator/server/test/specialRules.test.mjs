@@ -2040,6 +2040,11 @@ test('力争上游把上轮四手牌由大到小设为下轮完整出牌顺序',
 
   assert.deepEqual(room.gameState.striveUpstreamPlayOrder, [1, 0, 2, 3]);
   assert.deepEqual(firstResult.roundUpdate.striveUpstreamOrder.playerIndexes, [1, 0, 2, 3]);
+  assert.equal(
+    firstResult.currentWinningPlayerId,
+    room.players[1].id,
+    '桌面“大”应跟随力争上游第一名，也就是实际取得下轮牌权的玩家'
+  );
   assert.equal(room.gameState.currentPlayerIndex, 1, '上轮最大的玩家1先出');
 
   engine.playCards(room.players[1].id, [secondTrick[1].id]);

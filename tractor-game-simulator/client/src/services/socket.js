@@ -9,8 +9,14 @@ class SocketService {
   connect() {
     if (!this.socket) {
       this.socket = io(SERVER_URL, {
-        transports: ['websocket'],
-        autoConnect: true
+        // Allow HTTP polling as a fallback on mobile/proxied networks, then
+        // upgrade to WebSocket when available.
+        transports: ['polling', 'websocket'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 5000
       });
 
       this.socket.on('connect', () => {
