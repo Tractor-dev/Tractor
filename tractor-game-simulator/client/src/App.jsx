@@ -188,6 +188,7 @@ function App() {
       playerName: values.playerName,
       config: {
         dealInterval: values.dealInterval,
+        normalModeOnly: values.normalModeOnly === true,
         testMode: values.testMode === true,
         testRuleId: values.testMode ? values.testRuleId : null
       }
@@ -322,7 +323,9 @@ function App() {
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
               <p>规则模式: {currentRoom.config.testMode
                 ? `测试模式（${RULE_SELECT_OPTIONS.find(option => option.value === currentRoom.config.testRuleId)?.label || currentRoom.config.testRuleId}）`
-                : '正常随机二选一'}</p>
+                : currentRoom.config.normalModeOnly
+                  ? '普通对局（无特殊规则）'
+                  : '正常随机二选一'}</p>
             </div>
 
             {/* Bot管理区域 - 仅房主可见 */}
