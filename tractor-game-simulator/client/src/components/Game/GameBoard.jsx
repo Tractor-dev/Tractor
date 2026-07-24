@@ -31,6 +31,7 @@ import {
   getRuleSelectionAccess,
   getThrowFailedCardsToRestore,
   getThrowFailedPreview,
+  mergeTransferredHandCards,
   mergeLivePlayerCardCounts,
   THROW_FAILED_PREVIEW_DURATION_MS
 } from '../../utils/gameViewUtils';
@@ -147,6 +148,9 @@ export default function GameBoard() {
   const [dealerCountdown, setDealerCountdown] = useState(null); // 庄家倒计时
   const [trumpAnimation, setTrumpAnimation] = useState(null); // 毙牌局部动画：攻击者标签 + 被压牌打击点
   const [cardExchangeAnimation, setCardExchangeAnimation] = useState(null);
+  const [privateCardTransferReveal, setPrivateCardTransferReveal] = useState(null);
+  const [bottomPickup, setBottomPickup] = useState(null);
+  const [handArrivalHighlight, setHandArrivalHighlight] = useState(null);
   const [ruleVisibleHands, setRuleVisibleHands] = useState([]);
   const [icebergSelection, setIcebergSelection] = useState(null);
   const [tenSidedAmbushSelection, setTenSidedAmbushSelection] = useState(null);
@@ -233,11 +237,29 @@ export default function GameBoard() {
   const awaitingRoundClearRef = useRef(false);
   const exchangeAnimationTimerRef = useRef(null);
   const exchangeHandUpdateTimerRef = useRef(null);
+  const privateCardRevealTimerRef = useRef(null);
+  const bottomCardsMergeTimerRef = useRef(null);
+  const handArrivalHighlightTimerRef = useRef(null);
+  const exchangeAnimationEndsAtRef = useRef(0);
   const tenSidedAmbushAnimationTimerRef = useRef(null);
   const threePowersAnimationTimerRef = useRef(null);
   const activeSkillAnimationTimerRef = useRef(null);
-  const exchangeAnimationDurationRef = useRef(1200);
+  const exchangeAnimationDurationRef = useRef(2200);
   const equivalentReciprocityTimerRef = useRef(null);
+
+  const clearCardTransitionTimers = () => {
+    [
+      exchangeAnimationTimerRef,
+      exchangeHandUpdateTimerRef,
+      privateCardRevealTimerRef,
+      bottomCardsMergeTimerRef,
+      handArrivalHighlightTimerRef
+    ].forEach(timerRef => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+    });
+    exchangeAnimationEndsAtRef.current = 0;
+  };
 
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
@@ -723,12 +745,7 @@ export default function GameBoard() {
       if (roundClearTimerRef.current) {
         clearTimeout(roundClearTimerRef.current);
       }
-      if (exchangeAnimationTimerRef.current) {
-        clearTimeout(exchangeAnimationTimerRef.current);
-      }
-      if (exchangeHandUpdateTimerRef.current) {
-        clearTimeout(exchangeHandUpdateTimerRef.current);
-      }
+      clearCardTransitionTimers();
       if (activeSkillAnimationTimerRef.current) {
         clearTimeout(activeSkillAnimationTimerRef.current);
       }
@@ -932,6 +949,7 @@ export default function GameBoard() {
 
     // 游戏开始
     socket.on('game_started', ({ gameState }) => {
+      clearCardTransitionTimers();
       messageApi.success('游戏开始！');
       setShownCards({}); // 清空展示的牌
       setLivePlayerCardCounts({});
@@ -943,6 +961,9 @@ export default function GameBoard() {
       setMyBottomCards([]);
       setViewBottomModal(false);
       setCardExchangeAnimation(null);
+      setPrivateCardTransferReveal(null);
+      setBottomPickup(null);
+      setHandArrivalHighlight(null);
       setRuleVisibleHands([]);
       setIcebergSelection(null);
       setTenSidedAmbushSelection(null);
@@ -1007,6 +1028,7 @@ export default function GameBoard() {
 
     // 游戏重新开始
     socket.on('game_restarted', () => {
+      clearCardTransitionTimers();
       messageApi.success('游戏重新开始！');
       setMyCards([]); // 清空手牌
       setLivePlayerCardCounts({});
@@ -1027,6 +1049,9 @@ export default function GameBoard() {
       setMyBottomCards([]);
       setViewBottomModal(false);
       setCardExchangeAnimation(null);
+      setPrivateCardTransferReveal(null);
+      setBottomPickup(null);
+      setHandArrivalHighlight(null);
       setRuleVisibleHands([]);
       setIcebergSelection(null);
       setTenSidedAmbushSelection(null);
@@ -1134,15 +1159,25 @@ export default function GameBoard() {
       ruleName,
       operation = 'exchange',
       transfers,
-      animationDuration = 1200
+      animationDuration = 2200
     }) => {
       if (exchangeAnimationTimerRef.current) {
         clearTimeout(exchangeAnimationTimerRef.current);
       }
+      if (privateCardRevealTimerRef.current) {
+        clearTimeout(privateCardRevealTimerRef.current);
+        privateCardRevealTimerRef.current = null;
+      }
+      setPrivateCardTransferReveal(null);
       const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       const effectiveDuration = prefersReducedMotion ? 0 : animationDuration;
       exchangeAnimationDurationRef.current = effectiveDuration;
       if (effectiveDuration > 0) {
+        const lastCardDelay = Math.max(0, ...((transfers || []).map((transfer, transferIndex) =>
+          transferIndex * 35 + Math.max(0, (transfer.cardsCount || 1) - 1) * 90
+        )));
+        const animationLifetime = animationDuration + lastCardDelay + 260;
+        exchangeAnimationEndsAtRef.current = Date.now() + animationLifetime;
         setCardExchangeAnimation({
           kind: operation === 'discard' ? 'discard' : 'exchange',
           operation,
@@ -1154,12 +1189,19 @@ export default function GameBoard() {
         exchangeAnimationTimerRef.current = setTimeout(() => {
           setCardExchangeAnimation(null);
           exchangeAnimationTimerRef.current = null;
-        }, animationDuration + 180);
+          exchangeAnimationEndsAtRef.current = 0;
+        }, animationLifetime);
       } else {
         setCardExchangeAnimation(null);
         exchangeAnimationTimerRef.current = null;
+        exchangeAnimationEndsAtRef.current = 0;
       }
-      messageApi.success(`${ruleName}：${operation === 'discard' ? '暗弃完成' : '换牌完成'}`);
+      messageApi.info(
+        operation === 'discard'
+          ? `${ruleName}：正在暗中弃牌`
+          : `${ruleName}：换牌中，请留意牌的来源与落点`,
+        Math.max(2, Math.ceil((animationDuration + 500) / 1000))
+      );
     });
 
     socket.on('mainstay_started', () => {
@@ -1515,22 +1557,79 @@ export default function GameBoard() {
       clearSelection();
     });
 
-    socket.on('card_exchange_hand_updated', ({ sentCardIds, receivedCards, fromPlayerName }) => {
+    socket.on('card_exchange_hand_updated', ({
+      sentCardIds,
+      receivedCards,
+      fromPlayerName,
+      ruleName = '换牌',
+      operation = 'exchange',
+      animationDuration
+    }) => {
       if (exchangeHandUpdateTimerRef.current) {
         clearTimeout(exchangeHandUpdateTimerRef.current);
       }
-      // 在飞牌接近落点时更新手牌，让状态变化和动画保持一致。
+      if (privateCardRevealTimerRef.current) {
+        clearTimeout(privateCardRevealTimerRef.current);
+        privateCardRevealTimerRef.current = null;
+      }
+      const incomingCards = Array.isArray(receivedCards) ? receivedCards : [];
       const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const effectiveDuration = Number.isFinite(animationDuration)
+        ? animationDuration
+        : exchangeAnimationDurationRef.current;
+      if (operation !== 'discard' && incomingCards.length > 0) {
+        setPrivateCardTransferReveal({
+          ruleName,
+          fromPlayerName,
+          cards: incomingCards,
+          revealDelay: prefersReducedMotion ? 0 : Math.round(effectiveDuration * 0.36),
+          revealDuration: prefersReducedMotion ? 1800 : Math.round(effectiveDuration * 0.8),
+          reducedMotion: Boolean(prefersReducedMotion),
+          key: `${ruleName}-${Date.now()}`
+        });
+        privateCardRevealTimerRef.current = setTimeout(() => {
+          setPrivateCardTransferReveal(null);
+          privateCardRevealTimerRef.current = null;
+        }, prefersReducedMotion ? 1800 : effectiveDuration + 680);
+      } else {
+        setPrivateCardTransferReveal(null);
+      }
+      // 先让牌背完成飞行、让接收者看清正面，再一次性更新和排序整手牌。
       const updateDelay = prefersReducedMotion
         ? 0
-        : Math.max(0, Math.round(exchangeAnimationDurationRef.current * 0.72));
+        : operation === 'discard'
+          ? Math.max(
+              Math.round(effectiveDuration * 0.82),
+              exchangeAnimationEndsAtRef.current - Date.now() - 120
+            )
+          : Math.max(
+              effectiveDuration + 180,
+              exchangeAnimationEndsAtRef.current - Date.now() - 120
+            );
       exchangeHandUpdateTimerRef.current = setTimeout(() => {
-        removeCards(sentCardIds || []);
-        (receivedCards || []).forEach(card => addCard(card));
+        setMyCards(mergeTransferredHandCards(
+          useGameStore.getState().myCards,
+          sentCardIds,
+          incomingCards
+        ));
         clearSelection();
         exchangeHandUpdateTimerRef.current = null;
-        if (fromPlayerName) {
-          messageApi.info(`收到 ${fromPlayerName} 的 ${(receivedCards || []).length} 张牌`);
+        if (incomingCards.length > 0) {
+          if (handArrivalHighlightTimerRef.current) {
+            clearTimeout(handArrivalHighlightTimerRef.current);
+          }
+          setHandArrivalHighlight({
+            cardIds: incomingCards.map(card => card.id),
+            label: '收',
+            kind: 'exchange'
+          });
+          handArrivalHighlightTimerRef.current = setTimeout(() => {
+            setHandArrivalHighlight(null);
+            handArrivalHighlightTimerRef.current = null;
+          }, 1800);
+        }
+        if (fromPlayerName && incomingCards.length > 0) {
+          messageApi.success(`已收到 ${fromPlayerName} 的 ${incomingCards.length} 张牌`);
         }
       }, updateDelay);
     });
@@ -1848,12 +1947,61 @@ export default function GameBoard() {
     });
 
     // 收到底牌（埋底玩家）
-    socket.on('bottom_cards_received', ({ bottomCards, totalCards }) => {
-      bottomCards.forEach(card => addCard(card));
-      if (bottomCards.length === 0) {
+    socket.on('bottom_cards_received', ({
+      bottomCards,
+      totalCards,
+      administrativeReview = false
+    }) => {
+      const receivedBottomCards = Array.isArray(bottomCards) ? bottomCards : [];
+      if (bottomCardsMergeTimerRef.current) {
+        clearTimeout(bottomCardsMergeTimerRef.current);
+      }
+      if (handArrivalHighlightTimerRef.current) {
+        clearTimeout(handArrivalHighlightTimerRef.current);
+        handArrivalHighlightTimerRef.current = null;
+      }
+      if (receivedBottomCards.length === 0) {
+        setBottomPickup(null);
         messageApi.info('本局没有底牌');
       } else {
-        messageApi.success(`收到 ${bottomCards.length} 张底牌，当前共 ${totalCards} 张牌`);
+        const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const pickupKey = `bottom-${Date.now()}`;
+        const pickupTitle = administrativeReview ? '行政审查 · 解封底牌' : '庄家拿起底牌';
+        const revealDelay = prefersReducedMotion
+          ? 0
+          : Math.max(0, exchangeAnimationEndsAtRef.current - Date.now() + 100);
+        setBottomPickup({
+          cards: receivedBottomCards,
+          title: pickupTitle,
+          visible: revealDelay === 0,
+          merged: false,
+          key: pickupKey
+        });
+        bottomCardsMergeTimerRef.current = setTimeout(() => {
+          setBottomPickup(previous => previous?.key === pickupKey
+            ? { ...previous, visible: true }
+            : previous);
+          bottomCardsMergeTimerRef.current = setTimeout(() => {
+            setMyCards(mergeTransferredHandCards(
+              useGameStore.getState().myCards,
+              [],
+              receivedBottomCards
+            ));
+            setHandArrivalHighlight({
+              cardIds: receivedBottomCards.map(card => card.id),
+              kind: 'bottom'
+            });
+            setBottomPickup(previous => previous?.key === pickupKey
+              ? { ...previous, merged: true }
+              : previous);
+            clearSelection();
+            bottomCardsMergeTimerRef.current = null;
+            messageApi.success(
+              `收到 ${receivedBottomCards.length} 张底牌，牌面已换色 · 当前共 ${totalCards} 张牌`,
+              4
+            );
+          }, prefersReducedMotion ? 0 : 520);
+        }, revealDelay);
       }
     });
 
@@ -1884,12 +2032,16 @@ export default function GameBoard() {
           key: Date.now()
         });
         const delayedCardsDuration = Math.max(0, cardsCount - 1) * 90;
+        exchangeAnimationEndsAtRef.current = Date.now()
+          + animationDuration + delayedCardsDuration + 220;
         exchangeAnimationTimerRef.current = setTimeout(() => {
           setCardExchangeAnimation(null);
           exchangeAnimationTimerRef.current = null;
+          exchangeAnimationEndsAtRef.current = 0;
         }, animationDuration + delayedCardsDuration + 220);
       } else {
         setCardExchangeAnimation(null);
+        exchangeAnimationEndsAtRef.current = 0;
       }
       messageApi.info(`改革开放：底牌交给 ${secondaryPlayerName} 重新埋底`, 4);
     });
@@ -1901,12 +2053,32 @@ export default function GameBoard() {
       const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       const updateDelay = prefersReducedMotion
         ? 0
-        : Math.max(0, Math.round(exchangeAnimationDurationRef.current * 0.72));
+        : Math.max(0, exchangeAnimationEndsAtRef.current - Date.now() + 100);
       exchangeHandUpdateTimerRef.current = setTimeout(() => {
-        bottomCards.forEach(card => addCard(card));
+        const receivedBottomCards = Array.isArray(bottomCards) ? bottomCards : [];
+        setBottomPickup(receivedBottomCards.length > 0 ? {
+          cards: receivedBottomCards,
+          title: '改革开放 · 接过底牌',
+          visible: true,
+          merged: true,
+          key: `secondary-bottom-${Date.now()}`
+        } : null);
+        setMyCards(mergeTransferredHandCards(
+          useGameStore.getState().myCards,
+          [],
+          receivedBottomCards
+        ));
+        if (handArrivalHighlightTimerRef.current) {
+          clearTimeout(handArrivalHighlightTimerRef.current);
+          handArrivalHighlightTimerRef.current = null;
+        }
+        setHandArrivalHighlight(receivedBottomCards.length > 0 ? {
+          cardIds: receivedBottomCards.map(card => card.id),
+          kind: 'bottom'
+        } : null);
         clearSelection();
         exchangeHandUpdateTimerRef.current = null;
-        messageApi.success(`拿起 ${bottomCards.length} 张底牌，当前共 ${totalCards} 张牌`);
+        messageApi.success(`拿起 ${receivedBottomCards.length} 张底牌，牌面已换色 · 当前共 ${totalCards} 张牌`, 4);
       }, updateDelay);
     });
 
@@ -2617,7 +2789,8 @@ export default function GameBoard() {
       messageApi.success(buryMessage);
       // 如果是我自己埋的底，清空我的底牌缓存（已经埋了）
       if (playerId === currentPlayer?.id) {
-        // 底牌已经保存在后端，前端不需要再显示
+        setBottomPickup(null);
+        setHandArrivalHighlight(previous => previous?.kind === 'bottom' ? null : previous);
       }
     });
 
@@ -2984,6 +3157,7 @@ export default function GameBoard() {
 
     // 下一局开始
     socket.on('next_game_started', () => {
+      clearCardTransitionTimers();
       messageApi.success('开始下一局！');
       // 清空所有前端状态
       setSelectedRule(null);
@@ -3005,6 +3179,10 @@ export default function GameBoard() {
       setPublicBottomCards([]);
       setMyBottomCards([]);
       setViewBottomModal(false);
+      setCardExchangeAnimation(null);
+      setPrivateCardTransferReveal(null);
+      setBottomPickup(null);
+      setHandArrivalHighlight(null);
       setRuleVisibleHands([]);
       setIcebergSelection(null);
       setTenSidedAmbushSelection(null);
@@ -5999,6 +6177,10 @@ export default function GameBoard() {
               cardExchange={cardExchange}
               mainstay={gameState?.mainstay}
               cardExchangeAnimation={cardExchangeAnimation}
+              privateCardTransferReveal={privateCardTransferReveal}
+              highlightedCardIds={handArrivalHighlight?.cardIds || []}
+              highlightedCardLabel={handArrivalHighlight?.kind === 'exchange' ? '收' : ''}
+              highlightedCardTone={handArrivalHighlight?.kind === 'bottom' ? 'bottom' : 'arrival'}
               ruleVisibleHands={ruleVisibleHands}
             />
           </div>
@@ -6017,7 +6199,11 @@ export default function GameBoard() {
               selectedCards={selectedCards}
               onCardClick={toggleCardSelection}
               onReorder={cardExchangeAnimation ? undefined : reorderCards}
-              disableMyHand={!isActiveBuryingPlayer || Boolean(cardExchangeAnimation)}
+              disableMyHand={
+                !isActiveBuryingPlayer
+                || Boolean(cardExchangeAnimation)
+                || Boolean(bottomPickup && !bottomPickup.merged)
+              }
               openHand={openHand}
               currentTurnPlayerId={null}
               trumpSuit={trumpSuit}
@@ -6043,6 +6229,10 @@ export default function GameBoard() {
               dealerPlayerIndex={gameState?.dealerPlayerIndex}
               onRename={handleOpenRenameModal}
               cardExchangeAnimation={cardExchangeAnimation}
+              privateCardTransferReveal={privateCardTransferReveal}
+              highlightedCardIds={handArrivalHighlight?.cardIds || []}
+              highlightedCardLabel={handArrivalHighlight?.kind === 'exchange' ? '收' : ''}
+              highlightedCardTone={handArrivalHighlight?.kind === 'bottom' ? 'bottom' : 'arrival'}
               ruleVisibleHands={ruleVisibleHands}
             />
           </div>
@@ -6167,6 +6357,10 @@ export default function GameBoard() {
               onRename={handleOpenRenameModal}
               cardExchange={cardExchange}
               cardExchangeAnimation={cardExchangeAnimation}
+              privateCardTransferReveal={privateCardTransferReveal}
+              highlightedCardIds={handArrivalHighlight?.cardIds || []}
+              highlightedCardLabel={handArrivalHighlight?.kind === 'exchange' ? '收' : ''}
+              highlightedCardTone={handArrivalHighlight?.kind === 'bottom' ? 'bottom' : 'arrival'}
             />
           </div>
         );

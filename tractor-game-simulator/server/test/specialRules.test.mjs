@@ -3457,6 +3457,9 @@ test('开局换牌收齐前不改手牌，收齐后同时交换且只私发实�
       assert.notEqual(update.target, room.id);
       assert.equal(update.payload.sentCardIds.length, 2);
       assert.equal(update.payload.receivedCards.length, 2);
+      assert.equal(update.payload.ruleName, getRuleById(ruleId).name);
+      assert.equal(update.payload.operation, 'exchange');
+      assert.equal(update.payload.animationDuration, publicResolution.payload.animationDuration);
     });
   }
 });
@@ -5672,6 +5675,9 @@ test('弃掷逦迤在含分轮末同时暗弃，庄家方分牌只在终局公�
     const playerIndex = room.players.findIndex(player => player.socketId === target);
     assert.deepEqual(payload.sentCardIds, [discardedCards[playerIndex].id]);
     assert.deepEqual(payload.receivedCards, []);
+    assert.equal(payload.ruleName, '弃掷逦迤');
+    assert.equal(payload.operation, 'discard');
+    assert.equal(payload.animationDuration, publicResolution.payload.animationDuration);
     assert.equal(
       discardedCards.some((value, index) =>
         index !== playerIndex && JSON.stringify(payload).includes(value.id)

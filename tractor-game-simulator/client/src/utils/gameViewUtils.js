@@ -163,6 +163,20 @@ export function mergeLivePlayerCardCounts(players, liveCounts, isDrawing) {
   }));
 }
 
+/**
+ * 私密换牌动画结束时一次性合并手牌。先删去自己交出的牌，再加入收到的牌，
+ * 同时按牌 ID 去重，避免逐张 addCard 导致手牌在动画落点处连续跳动、重排。
+ */
+export function mergeTransferredHandCards(currentCards, sentCardIds, receivedCards) {
+  const sentIds = new Set(Array.isArray(sentCardIds) ? sentCardIds : []);
+  const incomingCards = Array.isArray(receivedCards) ? receivedCards : [];
+  const incomingIds = new Set(incomingCards.map(card => card?.id).filter(Boolean));
+  const retainedCards = (Array.isArray(currentCards) ? currentCards : []).filter(card => (
+    card?.id && !sentIds.has(card.id) && !incomingIds.has(card.id)
+  ));
+  return [...retainedCards, ...incomingCards];
+}
+
 /** 把服务端公布的座位索引队列转换为某名玩家的行动次序。 */
 export function getStriveUpstreamActionOrder(players, gameState, playerId) {
   if (!ruleIncludesId(gameState?.selectedRule, 'strive_upstream')) return null;

@@ -11,6 +11,7 @@ import {
   getThrowFailedPreview,
   getThrowFailedCardsToRestore,
   mergeLivePlayerCardCounts,
+  mergeTransferredHandCards,
   shouldShowGameBoard,
   THROW_FAILED_PREVIEW_DURATION_MS
 } from '../src/utils/gameViewUtils.js';
@@ -210,6 +211,29 @@ test('发牌阶段用逐张进度更新各家手牌数，离开发牌阶段后�
     [3, 2]
   );
   assert.equal(mergeLivePlayerCardCounts(players, liveCounts, false), players);
+});
+
+test('换牌落入手牌时只重排一次，并按牌 ID 去除旧副本', () => {
+  const currentCards = [
+    { id: 'spades-2-0', suit: 'spades', rank: '2' },
+    { id: 'hearts-5-0', suit: 'hearts', rank: '5' },
+    { id: 'clubs-K-0', suit: 'clubs', rank: 'K' }
+  ];
+  const receivedCards = [
+    { id: 'diamonds-A-1', suit: 'diamonds', rank: 'A' },
+    // 模拟重复推送：已有牌不能在手牌中出现两次。
+    { id: 'clubs-K-0', suit: 'clubs', rank: 'K' }
+  ];
+
+  assert.deepEqual(
+    mergeTransferredHandCards(currentCards, ['hearts-5-0'], receivedCards),
+    [
+      currentCards[0],
+      receivedCards[0],
+      receivedCards[1]
+    ]
+  );
+  assert.deepEqual(mergeTransferredHandCards(null, null, null), []);
 });
 
 test('记录在案用共用点数轴压缩四种花色，并精确保留两副牌计数和大小王', () => {

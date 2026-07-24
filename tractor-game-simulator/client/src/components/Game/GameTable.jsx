@@ -63,6 +63,7 @@ const { Text } = Typography;
  * @param {Object} props.cardExchange - 摸牌后的公开换牌进度
  * @param {Object} props.mainstay - “中流砥柱”当前依次处理进度
  * @param {Object} props.cardExchangeAnimation - 换牌路径动画
+ * @param {Object} props.privateCardTransferReveal - 仅接收者可见的换入牌面
  * @param {Object} props.threePowers - 三权分立三个重载分牌槽的可见状态
  */
 export default function GameTable({
@@ -120,6 +121,10 @@ export default function GameTable({
   cardExchange = null,
   mainstay = null,
   cardExchangeAnimation = null,
+  privateCardTransferReveal = null,
+  highlightedCardIds = [],
+  highlightedCardLabel = '',
+  highlightedCardTone = 'arrival',
   openHand = null,
   ruleVisibleHands = [],
   playerTargeting = null,
@@ -893,6 +898,18 @@ export default function GameTable({
           <div className="card-exchange-animation-title">
             {cardExchangeAnimation.title || cardExchangeAnimation.ruleName}
           </div>
+          {cardExchangeAnimation.kind === 'exchange' && (
+            <div className="card-exchange-animation-detail">
+              {(cardExchangeAnimation.transfers || []).map(transfer => (
+                <span key={`${transfer.fromPlayerId}-${transfer.toPlayerId}`}>
+                  {transfer.fromPlayerName || '玩家'}
+                  <b>→</b>
+                  {transfer.toPlayerName || '玩家'}
+                  <em>{transfer.cardsCount || 0}张</em>
+                </span>
+              ))}
+            </div>
+          )}
           {(cardExchangeAnimation.transfers || []).flatMap((transfer, transferIndex) => {
             const isPlannedEconomyDraw = cardExchangeAnimation.kind === 'planned_economy_draw';
             const start = isPlannedEconomyDraw
@@ -929,6 +946,33 @@ export default function GameTable({
               />
             ));
           })}
+        </div>
+      )}
+
+      {privateCardTransferReveal?.cards?.length > 0 && (
+        <div
+          key={privateCardTransferReveal.key}
+          className={`private-card-transfer-reveal ${privateCardTransferReveal.reducedMotion ? 'is-static' : ''}`}
+          style={{
+            '--private-reveal-delay': `${privateCardTransferReveal.revealDelay || 0}ms`,
+            '--private-reveal-duration': `${privateCardTransferReveal.revealDuration || 1500}ms`
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="private-card-transfer-heading">
+            <strong>{privateCardTransferReveal.ruleName} · 收到的牌</strong>
+            <span>来自 {privateCardTransferReveal.fromPlayerName || '其他玩家'}</span>
+          </div>
+          <Hand
+            cards={privateCardTransferReveal.cards}
+            disabled
+            small
+            minimumVisibleWidth={44}
+            trumpSuit={trumpSuit}
+            trumpRank={trumpRank}
+          />
+          <div className="private-card-transfer-hint">即将落入你的手牌</div>
         </div>
       )}
 
@@ -2398,6 +2442,9 @@ export default function GameTable({
                       ? ruleVisibleHandsByPlayerId.get(positions.bottom.id).cards.map(card => card.id)
                       : []
                   }
+                  highlightedCardIds={highlightedCardIds}
+                  highlightedCardLabel={highlightedCardLabel}
+                  highlightedCardTone={highlightedCardTone}
                   onCardClick={onCardClick}
                   transformableCardIds={transformableCardIds}
                   onRequestCardTransformation={onRequestCardTransformation}

@@ -149,7 +149,8 @@ import {
 } from '../rules/ruleRegistry.js';
 
 const OPENING_EXCHANGE_CARD_COUNT = 2;
-const OPENING_EXCHANGE_ANIMATION_MS = 1200;
+// 换牌不只是路径提示：接收者还需要时间辨认收到的牌，再看它们落入手牌。
+const OPENING_EXCHANGE_ANIMATION_MS = 2200;
 const MAINSTAY_CARD_COUNT = 5;
 const MAINSTAY_ANIMATION_MS = 1100;
 const SECONDARY_BURY_ANIMATION_MS = 1400;
@@ -1698,7 +1699,12 @@ export class GameEngine {
     });
     for (const player of this.room.players) {
       if (player.isBot) continue;
-      this.io.to(player.socketId).emit('card_exchange_hand_updated', privateResults.get(player.id));
+      this.io.to(player.socketId).emit('card_exchange_hand_updated', {
+        ...privateResults.get(player.id),
+        ruleName,
+        operation,
+        animationDuration: OPENING_EXCHANGE_ANIMATION_MS
+      });
     }
 
     let gameFinished = false;

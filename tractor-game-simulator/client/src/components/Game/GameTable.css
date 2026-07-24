@@ -114,6 +114,105 @@
   animation: exchangeTitlePop 1.2s ease-out both;
 }
 
+.card-exchange-animation-detail {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: calc(48% + 50px);
+  width: min(760px, 78%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  animation: exchangeDetailIn 1.9s ease-out both;
+}
+
+.card-exchange-animation-detail span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 235, 158, 0.38);
+  border-radius: 999px;
+  color: rgba(255, 249, 222, 0.9);
+  background: rgba(9, 46, 35, 0.82);
+  box-shadow: 0 4px 14px rgba(0, 24, 17, 0.24);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.card-exchange-animation-detail b {
+  color: #ffdb63;
+  font-size: 14px;
+}
+
+.card-exchange-animation-detail em {
+  color: #ffe799;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.private-card-transfer-reveal {
+  --private-reveal-delay: 780ms;
+  --private-reveal-duration: 1540ms;
+  position: absolute;
+  z-index: 280;
+  left: 50%;
+  top: 56%;
+  width: min(330px, 72vw);
+  padding: 10px 13px 8px;
+  border: 1px solid rgba(255, 226, 122, 0.82);
+  border-radius: 16px;
+  color: #fff5c8;
+  background:
+    radial-gradient(circle at 50% 0, rgba(255, 220, 89, 0.2), transparent 48%),
+    linear-gradient(145deg, rgba(61, 46, 11, 0.97), rgba(5, 61, 43, 0.97));
+  box-shadow:
+    0 16px 42px rgba(0, 24, 17, 0.48),
+    inset 0 1px rgba(255, 255, 255, 0.14),
+    0 0 0 4px rgba(255, 215, 76, 0.08);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: privateTransferReveal var(--private-reveal-duration) cubic-bezier(.2,.8,.25,1)
+    var(--private-reveal-delay) both;
+}
+
+.private-card-transfer-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 3px 2px;
+}
+
+.private-card-transfer-heading strong {
+  color: #ffe17a;
+  font-size: 14px;
+}
+
+.private-card-transfer-heading span,
+.private-card-transfer-hint {
+  color: rgba(255, 248, 216, 0.72);
+  font-size: 11px;
+}
+
+.private-card-transfer-reveal .hand {
+  min-height: 82px;
+  padding: 6px 4px 3px;
+}
+
+.private-card-transfer-hint {
+  padding-top: 3px;
+  text-align: center;
+}
+
+.private-card-transfer-reveal.is-static {
+  animation: privateTransferStatic 1.8s ease-out both;
+}
+
 .planned-economy-draw-layer .card-exchange-animation-title {
   top: 42%;
   font-size: 16px;
@@ -173,15 +272,49 @@
   100% { opacity: 0; transform: translate(-50%, -55%) scale(0.92); }
 }
 
+@keyframes exchangeDetailIn {
+  0%, 10% { opacity: 0; transform: translate(-50%, -5px); }
+  24%, 78% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 5px); }
+}
+
+@keyframes privateTransferReveal {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -68%) scale(0.78);
+  }
+  14%, 72% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 18%) scale(0.9);
+  }
+}
+
+@keyframes privateTransferStatic {
+  0%, 100% { opacity: 0; }
+  10%, 88% { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .exchange-flying-card,
   .card-exchange-animation-layer::before,
   .card-exchange-animation-title,
+  .card-exchange-animation-detail,
   .open-hand-panel,
   .open-hand-mini-card {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
   }
+
+  .private-card-transfer-reveal {
+    animation: none !important;
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+
 }
 
 .position-top {

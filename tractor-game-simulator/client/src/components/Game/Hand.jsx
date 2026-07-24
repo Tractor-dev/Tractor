@@ -4,7 +4,30 @@ import { getCardStrength, getEffectiveSuit } from '../../utils/cardPatternUtils'
 import { RANK_ORDER } from '../../utils/constants.js';
 import './Hand.css';
 
-export default function Hand({ cards, selectedCards = [], disabledCardIds = [], disabledCardReason = '', virtualizedCardIds = [], revealedCardIds = [], transformableCardIds = [], onCardClick, onRequestCardTransformation, onCancelCardTransformation, disabled = false, faceDown = false, small = false, anticipateNextCard = false, showWinningBadge = false, onReorder, trumpSuit = null, trumpRank = null, minimumVisibleWidth = null }) {
+export default function Hand({
+  cards,
+  selectedCards = [],
+  disabledCardIds = [],
+  disabledCardReason = '',
+  virtualizedCardIds = [],
+  revealedCardIds = [],
+  highlightedCardIds = [],
+  highlightedCardLabel = '',
+  highlightedCardTone = 'arrival',
+  transformableCardIds = [],
+  onCardClick,
+  onRequestCardTransformation,
+  onCancelCardTransformation,
+  disabled = false,
+  faceDown = false,
+  small = false,
+  anticipateNextCard = false,
+  showWinningBadge = false,
+  onReorder,
+  trumpSuit = null,
+  trumpRank = null,
+  minimumVisibleWidth = null
+}) {
   const [draggedCard, setDraggedCard] = useState(null);
   const handRef = useRef(null);
   const cardWrapperRefs = useRef(new Map());
@@ -281,6 +304,7 @@ export default function Hand({ cards, selectedCards = [], disabledCardIds = [], 
         const isRuleDisabled = disabledCardIds.includes(card.id);
         const isVirtualized = virtualizedCardIds.includes(card.id);
         const isPubliclyRevealed = revealedCardIds.includes(card.id);
+        const isHighlighted = highlightedCardIds.includes(card.id);
 
         return (
           <div
@@ -289,7 +313,7 @@ export default function Hand({ cards, selectedCards = [], disabledCardIds = [], 
               if (element) cardWrapperRefs.current.set(card.id, element);
               else cardWrapperRefs.current.delete(card.id);
             }}
-            className={`card-wrapper ${isPubliclyRevealed ? 'is-publicly-revealed' : ''} ${isVirtualized ? 'is-virtualized' : ''}`}
+            className={`card-wrapper ${isPubliclyRevealed ? 'is-publicly-revealed' : ''} ${isHighlighted ? (highlightedCardTone === 'bottom' ? 'is-bottom-source' : 'is-arriving-card') : ''} ${isVirtualized ? 'is-virtualized' : ''}`}
             style={{ zIndex: cardIndex + 1 }}
           >
             <Card
@@ -316,6 +340,11 @@ export default function Hand({ cards, selectedCards = [], disabledCardIds = [], 
               trumpSuit={trumpSuit}
               trumpRank={trumpRank}
             />
+            {isHighlighted && highlightedCardLabel && (
+              <span className="arrival-card-badge" aria-label={highlightedCardLabel}>
+                {highlightedCardLabel}
+              </span>
+            )}
             {showWinningBadge && isRightmostCard && (
               <span className="winning-play-badge" aria-label="当前最大">大</span>
             )}
