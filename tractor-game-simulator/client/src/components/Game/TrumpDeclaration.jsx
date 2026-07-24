@@ -97,7 +97,7 @@ export default function TrumpDeclaration({
   return (
     <div className="trump-declaration">
       <div className="declaration-label">亮主：</div>
-      <div className="declaration-slots">
+      <div className={`declaration-slots ${isThreeSixNine ? 'three-six-nine' : ''}`}>
         {slots.map(slot => {
           const isActive = isSlotActive(slot.type);
           const tooltip = getSlotTooltip(slot.type);

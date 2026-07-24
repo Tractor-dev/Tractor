@@ -531,18 +531,25 @@
 }
 
 .active-skill-activation {
+  position: relative;
   display: flex;
   min-width: 330px;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   padding: 24px 50px 27px;
+  overflow: hidden;
   border: 1px solid rgba(255, 225, 121, 0.82);
   border-radius: 20px;
   color: rgba(255, 249, 219, 0.8);
   background: linear-gradient(145deg, rgba(17, 54, 44, 0.98), rgba(5, 22, 18, 0.99));
   box-shadow: 0 24px 72px rgba(0, 0, 0, 0.58), 0 0 46px rgba(242, 190, 43, 0.24);
   animation: activeSkillActivationPop 1.8s cubic-bezier(.18, .8, .2, 1) forwards;
+}
+
+.active-skill-activation > * {
+  position: relative;
+  z-index: 1;
 }
 
 .active-skill-activation > span {
@@ -565,6 +572,76 @@
   font-size: 14px;
 }
 
+.active-skill-activation-overlay.is-destroy-dyke {
+  background:
+    radial-gradient(circle at 50% 54%, rgba(237, 139, 67, 0.16), transparent 30%),
+    radial-gradient(circle at 50% 64%, rgba(24, 139, 128, 0.22), transparent 48%),
+    rgba(2, 17, 16, 0.52);
+}
+
+.active-skill-activation.is-destroy-dyke {
+  border-color: rgba(255, 183, 91, 0.88);
+  color: rgba(255, 239, 207, 0.88);
+  background:
+    linear-gradient(155deg, rgba(73, 54, 31, 0.98), rgba(6, 35, 33, 0.99) 68%),
+    rgba(5, 22, 18, 0.99);
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.62),
+    0 0 54px rgba(32, 165, 149, 0.23),
+    inset 0 0 34px rgba(239, 129, 60, 0.075);
+}
+
+.active-skill-activation.is-destroy-dyke::before {
+  position: absolute;
+  right: -12%;
+  bottom: -44px;
+  left: -12%;
+  height: 92px;
+  border-radius: 48% 52% 0 0;
+  background:
+    radial-gradient(ellipse at 18% 12%, rgba(136, 235, 219, 0.36) 0 12%, transparent 13%),
+    radial-gradient(ellipse at 58% 2%, rgba(136, 235, 219, 0.24) 0 13%, transparent 14%),
+    linear-gradient(180deg, rgba(33, 152, 137, 0.7), rgba(5, 70, 66, 0.88));
+  content: '';
+  opacity: 0;
+  transform: translateY(42px) rotate(-1deg);
+  animation: destroyDykeFloodSweep 1.8s cubic-bezier(.2, .72, .18, 1) forwards;
+}
+
+.active-skill-activation.is-destroy-dyke::after {
+  position: absolute;
+  top: -35%;
+  left: 50%;
+  width: 2px;
+  height: 92%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(255, 195, 107, 0.72) 34%,
+    rgba(255, 195, 107, 0.16) 76%,
+    transparent
+  );
+  box-shadow:
+    -11px 44px 0 -0.5px rgba(255, 195, 107, 0.28),
+    9px 76px 0 -0.5px rgba(255, 195, 107, 0.2);
+  content: '';
+  opacity: 0;
+  transform: rotate(14deg) scaleY(0);
+  transform-origin: top;
+  animation: destroyDykeCrack 1.8s ease-out forwards;
+}
+
+.active-skill-activation.is-destroy-dyke strong {
+  color: #ffbd6c;
+  text-shadow:
+    0 0 22px rgba(255, 143, 72, 0.45),
+    0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+.active-skill-activation.is-destroy-dyke small {
+  color: rgba(189, 239, 226, 0.78);
+}
+
 @keyframes activeSkillActivationPop {
   0% { opacity: 0; transform: scale(0.72) translateY(16px); filter: blur(7px); }
   18% { opacity: 1; transform: scale(1.04) translateY(0); filter: blur(0); }
@@ -575,6 +652,19 @@
 @keyframes activeSkillOverlayFade {
   0%, 72% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+@keyframes destroyDykeFloodSweep {
+  0%, 14% { opacity: 0; transform: translateY(48px) rotate(-1deg); }
+  30% { opacity: 0.9; }
+  64% { opacity: 0.72; transform: translateY(0) rotate(1deg); }
+  100% { opacity: 0; transform: translateY(-20px) rotate(-1deg); }
+}
+
+@keyframes destroyDykeCrack {
+  0%, 12% { opacity: 0; transform: rotate(14deg) scaleY(0); }
+  22%, 66% { opacity: 0.78; transform: rotate(14deg) scaleY(1); }
+  100% { opacity: 0; transform: rotate(14deg) scaleY(1); }
 }
 
 .equivalent-reciprocity-result {
@@ -657,13 +747,22 @@
   .active-skill-button.is-armed,
   .active-skill-button.is-ready,
   .active-skill-activation-overlay,
-  .active-skill-activation {
+  .active-skill-activation,
+  .active-skill-activation::before,
+  .active-skill-activation::after {
     animation-duration: 1ms !important;
   }
 }
 
 @media (max-width: 780px) {
   .phase-content.playing-phase { padding: 6px; }
+  .active-skill-activation {
+    box-sizing: border-box;
+    width: calc(100vw - 32px);
+    min-width: 0;
+    padding: 20px 24px 23px;
+  }
+  .active-skill-activation strong { font-size: clamp(32px, 11vw, 44px); }
   .ten-sided-ambush-rank-grid { grid-template-columns: repeat(3, minmax(52px, 1fr)); }
   .player-decision-modal-wrap { padding: 12px 12px 118px; }
 }

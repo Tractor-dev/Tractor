@@ -26,7 +26,14 @@ import {
   validatePlaySelection
 } from '../../utils/actionAvailability';
 import { calculateCardPoints, getCardPoints, getMeticulousAccountingCardPoints } from '../../utils/scoringUtils';
-import { mergeLivePlayerCardCounts } from '../../utils/gameViewUtils';
+import {
+  getCanonicalOpenHandCards,
+  getRuleSelectionAccess,
+  getThrowFailedCardsToRestore,
+  getThrowFailedPreview,
+  mergeLivePlayerCardCounts,
+  THROW_FAILED_PREVIEW_DURATION_MS
+} from '../../utils/gameViewUtils';
 import { ruleIncludesId } from '../../utils/ruleCatalog';
 import { sortCards } from '../../utils/cardUtils';
 import Hand from './Hand';
@@ -105,6 +112,7 @@ export default function GameBoard() {
   const [viewBottomModal, setViewBottomModal] = useState(false);
   const [shownCards, setShownCards] = useState({}); // { [playerId]: { playerName, cards } }
   const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
+  const [throwFailedPreviews, setThrowFailedPreviews] = useState({});
   const [playHistory, setPlayHistory] = useState([]); // 出牌历史记录 [{ playerId, playerName, timestamp }, ...]
   const [revealedBottomCards, setRevealedBottomCards] = useState([]); // 终局展示的底牌
   const [publicBottomCards, setPublicBottomCards] = useState([]); // “昭然若揭”发牌开始即公开的底牌
@@ -220,6 +228,7 @@ export default function GameBoard() {
   const heldCompletedRoundNumberRef = useRef(null);
   const playedCardsRef = useRef({});
   const pendingOwnConcealedCardsRef = useRef(new Map());
+  const throwFailedPreviewTimersRef = useRef(new Map());
   const roundClearTimerRef = useRef(null);
   const awaitingRoundClearRef = useRef(false);
   const exchangeAnimationTimerRef = useRef(null);
@@ -403,16 +412,16 @@ export default function GameBoard() {
   const phase = isHoldingCompletedRound && roomPhase === GamePhases.REVEALING
     ? GamePhases.PLAYING
     : roomPhase;
-  const isRuleChooser = Boolean(
-    gameState?.isRuleSelectionPending &&
-    gameState?.ruleChooserPlayerId === currentPlayer?.id
-  );
+  const {
+    canView: canViewRuleSelection,
+    canChoose: isRuleChooser
+  } = getRuleSelectionAccess(gameState, currentPlayer?.id);
   const isDoubleHappinessSelection = Boolean(
     gameState?.isRuleSelectionPending
     && gameState?.ruleSelectionMode === 'double_happiness'
   );
   const canRefreshDoubleHappiness = Boolean(isHost && isDoubleHappinessSelection);
-  const canOpenRuleSelector = isRuleChooser || isDoubleHappinessSelection;
+  const canOpenRuleSelector = canViewRuleSelection;
   const cardExchange = gameState?.cardExchange || null;
   const hasSubmittedCardExchange = Boolean(
     cardExchange?.submittedPlayerIds?.includes(currentPlayer?.id)
@@ -448,6 +457,17 @@ export default function GameBoard() {
     phase === GamePhases.DRAWING
   );
   const openHand = gameState?.openHand || null;
+  const canonicalOpenHandCards = getCanonicalOpenHandCards(
+    gameState,
+    currentPlayer?.id
+  );
+
+  // 明手本人不实际操作自己的牌，始终用服务端公开快照校准本地牌架。
+  // 这也能清除旧版本在代打甩牌失败时留下的重复牌与重复ID。
+  useEffect(() => {
+    if (!canonicalOpenHandCards) return;
+    setMyCards(canonicalOpenHandCards);
+  }, [canonicalOpenHandCards, setMyCards]);
 
   // 二鬼拍门的明置牌也写入公共房间快照，保证重连或切回页面时能立即恢复。
   useEffect(() => {
@@ -715,8 +735,18 @@ export default function GameBoard() {
       if (equivalentReciprocityTimerRef.current) {
         clearTimeout(equivalentReciprocityTimerRef.current);
       }
+      throwFailedPreviewTimersRef.current.forEach(timer => clearTimeout(timer));
+      throwFailedPreviewTimersRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    setThrowFailedPreviews({});
+    return () => {
+      throwFailedPreviewTimersRef.current.forEach(timer => clearTimeout(timer));
+      throwFailedPreviewTimersRef.current.clear();
+    };
+  }, [currentRoom?.id]);
 
   useEffect(() => {
     if (!socket || !currentRoom?.id || !ownPublicWoodenOxMule) {
@@ -777,12 +807,11 @@ export default function GameBoard() {
     }
   }, [gameState?.attackerScore, gameState?.collectedPointCards]);
 
-  // 指定选择者自动进入选择框；双喜临门阶段所有玩家都能看到候选。
+  // 每次选规则时全房间自动展示候选，确认权仍只属于服务端指定的选择者。
   useEffect(() => {
-    setRuleSelectorModal(isRuleChooser || isDoubleHappinessSelection);
+    setRuleSelectorModal(canViewRuleSelection);
   }, [
-    isRuleChooser,
-    isDoubleHappinessSelection,
+    canViewRuleSelection,
     gameState?.ruleSelectionMode
   ]);
 
@@ -866,6 +895,39 @@ export default function GameBoard() {
       setCurrentWinningPlayerId(null);
       setIsHoldingCompletedRound(false);
       setHeldCompletedRoundNumber(null);
+    };
+
+    const showSkillActivation = ({
+      id = null,
+      name,
+      playerId = null,
+      playerName,
+      treatedAsSmall = false,
+      concealed = false,
+      variant = 'default',
+      actionLabel = '发动主动技能',
+      detail = null
+    }) => {
+      if (activeSkillAnimationTimerRef.current) {
+        clearTimeout(activeSkillAnimationTimerRef.current);
+      }
+      setArmedActiveSkillId(null);
+      setActiveSkillAnimation({
+        id,
+        name,
+        playerId,
+        playerName,
+        treatedAsSmall,
+        concealed,
+        variant,
+        actionLabel,
+        detail,
+        key: `${variant}-${Date.now()}`
+      });
+      activeSkillAnimationTimerRef.current = setTimeout(() => {
+        setActiveSkillAnimation(null);
+        activeSkillAnimationTimerRef.current = null;
+      }, 1800);
     };
 
     // 游戏开始
@@ -2259,8 +2321,21 @@ export default function GameBoard() {
       setDestroyDykeDecision(decision);
     });
 
-    socket.on('destroy_dyke_activated', ({ dealerPlayerName, voidedPoints }) => {
+    socket.on('destroy_dyke_activated', ({
+      dealerPlayerId,
+      dealerPlayerName,
+      voidedPoints
+    }) => {
       setDestroyDykeDecision(null);
+      showSkillActivation({
+        id: 'destroy_dyke_flood_fields',
+        name: '毁堤淹田',
+        playerId: dealerPlayerId,
+        playerName: dealerPlayerName,
+        variant: 'destroy-dyke',
+        actionLabel: '发动规则',
+        detail: `本轮 ${voidedPoints} 分封存 · 三轮灾期开始`
+      });
       messageApi.warning(
         `毁堤淹田：${dealerPlayerName}令本轮${voidedPoints}分作废，三轮灾期开始`,
         5
@@ -2559,23 +2634,14 @@ export default function GameBoard() {
       treatedAsSmall = false,
       concealed = false
     }) => {
-      if (activeSkillAnimationTimerRef.current) {
-        clearTimeout(activeSkillAnimationTimerRef.current);
-      }
-      setArmedActiveSkillId(null);
-      setActiveSkillAnimation({
+      showSkillActivation({
         id,
         name,
         playerId,
         playerName,
         treatedAsSmall,
-        concealed,
-        key: Date.now()
+        concealed
       });
-      activeSkillAnimationTimerRef.current = setTimeout(() => {
-        setActiveSkillAnimation(null);
-        activeSkillAnimationTimerRef.current = null;
-      }, 1800);
       const effectText = treatedAsSmall
         ? '，本次垫牌视为小'
         : concealed
@@ -3114,18 +3180,48 @@ export default function GameBoard() {
     });
 
     // 甩牌失败
-    socket.on('throw_failed', ({ playerId, playerName, message: msg, attemptedCards, attemptedCardObjects, forcedCards }) => {
+    socket.on('throw_failed', ({
+      playerId,
+      playerName,
+      message: msg,
+      attemptedCards,
+      attemptedCardObjects,
+      forcedCards,
+      isProxy = false
+    }) => {
       messageApi.warning(`${playerName} ${msg}，实际出牌 ${forcedCards.length} 张`, 3);
 
-      // 如果是自己甩牌失败，恢复未被强制出的牌到手牌（因为前端在发送时进行了乐观移除）
-      if (playerId === currentPlayer?.id && Array.isArray(attemptedCardObjects)) {
-        const forcedIds = new Set((forcedCards || []).map(c => c.id));
-        const toRestore = attemptedCardObjects.filter(c => !forcedIds.has(c.id));
-        if (toRestore.length > 0) {
-          // 将未被强制出的牌加回手牌
-          toRestore.forEach(cardData => addCard(cardData));
-        }
+      // 先把完整的甩牌尝试留在牌桌上一秒；实际强制出牌由紧随其后的
+      // cards_played 在底层更新，预览退场后自然显露。
+      const previewKey = `${Date.now()}-${playerId}`;
+      const preview = getThrowFailedPreview(playerName, attemptedCardObjects, previewKey);
+      if (preview) {
+        setThrowFailedPreviews(previous => ({
+          ...previous,
+          [playerId]: preview
+        }));
       }
+
+      // 如果是自己甩牌失败，预览结束后再恢复未被强制出的牌。
+      const toRestore = getThrowFailedCardsToRestore({
+        playerId,
+        currentPlayerId: currentPlayer?.id,
+        openHandPlayerId: gameState?.openHand?.playerId,
+        isProxy,
+        attemptedCardObjects,
+        forcedCards
+      });
+      const previewTimer = setTimeout(() => {
+        setThrowFailedPreviews(previous => {
+          if (previous[playerId]?.previewKey !== previewKey) return previous;
+          const next = { ...previous };
+          delete next[playerId];
+          return next;
+        });
+        toRestore.forEach(cardData => addCard(cardData));
+        throwFailedPreviewTimersRef.current.delete(previewKey);
+      }, THROW_FAILED_PREVIEW_DURATION_MS);
+      throwFailedPreviewTimersRef.current.set(previewKey, previewTimer);
     });
 
     // 毙牌动作
@@ -3491,8 +3587,25 @@ export default function GameBoard() {
             outwardHarmonyInnerDivision = null,
             ironEvidence = null,
             destroyDyke = null,
+            weighingThousandJin = null,
             focusFigureScoringPending = false
           } = roundUpdate.scoreInfo;
+          if (weighingThousandJin) {
+            const {
+              mode,
+              outrankedAttackerCount = 0,
+              originalRoundPoints = 0,
+              adjustedRoundPoints = 0
+            } = weighingThousandJin;
+            messageApi.info(
+              mode === 'subtract_five'
+                ? `上称千斤：庄家压过${outrankedAttackerCount}名闲家，每张分牌−5；` +
+                  `本轮${originalRoundPoints}分调整为${adjustedRoundPoints}分`
+                : `上称千斤：庄家未压过闲家，每张分牌×2；` +
+                  `本轮${originalRoundPoints}分调整为${adjustedRoundPoints}分`,
+              4
+            );
+          }
           if (destroyDyke?.status === 'activated' && winnerIsAttacker) {
             messageApi.warning(
               `毁堤淹田：本轮${roundPoints}分作废，闲家总分仍为${newScore}分`,
@@ -5953,6 +6066,7 @@ export default function GameBoard() {
               players={tablePlayers}
               currentPlayer={currentPlayer}
               playedCards={displayedPlayedCards}
+              throwFailedPreviews={viewingLastRound ? {} : throwFailedPreviews}
               shownCards={{}}
               myCards={transformedPreviewCards}
               woodenOxCard={woodenOxDisplayCard}
@@ -6269,16 +6383,25 @@ export default function GameBoard() {
       )}
 
       {activeSkillAnimation && (
-        <div className="active-skill-activation-overlay" aria-live="assertive">
-          <div className="active-skill-activation" key={activeSkillAnimation.key}>
-            <span>{activeSkillAnimation.playerName} 发动主动技能</span>
+        <div
+          className={`active-skill-activation-overlay is-${activeSkillAnimation.variant || 'default'}`}
+          aria-live="assertive"
+        >
+          <div
+            className={`active-skill-activation is-${activeSkillAnimation.variant || 'default'}`}
+            key={activeSkillAnimation.key}
+          >
+            <span>
+              {activeSkillAnimation.playerName} {activeSkillAnimation.actionLabel || '发动主动技能'}
+            </span>
             <strong>{activeSkillAnimation.name}</strong>
             <small>
-              {activeSkillAnimation.treatedAsSmall
+              {activeSkillAnimation.detail
+                || (activeSkillAnimation.treatedAsSmall
                 ? '本次垫牌始终视为小'
                 : activeSkillAnimation.concealed
                   ? '本轮结束时同时公开'
-                  : '技能已发动'}
+                  : '技能已发动')}
             </small>
           </div>
         </div>

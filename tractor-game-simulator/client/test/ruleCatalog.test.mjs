@@ -64,6 +64,8 @@ test('近期实现的规则已进入规则测试模式目录', () => {
     { id: 'antinomy', name: '二律背反' },
     { id: 'change_rice_to_mulberry', name: '改稻为桑' },
     { id: 'destroy_dyke_flood_fields', name: '毁堤淹田' },
+    { id: 'record_on_file', name: '记录在案' },
+    { id: 'weighing_thousand_jin', name: '上称千斤' },
     { id: 'double_happiness', name: '双喜临门' }
   ];
 

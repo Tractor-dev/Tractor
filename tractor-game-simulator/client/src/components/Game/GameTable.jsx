@@ -2,6 +2,7 @@
 import Hand from './Hand';
 import Card from './Card';
 import OpenHandPanel from './OpenHandPanel';
+import RecordOnFileTracker from './RecordOnFileTracker';
 import { sortCards } from '../../utils/cardUtils';
 import {
   calculateCardPoints,
@@ -13,7 +14,9 @@ import {
   getThreePowersCardPoints
 } from '../../utils/scoringUtils';
 import {
+  getDestroyDykeDisplayState,
   getDisplayedDefenseAsOffense,
+  getRecordOnFileTrackerView,
   getStriveUpstreamActionOrder
 } from '../../utils/gameViewUtils';
 import { ruleIncludesId } from '../../utils/ruleCatalog';
@@ -27,6 +30,7 @@ const { Text } = Typography;
  * @param {Array} props.players - 所有玩家
  * @param {Object} props.currentPlayer - 当前玩家
  * @param {Object} props.playedCards - 每个玩家出的牌 { [playerId]: { playerName, cards } }
+ * @param {Object} props.throwFailedPreviews - 甩牌失败时短暂停留的完整尝试牌面
  * @param {Object} props.shownCards - 摸牌阶段展示的牌 { [playerId]: { playerName, cards } }
  * @param {Array} props.myCards - 我的手牌
  * @param {Array} props.selectedCards - 选中的牌
@@ -65,6 +69,7 @@ export default function GameTable({
   players,
   currentPlayer,
   playedCards = {},
+  throwFailedPreviews = {},
   shownCards = {},
   myCards = [],
   woodenOxCard = null,
@@ -227,6 +232,10 @@ export default function GameTable({
     1,
     displayRoundNumber ?? ruleRuntimeStatus?.currentRound ?? 1
   );
+  const recordOnFileTrackerView = getRecordOnFileTrackerView(
+    ruleRuntimeStatus?.recordOnFile,
+    currentRoundNumber
+  );
   const candleToDawn = ruleRuntimeStatus?.candleToDawn || null;
   const threeTigers = ruleRuntimeStatus?.threeTigers || null;
   const inviteIntoUrn = ruleRuntimeStatus?.inviteIntoUrn || null;
@@ -241,6 +250,9 @@ export default function GameTable({
   );
   const defenseAsOffense = ruleIncludesId(selectedRule, 'defense_as_offense')
     ? getDisplayedDefenseAsOffense(ruleRuntimeStatus, currentRoundNumber)
+    : null;
+  const destroyDykeDisplayState = ruleIncludesId(selectedRule, 'destroy_dyke_flood_fields')
+    ? getDestroyDykeDisplayState(ruleRuntimeStatus?.destroyDyke)
     : null;
   const lureTigerSilencedPlayerIds = new Set(
     ruleRuntimeStatus?.lureTiger?.silencedPlayerIds || []
@@ -549,15 +561,22 @@ export default function GameTable({
 
         <div className="player-cards-area">
           {/* 亮主区域 - 其他玩家的亮主在这里居中显示 */}
-          <div className="declared-trump-zone">
+          <div className={`declared-trump-zone ${position === 'top' ? 'declaration-sidecar' : ''}`}>
             {hasDeclaredTrump && playerTrumpDeclaration.cards && playerTrumpDeclaration.cards.length > 0 && (
-              <Hand cards={playerTrumpDeclaration.cards} disabled trumpSuit={playerTrumpSuit} trumpRank={trumpRank} />
+              <Hand
+                cards={playerTrumpDeclaration.cards}
+                disabled
+                small={position === 'top'}
+                trumpSuit={playerTrumpSuit}
+                trumpRank={trumpRank}
+              />
             )}
             {playerInferiorDeclaration?.cards?.length > 0 && (
               <div className="inferior-declaration-zone" title="三六九等：当前亮劣">
                 <Hand
                   cards={playerInferiorDeclaration.cards}
                   disabled
+                  small={position === 'top'}
                   trumpSuit={playerTrumpSuit}
                   trumpRank={trumpRank}
                 />
@@ -632,19 +651,26 @@ export default function GameTable({
   // 渲染出牌区域（在玩家框和桌面中央之间）
   const renderPlayedCardsArea = (player, position) => {
     if (!player) return null;
-    const played = playedCards[player.id];
+    const played = throwFailedPreviews[player.id] || playedCards[player.id];
 
     // 始终渲染出牌区域，即使没有牌，以保持布局稳定
     const hasPlayedCards = Boolean(played && (played.cards?.length > 0 || played.concealed));
-    const isWinningPlay = player.id === currentWinningPlayerId && played?.cards?.length > 0;
+    const isWinningPlay = !played?.throwFailedAttempt
+      && player.id === currentWinningPlayerId
+      && played?.cards?.length > 0;
     const isTrumpActionPlayer = trumpAnimation?.playerId === player.id;
     const isTrumpActionTarget = trumpAnimation?.targetPlayerId === player.id;
     return (
       <div
-        className={`played-cards-area played-cards-${position} ${hasPlayedCards ? 'has-cards' : 'is-empty'} ${isWinningPlay ? 'winning-play' : ''} ${isTrumpActionPlayer ? 'trump-action-player' : ''} ${isTrumpActionTarget ? 'trump-action-target' : ''} ${played?.treatedAsSmall ? 'treated-as-small' : ''} ${played?.lureTigerSilenced ? 'lure-tiger-silenced-play' : ''} ${played?.justRevealed ? 'concealed-just-revealed' : ''} ${played?.enduringInheritance ? 'enduring-inherited' : ''} ${played?.averagePooling ? 'average-pooled' : ''} ${played?.jointHarmony ? 'joint-harmony' : ''} ${played?.dreamKilling?.success ? 'dream-killing-success' : ''} ${played?.magicTrickSwapped ? 'magic-trick-swapped' : ''} ${played?.oldHorseAbsolute ? 'old-horse-absolute' : ''}`}
+        className={`played-cards-area played-cards-${position} ${hasPlayedCards ? 'has-cards' : 'is-empty'} ${isWinningPlay ? 'winning-play' : ''} ${isTrumpActionPlayer ? 'trump-action-player' : ''} ${isTrumpActionTarget ? 'trump-action-target' : ''} ${played?.throwFailedAttempt ? 'throw-failed-preview' : ''} ${played?.treatedAsSmall ? 'treated-as-small' : ''} ${played?.lureTigerSilenced ? 'lure-tiger-silenced-play' : ''} ${played?.justRevealed ? 'concealed-just-revealed' : ''} ${played?.enduringInheritance ? 'enduring-inherited' : ''} ${played?.averagePooling ? 'average-pooled' : ''} ${played?.jointHarmony ? 'joint-harmony' : ''} ${played?.dreamKilling?.success ? 'dream-killing-success' : ''} ${played?.magicTrickSwapped ? 'magic-trick-swapped' : ''} ${played?.oldHorseAbsolute ? 'old-horse-absolute' : ''}`}
         data-treated-as-small={played?.treatedAsSmall ? 'true' : undefined}
         data-enduring-inherited={played?.enduringInheritance ? 'true' : undefined}
       >
+        {played?.throwFailedAttempt && (
+          <div className="throw-failed-preview-label" role="status">
+            甩牌失败
+          </div>
+        )}
         {isTrumpActionTarget && (
           <div
             className={`trump-strike-impact ${trumpAnimation.type}`}
@@ -1146,6 +1172,12 @@ export default function GameTable({
             </div>
           )}
           <div className={`center-content ${isSettlementView ? 'settlement-panel' : ''} ${!revealedBottomCards?.length ? 'table-tools' : ''}`}>
+            {recordOnFileTrackerView && !revealedBottomCards?.length && (
+              <RecordOnFileTracker
+                recordOnFile={ruleRuntimeStatus?.recordOnFile}
+                displayRoundNumber={currentRoundNumber}
+              />
+            )}
             {/* 底牌展示（优先显示） */}
             {revealedBottomCards && revealedBottomCards.length > 0 ? (
               <div className={isSettlementView ? 'settlement-content' : ''} style={{ textAlign: 'center' }}>
@@ -1974,57 +2006,44 @@ export default function GameTable({
                           </div>
                         </div>
                       )}
-                      {ruleIncludesId(selectedRule, 'destroy_dyke_flood_fields') && ruleRuntimeStatus?.destroyDyke && (
+                      {destroyDykeDisplayState && (
                         <div
-                          className="gentleman-promise-status destroy-dyke-status"
+                          className={`destroy-dyke-status is-${destroyDykeDisplayState.tone}`}
                           data-testid="destroy-dyke-status"
                         >
-                          <span className="gentleman-promise-status-title">毁堤淹田</span>
-                          <div className="gentleman-promise-status-grid">
-                            <div className={ruleRuntimeStatus.destroyDyke.disaster ? 'is-pending' : ''}>
-                              {ruleRuntimeStatus.destroyDyke.pending ? (
-                                <>
-                                  <span>庄家决定中</span>
-                                  <strong>{ruleRuntimeStatus.destroyDyke.pending.roundPoints}分</strong>
-                                  <small>计分已暂停</small>
-                                </>
-                              ) : ruleRuntimeStatus.destroyDyke.disaster ? (
-                                <>
-                                  <span>
-                                    灾期 {ruleRuntimeStatus.destroyDyke.disaster.roundsElapsed}/3
-                                  </span>
-                                  <strong>
-                                    {ruleRuntimeStatus.destroyDyke.disaster.disasterAttackerPoints}/20
-                                  </strong>
-                                  <small>
-                                    已作废{ruleRuntimeStatus.destroyDyke.disaster.voidedPoints}分
-                                  </small>
-                                </>
-                              ) : ruleRuntimeStatus.destroyDyke.lastResult?.status === 'incident' ? (
-                                <>
-                                  <span>已事发</span>
-                                  <strong>
-                                    +{ruleRuntimeStatus.destroyDyke.lastResult.scoreDelta}
-                                  </strong>
-                                  <small>灾期结束</small>
-                                </>
-                              ) : ruleRuntimeStatus.destroyDyke.lastResult?.status === 'expired' ? (
-                                <>
-                                  <span>灾期结束</span>
-                                  <strong>0</strong>
-                                  <small>
-                                    {ruleRuntimeStatus.destroyDyke.lastResult.voidedPoints}分永久作废
-                                  </small>
-                                </>
-                              ) : (
-                                <>
-                                  <span>庄家限一次</span>
-                                  <strong>未发动</strong>
-                                  <small>闲家赢轮后询问</small>
-                                </>
-                              )}
-                            </div>
+                          <div className="destroy-dyke-status-heading">
+                            <span className="destroy-dyke-status-mark" aria-hidden="true">堤</span>
+                            <strong className="destroy-dyke-status-title">毁堤淹田</strong>
+                            <span className="destroy-dyke-status-badge">
+                              {destroyDykeDisplayState.badge}
+                            </span>
+                            {destroyDykeDisplayState.value ? (
+                              <>
+                                <strong className="destroy-dyke-status-value">
+                                  {destroyDykeDisplayState.value}
+                                </strong>
+                                <span className="destroy-dyke-status-detail">
+                                  {destroyDykeDisplayState.detail}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="destroy-dyke-status-detail">
+                                {destroyDykeDisplayState.detail}
+                              </span>
+                            )}
                           </div>
+                          {destroyDykeDisplayState.progress !== null && (
+                            <div
+                              className="destroy-dyke-status-progress"
+                              role="progressbar"
+                              aria-label="毁堤淹田事发进度"
+                              aria-valuemin="0"
+                              aria-valuemax="20"
+                              aria-valuenow={Math.round(destroyDykeDisplayState.progress / 5)}
+                            >
+                              <i style={{ width: `${destroyDykeDisplayState.progress}%` }} />
+                            </div>
+                          )}
                         </div>
                       )}
                       {ruleIncludesId(selectedRule, 'administrative_review') && ruleRuntimeStatus?.administrativeReview && (

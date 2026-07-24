@@ -99,7 +99,9 @@ export const IMPLEMENTED_RULES = Object.freeze([
   { id: 'defense_as_offense', name: '以守为攻' },
   { id: 'antinomy', name: '二律背反' },
   { id: 'change_rice_to_mulberry', name: '改稻为桑' },
-  { id: 'destroy_dyke_flood_fields', name: '毁堤淹田' }
+  { id: 'destroy_dyke_flood_fields', name: '毁堤淹田' },
+  { id: 'record_on_file', name: '记录在案' },
+  { id: 'weighing_thousand_jin', name: '上称千斤' }
 ]);
 
 export const RULE_SELECT_OPTIONS = IMPLEMENTED_RULES.map(rule => ({

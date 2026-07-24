@@ -23,6 +23,15 @@
   flex: 1;
 }
 
+.declaration-slots.three-six-nine {
+  align-items: stretch;
+}
+
+.declaration-slots.three-six-nine .declaration-slot {
+  box-sizing: border-box;
+  height: 57px;
+}
+
 .declaration-slot {
   flex: 1;
   height: 36px;

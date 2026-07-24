@@ -1320,6 +1320,32 @@
 
 .declared-trump-zone:empty { display: none; }
 .declared-trump-zone { display: flex; justify-content: center; gap: 4px; }
+.player-top .declared-trump-zone.declaration-sidecar {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);
+  z-index: 8;
+  min-width: 58px;
+  min-height: 78px;
+  align-items: center;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 220, 104, 0.42);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(8, 65, 48, 0.94), rgba(3, 42, 34, 0.94));
+  box-shadow: 0 8px 20px rgba(0, 24, 17, 0.3), inset 0 1px rgba(255, 255, 255, 0.08);
+  transform: translateY(-50%);
+}
+
+.player-top .declared-trump-zone.declaration-sidecar .hand {
+  width: max-content;
+  min-height: 70px;
+  padding: 0;
+}
+
+.player-top .declared-trump-zone.declaration-sidecar .inferior-declaration-zone {
+  min-height: 72px;
+}
+
 .inferior-declaration-zone {
   position: relative;
   border: 1px solid rgba(231, 166, 139, 0.48);
@@ -1363,6 +1389,40 @@
 .played-cards-area.is-empty {
   visibility: hidden;
   filter: none;
+}
+
+.played-cards-area.throw-failed-preview {
+  visibility: visible;
+  z-index: 20;
+  filter: drop-shadow(0 0 14px rgba(255, 107, 87, 0.45));
+  animation: throwFailedPreviewShake 240ms ease-out both;
+}
+
+.throw-failed-preview-label {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  z-index: 24;
+  min-width: max-content;
+  padding: 3px 9px;
+  border: 1px solid rgba(255, 203, 185, 0.72);
+  border-radius: 999px;
+  color: #fff4ed;
+  background: linear-gradient(180deg, rgba(174, 61, 43, 0.96), rgba(111, 31, 25, 0.96));
+  box-shadow: 0 5px 13px rgba(60, 7, 3, 0.34);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: 0.08em;
+  transform: translateX(-50%);
+}
+
+@keyframes throwFailedPreviewShake {
+  0% { transform: translateX(0); }
+  28% { transform: translateX(-5px); }
+  56% { transform: translateX(4px); }
+  78% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
 }
 
 .position-top .played-cards-area,
@@ -2883,6 +2943,192 @@
 
 .gentleman-promise-status-grid .is-pending strong {
   color: rgba(255, 255, 255, 0.45);
+}
+
+.destroy-dyke-status {
+  box-sizing: border-box;
+  width: min(100%, 248px);
+  margin: 2px auto 8px;
+  padding: 7px 9px 8px;
+  overflow: hidden;
+  border: 1px solid rgba(223, 188, 96, 0.34);
+  border-radius: 11px;
+  color: #f9ecc0;
+  background:
+    linear-gradient(120deg, rgba(30, 69, 55, 0.82), rgba(4, 29, 24, 0.9)),
+    rgba(2, 28, 23, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 4px 12px rgba(0, 0, 0, 0.12);
+  animation: ruleRuntimeStatusEnter 420ms ease-out both;
+}
+
+.destroy-dyke-status-heading {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 4px;
+}
+
+.destroy-dyke-status-mark {
+  display: grid;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(239, 208, 122, 0.46);
+  border-radius: 50%;
+  color: #f5d77d;
+  background: rgba(238, 195, 75, 0.08);
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.destroy-dyke-status-title {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-size: 12px;
+  line-height: 1.15;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.destroy-dyke-status-badge {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.destroy-dyke-status-value {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  color: #ffd769;
+  font-size: 17px;
+  line-height: 1;
+  text-align: left;
+}
+
+.destroy-dyke-status-detail {
+  grid-column: 3;
+  grid-row: 2;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 9px;
+  line-height: 1.25;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.destroy-dyke-status.is-idle .destroy-dyke-status-badge,
+.destroy-dyke-status.is-spent .destroy-dyke-status-badge {
+  grid-row: 1 / span 2;
+}
+
+.destroy-dyke-status.is-idle .destroy-dyke-status-detail,
+.destroy-dyke-status.is-spent .destroy-dyke-status-detail {
+  grid-column: 2;
+  text-align: left;
+}
+
+.destroy-dyke-status-progress {
+  height: 3px;
+  margin: 7px 1px 0 31px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.destroy-dyke-status-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e3b84f, #ef7351);
+  box-shadow: 0 0 9px rgba(244, 127, 74, 0.42);
+  transition: width 420ms ease;
+}
+
+.destroy-dyke-status.is-idle {
+  padding-block: 6px;
+  border-color: rgba(214, 195, 139, 0.2);
+  background: linear-gradient(120deg, rgba(23, 57, 47, 0.66), rgba(4, 29, 24, 0.74));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.destroy-dyke-status.is-idle .destroy-dyke-status-badge {
+  color: rgba(227, 218, 181, 0.58);
+}
+
+.destroy-dyke-status.is-decision {
+  border-color: rgba(255, 209, 91, 0.52);
+  box-shadow: inset 0 0 18px rgba(255, 193, 51, 0.07);
+}
+
+.destroy-dyke-status.is-decision .destroy-dyke-status-badge {
+  color: #ffe195;
+  border-color: rgba(255, 211, 104, 0.28);
+  animation: destroyDykeDecisionPulse 1.3s ease-in-out infinite;
+}
+
+.destroy-dyke-status.is-disaster {
+  border-color: rgba(239, 127, 82, 0.48);
+  background:
+    linear-gradient(120deg, rgba(64, 61, 38, 0.84), rgba(32, 28, 23, 0.93)),
+    rgba(2, 28, 23, 0.8);
+  box-shadow:
+    inset 0 0 22px rgba(233, 112, 71, 0.075),
+    0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.destroy-dyke-status.is-disaster .destroy-dyke-status-mark,
+.destroy-dyke-status.is-incident .destroy-dyke-status-mark {
+  color: #ffba78;
+  border-color: rgba(255, 160, 98, 0.54);
+  background: rgba(239, 107, 61, 0.12);
+}
+
+.destroy-dyke-status.is-disaster .destroy-dyke-status-badge {
+  color: #ffc48e;
+  border-color: rgba(255, 157, 96, 0.28);
+}
+
+.destroy-dyke-status.is-incident {
+  border-color: rgba(255, 113, 78, 0.62);
+  background: linear-gradient(120deg, rgba(88, 52, 34, 0.88), rgba(35, 27, 22, 0.95));
+}
+
+.destroy-dyke-status.is-incident .destroy-dyke-status-value {
+  color: #ffb072;
+}
+
+.destroy-dyke-status.is-expired,
+.destroy-dyke-status.is-spent {
+  filter: saturate(0.7);
+}
+
+@keyframes destroyDykeDecisionPulse {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
 }
 
 .hidden-dragon-status .gentleman-promise-status-grid > div {

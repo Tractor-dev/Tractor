@@ -126,6 +126,7 @@ import {
   isOneCountryTwoSystemsRule,
   isPeopleCommuneRule,
   isPoliticalReviewRule,
+  isRecordOnFileRule,
   isRemoveFirewoodRule,
   isSecondBattlefieldRule,
   isStrengthCompensationRule,
@@ -141,6 +142,7 @@ import {
   isTwoGhostsKnockDoorRule,
   isTrumpWinsRule,
   isWoodenOxFlowingHorseRule,
+  isWeighingThousandJinRule,
   isTimeReversalRule,
   resolveOfferedRule,
   RuleIds
@@ -2107,6 +2109,70 @@ export class GameEngine {
       playerName: player.name,
       delta
     };
+  }
+
+  getWeighingThousandJinRoundScoring() {
+    const { gameState, players } = this.room;
+    if (
+      !isWeighingThousandJinRule(gameState.selectedRule)
+      || gameState.currentRoundPlays.length !== players.length
+    ) {
+      return null;
+    }
+
+    const dealerIndex = this.room.getPlayerIndex(gameState.buryingPlayerId);
+    if (dealerIndex < 0) return null;
+
+    const comparisonPlays = gameState.currentRoundPlays.map(play => ({
+      ...play,
+      cards: play.comparisonCards || play.cards,
+      pattern: play.comparisonPattern || play.pattern
+    }));
+    const rankedPlays = rankRoundPlaysByRespectOrder(
+      comparisonPlays,
+      gameState.trumpSuit,
+      gameState.trumpRank,
+      gameState.selectedRule
+    );
+    const dealerPlay = comparisonPlays.find(play => play.playerIndex === dealerIndex);
+    const dealerRankIndex = rankedPlays.findIndex(play => play.playerIndex === dealerIndex);
+    if (!dealerPlay || dealerRankIndex < 0) return null;
+
+    const attackerComparisons = rankedPlays
+      .map((play, rankIndex) => ({ play, rankIndex }))
+      .filter(({ play }) => this.isAttackerPlayerIndex(play.playerIndex, dealerIndex))
+      .map(({ play, rankIndex }) => {
+        const attacker = this.room.findPlayerByIndex(play.playerIndex);
+        return {
+          playerIndex: play.playerIndex,
+          playerId: play.playerId,
+          playerName: attacker?.name || '未知玩家',
+          rank: rankIndex + 1,
+          dealerOutranks: dealerRankIndex < rankIndex
+        };
+      });
+    const outrankedAttackerCount = attackerComparisons.filter(
+      comparison => comparison.dealerOutranks
+    ).length;
+    const dealer = this.room.findPlayerByIndex(dealerIndex);
+
+    return {
+      mode: outrankedAttackerCount > 0 ? 'subtract_five' : 'double',
+      dealerPlayerIndex: dealerIndex,
+      dealerPlayerId: dealer?.id || dealerPlay.playerId,
+      dealerPlayerName: dealer?.name || '庄家',
+      dealerRank: dealerRankIndex + 1,
+      outrankedAttackerCount,
+      attackerComparisons
+    };
+  }
+
+  adjustWeighingThousandJinCardPoints(points, scoring) {
+    const normalizedPoints = Number(points) || 0;
+    if (!scoring || normalizedPoints <= 0) return normalizedPoints;
+    return scoring.mode === 'subtract_five'
+      ? Math.max(0, normalizedPoints - 5)
+      : normalizedPoints * 2;
   }
 
   emitDefenseAsOffenseHands(transition) {
@@ -8276,6 +8342,31 @@ export class GameEngine {
     return result;
   }
 
+  updateRecordOnFileAtRoundEnd({
+    completedRound,
+    hasPointCards,
+    hasLevelOrJoker,
+    hasNextRound
+  }) {
+    const gameState = this.room.gameState;
+    if (!isRecordOnFileRule(gameState.selectedRule)) return null;
+
+    const wasActive = gameState.recordOnFileActiveRound === completedRound;
+    const nextActiveRound = (hasPointCards || hasLevelOrJoker) && hasNextRound
+      ? completedRound + 1
+      : null;
+    gameState.recordOnFileLastActiveRound = wasActive ? completedRound : null;
+    gameState.recordOnFileActiveRound = nextActiveRound;
+
+    return {
+      completedRound,
+      wasActive,
+      hadPointCards: Boolean(hasPointCards),
+      hadLevelOrJoker: Boolean(hasLevelOrJoker),
+      nextActiveRound
+    };
+  }
+
   resolveDestroyDykeAtGameEnd() {
     const disaster = this.room.gameState.destroyDykeDisaster;
     if (!disaster || disaster.roundsElapsed >= 3) return null;
@@ -10082,6 +10173,7 @@ export class GameEngine {
 
     // 记录出牌历史
     this.room.gameState.playHistory.push({
+      round: this.room.gameState.currentRound,
       playerId: turnPlayerId,
       playerName: player.name,
       playerIndex,
@@ -10393,6 +10485,9 @@ export class GameEngine {
       const allRoundOriginalCards = scoringRoundPlays.flatMap(
         play => play.originalCards || play.cards
       );
+      const allAppearedOriginalCards = this.room.gameState.currentRoundPlays.flatMap(
+        play => play.originalCards || play.cards
+      );
       recordBirdsGoneBowHiddenPointCards({
         gameState: this.room.gameState,
         cards: allRoundOriginalCards
@@ -10400,20 +10495,34 @@ export class GameEngine {
       const candleLitForRound = isCandleToDawnRule(this.room.gameState.selectedRule)
         ? this.room.gameState.candleLit
         : null;
-      const pointResolver = isCandleToDawnRule(this.room.gameState.selectedRule)
+      const basePointResolver = isCandleToDawnRule(this.room.gameState.selectedRule)
         ? card => this.getCandleRoundCardPoints(card, candleLitForRound)
         : card => this.getRuleCardPoints(card);
+      const weighingThousandJinScoring = this.getWeighingThousandJinRoundScoring();
+      const pointResolver = card => this.adjustWeighingThousandJinCardPoints(
+        basePointResolver(card),
+        weighingThousandJinScoring
+      );
       const waitingRabbitPointEntries = isWaitingRabbitRule(this.room.gameState.selectedRule)
         ? this.room.gameState.currentRoundPlays.flatMap(
             play => play.waitingRabbitPointEntries || []
           )
         : null;
-      const baseRoundPoints = waitingRabbitPointEntries
+      const unweightedBaseRoundPoints = waitingRabbitPointEntries
         ? waitingRabbitPointEntries.reduce((sum, entry) => sum + entry.points, 0)
+        : calculateRoundPoints(allRoundCards, basePointResolver);
+      const baseRoundPoints = waitingRabbitPointEntries
+        ? waitingRabbitPointEntries.reduce(
+            (sum, entry) => sum + this.adjustWeighingThousandJinCardPoints(
+              entry.points,
+              weighingThousandJinScoring
+            ),
+            0
+          )
         : calculateRoundPoints(allRoundCards, pointResolver);
       const originalRoundPoints = isCandleToDawnRule(this.room.gameState.selectedRule)
         ? calculateRoundPoints(allRoundCards, getCardPoints)
-        : baseRoundPoints;
+        : unweightedBaseRoundPoints;
       const standardRoundPointMultiplier = getOddEvenRoundMultiplier(
         this.room.gameState.selectedRule,
         this.room.gameState.currentRound
@@ -10436,7 +10545,9 @@ export class GameEngine {
             .map(entry => entry.card)
         : extractPointCards(
             allRoundCards,
-            isCandleToDawnRule(this.room.gameState.selectedRule) ? getCardPoints : pointResolver
+            isCandleToDawnRule(this.room.gameState.selectedRule)
+              ? getCardPoints
+              : basePointResolver
           );
       const ambushCardCount = this.countTenSidedAmbushCards(allRoundCards);
       const ambushPoints = ambushCardCount * TEN_SIDED_AMBUSH_CARD_POINTS;
@@ -10530,6 +10641,15 @@ export class GameEngine {
         );
       }
 
+      if (weighingThousandJinScoring) {
+        logger.info(
+          `房间 ${this.room.id} 上称千斤：庄家本轮完整牌力第` +
+          `${weighingThousandJinScoring.dealerRank}，压过` +
+          `${weighingThousandJinScoring.outrankedAttackerCount}名闲家；` +
+          `${unweightedBaseRoundPoints}分调整为${baseRoundPoints}分`
+        );
+      }
+
       if (ironEvidenceScoring) {
         this.room.gameState.ironEvidenceLastResult = {
           round: this.room.gameState.currentRound,
@@ -10570,6 +10690,13 @@ export class GameEngine {
         originalRoundPoints,
         roundPointMultiplier,
         roundPoints,
+        weighingThousandJin: weighingThousandJinScoring
+          ? {
+              ...weighingThousandJinScoring,
+              originalRoundPoints: unweightedBaseRoundPoints,
+              adjustedRoundPoints: baseRoundPoints
+            }
+          : null,
         ironEvidence: ironEvidenceScoring
           ? { ...this.room.gameState.ironEvidenceLastResult }
           : null,
@@ -10668,6 +10795,20 @@ export class GameEngine {
       // 必须趁本轮牌仍在桌上时确定哪些声明者需要重选；具体选择从下一轮开始前启动。
       antinomyReselectionPlayerIds = this.getAntinomyReselectionPlayerIds();
 
+      const recordOnFileTransition = this.updateRecordOnFileAtRoundEnd({
+        completedRound: roundUpdate?.round ?? this.room.gameState.currentRound,
+        hasPointCards: allAppearedOriginalCards.some(card => getCardPoints(card) > 0),
+        hasLevelOrJoker: this.room.gameState.currentRoundPlays
+          .flatMap(play => play.cards || [])
+          .some(card => (
+            card.suit === Suits.JOKER
+            || card.rank === this.room.gameState.trumpRank
+          )),
+        hasNextRound: this.room.players.some(
+          roundPlayer => this.getPlayableCardCount(roundPlayer) > 0
+        )
+      });
+
       // 清空当前轮出牌记录，准备下一轮
       this.room.gameState.currentRoundPlays = [];
       this.room.gameState.leadingPattern = null;
@@ -10761,6 +10902,7 @@ export class GameEngine {
         roundUpdate.mutualSupportReturnPending = Boolean(mutualSupportReturn);
         roundUpdate.culturalRevolutionTransition = culturalRevolutionTransition;
         roundUpdate.encircleThreeMissingOneTransition = encircleThreeMissingOneTransition;
+        roundUpdate.recordOnFile = recordOnFileTransition;
         roundUpdate.antinomyReselection = antinomyReselection;
         roundUpdate.inviteIntoUrn = inviteIntoUrn;
         roundUpdate.oldHorse = oldHorse;

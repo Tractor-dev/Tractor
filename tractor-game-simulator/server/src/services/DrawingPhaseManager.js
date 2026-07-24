@@ -324,13 +324,8 @@ export class DrawingPhaseManager {
     }
 
     if (isThreeSixNineGradesRule(this.room.gameState.selectedRule)) {
-      const hasOrdinaryTrumpSuit = Boolean(
-        this.room.gameState.currentTrumpDeclaration
-        && this.room.gameState.currentTrumpDeclaration.suit !== 'joker'
-        && this.room.gameState.trumpSuit
-        && this.room.gameState.trumpSuit !== 'no_trump'
-      );
-      if (!hasOrdinaryTrumpSuit) {
+      const isJokerNoTrump = this.room.gameState.currentTrumpDeclaration?.suit === 'joker';
+      if (isJokerNoTrump) {
         this.room.gameState.currentInferiorDeclaration = null;
         this.room.gameState.inferiorSuit = null;
       } else {
@@ -358,7 +353,9 @@ export class DrawingPhaseManager {
       });
       logger.info(
         `房间 ${this.room.id} 三六九等锁定：` +
-        `${hasOrdinaryTrumpSuit ? `${this.room.gameState.trumpSuit} 主` : '无普通花色主'}，` +
+        `${this.room.gameState.trumpSuit && this.room.gameState.trumpSuit !== 'no_trump'
+          ? `${this.room.gameState.trumpSuit} 主`
+          : '无普通花色主'}，` +
         `${this.room.gameState.inferiorSuit ? `${this.room.gameState.inferiorSuit} 劣` : '无劣花色'}`
       );
     }

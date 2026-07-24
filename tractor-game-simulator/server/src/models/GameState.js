@@ -26,6 +26,7 @@ import {
   isOneCountryTwoSystemsRule,
   isPeopleCommuneRule,
   isPoliticalReviewRule,
+  isRecordOnFileRule,
   isRemoveFirewoodRule,
   isSecondBattlefieldRule,
   isStrengthCompensationRule,
@@ -96,6 +97,9 @@ export class GameState {
     this.destroyDykeDecision = null;
     this.destroyDykeDisaster = null;
     this.destroyDykeLastResult = null;
+    // “记录在案”只公开当前生效轮；lastActiveRound 用于客户端轮末停牌的一秒多展示。
+    this.recordOnFileActiveRound = null;
+    this.recordOnFileLastActiveRound = null;
     this.playHistory = [];
     this.drawingIndex = 0;
     this.startTime = null;
@@ -346,6 +350,8 @@ export class GameState {
     this.destroyDykeDecision = null;
     this.destroyDykeDisaster = null;
     this.destroyDykeLastResult = null;
+    this.recordOnFileActiveRound = null;
+    this.recordOnFileLastActiveRound = null;
     this.playHistory = [];
     this.drawingIndex = 0;
     this.startTime = null;
@@ -517,9 +523,59 @@ export class GameState {
     // 这些字段需要在多局游戏中保持
   }
 
+  getRecordOnFilePublicState() {
+    if (!isRecordOnFileRule(this.selectedRule)) return null;
+
+    const hasVisibleWindow = Number.isInteger(this.recordOnFileActiveRound)
+      || Number.isInteger(this.recordOnFileLastActiveRound);
+    const counts = {
+      spades: {},
+      hearts: {},
+      clubs: {},
+      diamonds: {},
+      joker: {}
+    };
+    let playedCardCount = 0;
+
+    if (hasVisibleWindow) {
+      // 暗置牌在本轮统一揭晓前不能通过记牌器反推出牌面；清桌后它们会自然进入统计。
+      const concealedCardIds = new Set(
+        this.currentRoundPlays
+          .filter(play => play.concealed)
+          .flatMap(play => play.originalCards || play.cards || [])
+          .map(card => card.id)
+      );
+      const ordinaryRanks = new Set([
+        '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'
+      ]);
+      const ordinarySuits = new Set(['spades', 'hearts', 'clubs', 'diamonds']);
+
+      this.playHistory.forEach(play => {
+        (play.cards || []).forEach(card => {
+          if (concealedCardIds.has(card.id)) return;
+          const suit = card.originalSuit || card.suit;
+          const rank = card.originalRank || card.rank;
+          const isOrdinaryCard = ordinarySuits.has(suit) && ordinaryRanks.has(rank);
+          const isJoker = suit === 'joker' && ['small_joker', 'big_joker'].includes(rank);
+          if (!isOrdinaryCard && !isJoker) return;
+          counts[suit][rank] = (counts[suit][rank] || 0) + 1;
+          playedCardCount++;
+        });
+      });
+    }
+
+    return {
+      activeRound: this.recordOnFileActiveRound,
+      lastActiveRound: this.recordOnFileLastActiveRound,
+      playedCardCount,
+      counts
+    };
+  }
+
   toJSON() {
     const isLostInFogScoringHidden = isLostInFogRule(this.selectedRule)
       && ![GamePhases.REVEALING, GamePhases.FINISHED].includes(this.phase);
+    const recordOnFile = this.getRecordOnFilePublicState();
     return {
       phase: this.phase,
       playMode: this.playMode,
@@ -598,6 +654,7 @@ export class GameState {
         disaster: this.destroyDykeDisaster ? { ...this.destroyDykeDisaster } : null,
         lastResult: this.destroyDykeLastResult ? { ...this.destroyDykeLastResult } : null
       } : null,
+      recordOnFile,
       playHistoryCount: this.playHistory.length,
       drawingProgress: this.drawingIndex,
       totalCards: this.deck.length,

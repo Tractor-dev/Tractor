@@ -752,6 +752,7 @@ async function triggerBotPlay(io, room, gameEngine) {
       io.to(room.id).emit('throw_failed', {
         playerId: result.playerId,
         playerName: result.playerName,
+        isProxy: result.isProxy,
         message: result.throwFailed.message,
         attemptedCards: result.throwFailed.attemptedCards,
         attemptedCardObjects: result.throwFailed.attemptedCardObjects,
@@ -2208,6 +2209,7 @@ export function registerGameHandlers(io, socket, roomManager) {
         io.to(room.id).emit('throw_failed', {
           playerId: result.playerId,
           playerName: result.playerName,
+          isProxy: result.isProxy,
           message: result.throwFailed.message,
           attemptedCards: result.throwFailed.attemptedCards,
           attemptedCardObjects: result.throwFailed.attemptedCardObjects,

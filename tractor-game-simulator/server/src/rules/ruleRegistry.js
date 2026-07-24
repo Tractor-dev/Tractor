@@ -99,7 +99,9 @@
   DEFENSE_AS_OFFENSE: 'defense_as_offense',
   ANTINOMY: 'antinomy',
   CHANGE_RICE_TO_MULBERRY: 'change_rice_to_mulberry',
-  DESTROY_DYKE_FLOOD_FIELDS: 'destroy_dyke_flood_fields'
+  DESTROY_DYKE_FLOOD_FIELDS: 'destroy_dyke_flood_fields',
+  RECORD_ON_FILE: 'record_on_file',
+  WEIGHING_THOUSAND_JIN: 'weighing_thousand_jin'
 });
 
 export const ActiveSkillIds = Object.freeze({
@@ -804,7 +806,7 @@ const RULE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: RuleIds.THREE_SIX_NINE_GRADES,
     name: '三六九等',
-    content: '亮牌阶段分为亮主与亮劣两条独立的反亮链，均可用一张或一对本花色级牌并按通常强度加固、反亮；王只能亮主。任一普通花色一旦用于亮主或亮劣，其他玩家便不能再在任一链使用该花色。若最终没有普通花色主（无人亮主或对王无主），或无人亮劣，则本局没有劣花色。出牌时主牌大于普通副牌，普通副牌可以像主牌毙副牌一样毙劣牌；劣花色级牌小于其他副花色级牌。',
+    content: '亮牌阶段分为亮主与亮劣两条独立的反亮链，均可用一张或一对本花色级牌并按通常强度加固、反亮；王只能亮主。任一普通花色一旦用于亮主或亮劣，其他玩家便不能再在任一链使用该花色。若以对王亮成无主，则本局同时无劣；若无人亮主而自然无主，已经亮出的劣花色仍然保留；无人亮劣时则没有劣花色。出牌时主牌大于普通副牌，普通副牌可以像主牌毙副牌一样毙劣牌；劣花色级牌小于其他副花色级牌。',
     setup: DEFAULT_RULE_SETUP
   }),
   Object.freeze({
@@ -878,6 +880,18 @@ const RULE_DEFINITIONS = Object.freeze([
     id: RuleIds.DESTROY_DYKE_FLOOD_FIELDS,
     name: '毁堤淹田',
     content: '庄家每局限发动一次。闲家赢得一轮后、该轮计分前，庄家可以令本轮所有分数作废并记录作废分数。接下来的三轮为灾期，期间照常计分；若闲家在灾期内累计获得不少于20分，或游戏在灾期结束前结束，则视为事发，闲家取回作废分数并额外获得20分，随后结束灾期。若牌局恰于灾期第三轮结束，且闲家拿底，也视为事发。若三轮结束时仍未事发，记录的分数永久作废。',
+    setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
+    id: RuleIds.RECORD_ON_FILE,
+    name: '记录在案',
+    content: '任一轮只要出现至少一张传统分数牌（5、10或K）、当前级牌或王牌，下一轮公开显示记牌器。记牌器仅在该轮生效；该轮若再次出现上述任一种牌，下一轮重新独立生效一轮，否则下一轮关闭。记牌器按实体花色与点数统计本局至今已经打出的牌，并标明两副牌中同一牌面已出现的张数；记牌器本身不改变牌力、得分或出牌。',
+    setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
+    id: RuleIds.WEIGHING_THOUSAND_JIN,
+    name: '上称千斤',
+    content: '每轮结束时，按“力争上游”的完整牌力顺序比较庄家与两名闲家的本轮出牌（完全相同时后出者更小）。若庄家的牌大于至少一名闲家，本轮每张分牌各减5分，最低减至0分；否则本轮每张分牌的分值加倍。',
     setup: DEFAULT_RULE_SETUP
   })
 ]);
@@ -1204,6 +1218,14 @@ export function isChangeRiceToMulberryRule(rule) {
 
 export function isDestroyDykeFloodFieldsRule(rule) {
   return ruleIncludesId(rule, RuleIds.DESTROY_DYKE_FLOOD_FIELDS);
+}
+
+export function isRecordOnFileRule(rule) {
+  return ruleIncludesId(rule, RuleIds.RECORD_ON_FILE);
+}
+
+export function isWeighingThousandJinRule(rule) {
+  return ruleIncludesId(rule, RuleIds.WEIGHING_THOUSAND_JIN);
 }
 
 export function getOddEvenRoundMultiplier(rule, roundNumber) {

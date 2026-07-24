@@ -150,6 +150,8 @@ const DEFENSE_AS_OFFENSE_RULE = getRuleById(RuleIds.DEFENSE_AS_OFFENSE);
 const ANTINOMY_RULE = getRuleById(RuleIds.ANTINOMY);
 const CHANGE_RICE_TO_MULBERRY_RULE = getRuleById(RuleIds.CHANGE_RICE_TO_MULBERRY);
 const DESTROY_DYKE_RULE = getRuleById(RuleIds.DESTROY_DYKE_FLOOD_FIELDS);
+const RECORD_ON_FILE_RULE = getRuleById(RuleIds.RECORD_ON_FILE);
+const WEIGHING_THOUSAND_JIN_RULE = getRuleById(RuleIds.WEIGHING_THOUSAND_JIN);
 
 function createRoom(config = {}) {
   const room = new Room('规则测试房', 'socket-0', { dealInterval: 10, ...config });
@@ -560,10 +562,12 @@ test('特殊开局规则具有正确的底牌数量与闲家初始分', () => {
     [RuleIds.DEFENSE_AS_OFFENSE, '以守为攻', 8, 0],
     [RuleIds.ANTINOMY, '二律背反', 8, 0],
     [RuleIds.CHANGE_RICE_TO_MULBERRY, '改稻为桑', 8, 0],
-    [RuleIds.DESTROY_DYKE_FLOOD_FIELDS, '毁堤淹田', 8, 0]
+    [RuleIds.DESTROY_DYKE_FLOOD_FIELDS, '毁堤淹田', 8, 0],
+    [RuleIds.RECORD_ON_FILE, '记录在案', 8, 0],
+    [RuleIds.WEIGHING_THOUSAND_JIN, '上称千斤', 8, 0]
   ];
 
-  assert.equal(getImplementedRules().length, 101);
+  assert.equal(getImplementedRules().length, 103);
   for (const [id, name, bottomCardsCount, attackerStartingScore] of expectedSetups) {
     assert.equal(getRuleById(id).name, name);
     assert.deepEqual(getRuleSetup({ id }), { bottomCardsCount, attackerStartingScore });
@@ -4086,9 +4090,16 @@ test('三六九等把亮主与亮劣分成独立反亮链，并全桌锁定已�
     && payload.declarationRole === 'inferior'
     && payload.suit === 'diamonds'
   )));
+
+  const jokerTrump = declare(3, 'joker', 2, 'trump');
+  assert.equal(jokerTrump.some(event => event.event === 'error'), false);
+  assert.equal(room.gameState.trumpSuit, 'no_trump');
+  assert.equal(room.gameState.currentTrumpDeclaration.suit, 'joker');
+  assert.equal(room.gameState.currentInferiorDeclaration, null);
+  assert.equal(room.gameState.inferiorSuit, null);
 });
 
-test('三六九等无人亮主时最终没有劣花色', () => {
+test('三六九等无人亮主而自然无主时保留已经亮出的劣花色', () => {
   const room = createRoom();
   const io = createIo();
   room.gameState.phase = GamePhases.DRAWING;
@@ -4110,12 +4121,14 @@ test('三六九等无人亮主时最终没有劣花色', () => {
   const drawingManager = new DrawingPhaseManager(room, io);
   drawingManager.assignDealer();
 
-  assert.equal(room.gameState.currentInferiorDeclaration, null);
-  assert.equal(room.gameState.inferiorSuit, null);
+  assert.equal(room.gameState.currentTrumpDeclaration, null);
+  assert.equal(room.gameState.currentInferiorDeclaration?.suit, 'clubs');
+  assert.equal(room.gameState.inferiorSuit, 'clubs');
   assert.ok(io.events.some(({ event, payload }) => (
     event === 'three_six_nine_updated'
     && payload.locked === true
-    && payload.inferiorSuit === null
+    && payload.inferiorSuit === 'clubs'
+    && payload.currentInferiorDeclaration?.suit === 'clubs'
   )));
 });
 
@@ -5004,6 +5017,43 @@ test('算无遗策拒绝明手本人和闲家操作，只接受庄家按明手�
   assert.equal(replayResult.playerId, openHandPlayer.id);
   assert.equal(room.gameState.currentRoundPlays.length, 1);
   assert.throws(() => engine.undoLastPlay(openHandPlayer.id), /由庄家代为操作/);
+});
+
+test('算无遗策由庄家代甩失败时只移除服务端强制打出的实体牌', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  const openHandPlayer = room.players[0];
+  const dealer = room.players[2];
+  const hands = [
+    [card('hearts', 'K', 20), card('hearts', '3', 21)],
+    [card('hearts', 'A', 22), card('hearts', 'Q', 23)],
+    [card('hearts', 'J', 24), card('hearts', '9', 25)],
+    [card('hearts', '8', 26), card('hearts', '7', 27)]
+  ];
+  room.players.forEach((player, index) => {
+    hands[index].forEach(value => player.addCard(value));
+  });
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = getRuleById(RuleIds.PERFECT_STRATEGY);
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  engine.activatePerfectStrategy(dealer);
+  engine.setFirstPlayer(openHandPlayer.id);
+
+  const result = engine.playCards(
+    dealer.id,
+    hands[0].map(value => value.id),
+    openHandPlayer.id
+  );
+
+  assert.ok(result.throwFailed);
+  assert.equal(result.isProxy, true);
+  assert.equal(result.playedCards.length, 1);
+  assert.deepEqual(
+    openHandPlayer.cards.map(value => value.id),
+    room.toJSON().gameState.openHand.cards.map(value => value.id)
+  );
+  assert.equal(openHandPlayer.cards.length, 1);
 });
 
 test('李代桃僵可违背跟牌要求且永远视为小，撤回会返还唯一使用次数', () => {
@@ -11057,4 +11107,259 @@ test('毁堤淹田在闲家赢得零分轮后也保留规则写明的发动窗�
   assert.equal(result.destroyDykeDecision.roundPoints, 0);
   engine.respondDestroyDyke(room.players[0].id, false);
   assert.equal(room.gameState.destroyDykeUsed, false);
+});
+
+test('记录在案由每轮分牌独立触发下一轮，并在连续有分时逐轮续期', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  const roundsByPlayer = [
+    [
+      card('hearts', '5', 0),
+      card('clubs', '3', 2600),
+      card('diamonds', '10', 2601),
+      card('spades', 'K', 2602),
+      card('clubs', '8', 2603)
+    ],
+    [
+      card('hearts', '5', 1),
+      card('clubs', '4', 2610),
+      card('diamonds', '3', 2611),
+      card('spades', '3', 2612),
+      card('clubs', '9', 2613)
+    ],
+    [
+      card('hearts', '6', 2620),
+      card('clubs', '6', 2621),
+      card('diamonds', '4', 2622),
+      card('spades', '4', 2623),
+      card('clubs', 'J', 2624)
+    ],
+    [
+      card('hearts', 'A', 2630),
+      card('clubs', '7', 2631),
+      card('diamonds', 'A', 2632),
+      card('spades', 'A', 2633),
+      card('clubs', 'Q', 2634)
+    ]
+  ];
+  roundsByPlayer.forEach((cards, playerIndex) => {
+    cards.forEach(value => room.players[playerIndex].addCard(value));
+  });
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = RECORD_ON_FILE_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  engine.setFirstPlayer(room.players[0].id);
+
+  const playRound = roundIndex => {
+    let result = null;
+    for (let playIndex = 0; playIndex < room.players.length; playIndex++) {
+      const playerIndex = room.gameState.currentPlayerIndex;
+      const player = room.players[playerIndex];
+      result = engine.playCards(player.id, [roundsByPlayer[playerIndex][roundIndex].id]);
+    }
+    return result;
+  };
+
+  const first = playRound(0);
+  assert.deepEqual(first.roundUpdate.recordOnFile, {
+    completedRound: 1,
+    wasActive: false,
+    hadPointCards: true,
+    hadLevelOrJoker: false,
+    nextActiveRound: 2
+  });
+  assert.equal(room.gameState.recordOnFileActiveRound, 2);
+  assert.equal(room.gameState.toJSON().recordOnFile.counts.hearts['5'], 2);
+
+  const second = playRound(1);
+  assert.equal(second.roundUpdate.recordOnFile.hadPointCards, false);
+  assert.equal(room.gameState.recordOnFileActiveRound, null);
+  assert.equal(room.gameState.recordOnFileLastActiveRound, 2);
+
+  const third = playRound(2);
+  assert.equal(third.roundUpdate.recordOnFile.nextActiveRound, 4);
+  assert.equal(room.gameState.recordOnFileActiveRound, 4);
+  assert.equal(room.gameState.recordOnFileLastActiveRound, null);
+
+  const fourth = playRound(3);
+  assert.equal(fourth.roundUpdate.recordOnFile.wasActive, true);
+  assert.equal(fourth.roundUpdate.recordOnFile.nextActiveRound, 5);
+  assert.equal(room.gameState.recordOnFileActiveRound, 5);
+  assert.equal(room.gameState.recordOnFileLastActiveRound, 4);
+});
+
+test('记录在案不会通过记牌器提前泄露本轮尚未揭晓的暗置牌', () => {
+  const room = createRoom();
+  const publicCard = card('hearts', '5', 2640);
+  const concealedCard = card('spades', 'A', 2641);
+  room.gameState.selectedRule = {
+    id: 'double_happiness',
+    rules: [RECORD_ON_FILE_RULE, NO_ONE_SURVIVES_RULE]
+  };
+  room.gameState.currentRound = 2;
+  room.gameState.recordOnFileActiveRound = 2;
+  room.gameState.playHistory = [
+    { round: 2, concealed: false, cards: [publicCard.toJSON()] },
+    { round: 2, concealed: true, cards: [concealedCard.toJSON()] }
+  ];
+  room.gameState.currentRoundPlays = [
+    { concealed: false, cards: [publicCard] },
+    { concealed: true, cards: [concealedCard] }
+  ];
+
+  const hiddenState = room.gameState.toJSON().recordOnFile;
+  assert.equal(hiddenState.playedCardCount, 1);
+  assert.equal(hiddenState.counts.hearts['5'], 1);
+  assert.equal(hiddenState.counts.spades.A, undefined);
+
+  room.gameState.currentRoundPlays = [];
+  const revealedState = room.gameState.toJSON().recordOnFile;
+  assert.equal(revealedState.playedCardCount, 2);
+  assert.equal(revealedState.counts.spades.A, 1);
+});
+
+test('记录在案在零分轮出现当前级牌或王牌时也会触发下一轮', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  const roundsByPlayer = [
+    [
+      card('clubs', '2', 2650),
+      card('joker', 'small_joker', 0),
+      card('diamonds', '3', 2651)
+    ],
+    [
+      card('hearts', '2', 2660),
+      card('joker', 'small_joker', 1),
+      card('diamonds', '4', 2661)
+    ],
+    [
+      card('diamonds', '2', 2670),
+      card('joker', 'big_joker', 0),
+      card('diamonds', '6', 2671)
+    ],
+    [
+      card('spades', '2', 2680),
+      card('joker', 'big_joker', 1),
+      card('diamonds', '7', 2681)
+    ]
+  ];
+  roundsByPlayer.forEach((cards, playerIndex) => {
+    cards.forEach(value => room.players[playerIndex].addCard(value));
+  });
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = RECORD_ON_FILE_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  engine.setFirstPlayer(room.players[0].id);
+
+  const playRound = roundIndex => {
+    let result = null;
+    for (let playIndex = 0; playIndex < room.players.length; playIndex++) {
+      const playerIndex = room.gameState.currentPlayerIndex;
+      const player = room.players[playerIndex];
+      result = engine.playCards(player.id, [roundsByPlayer[playerIndex][roundIndex].id]);
+    }
+    return result;
+  };
+
+  const levelRound = playRound(0);
+  assert.equal(levelRound.roundUpdate.scoreInfo.roundPoints, 0);
+  assert.equal(levelRound.roundUpdate.recordOnFile.hadPointCards, false);
+  assert.equal(levelRound.roundUpdate.recordOnFile.hadLevelOrJoker, true);
+  assert.equal(levelRound.roundUpdate.recordOnFile.nextActiveRound, 2);
+
+  const jokerRound = playRound(1);
+  assert.equal(jokerRound.roundUpdate.scoreInfo.roundPoints, 0);
+  assert.equal(jokerRound.roundUpdate.recordOnFile.hadPointCards, false);
+  assert.equal(jokerRound.roundUpdate.recordOnFile.hadLevelOrJoker, true);
+  assert.equal(jokerRound.roundUpdate.recordOnFile.nextActiveRound, 3);
+});
+
+function playWeighingThousandJinRound(plays) {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  plays.forEach((cards, playerIndex) => {
+    cards.forEach(value => room.players[playerIndex].addCard(value));
+    room.players[playerIndex].addCard(
+      card('clubs', String(playerIndex + 3), 2700 + playerIndex)
+    );
+  });
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = WEIGHING_THOUSAND_JIN_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  room.gameState.dealerPlayerIndex = 0;
+  engine.setFirstPlayer(room.players[0].id);
+
+  let result = null;
+  plays.forEach((cards, playerIndex) => {
+    result = engine.playCards(
+      room.players[playerIndex].id,
+      cards.map(value => value.id)
+    );
+  });
+  return { room, result };
+}
+
+test('上称千斤在庄家压过至少一名闲家时逐张减5分', () => {
+  const { room, result } = playWeighingThousandJinRound([
+    [card('hearts', 'Q', 0), card('hearts', 'Q', 1)],
+    [card('hearts', 'J', 0), card('hearts', 'J', 1)],
+    [card('hearts', '10', 0), card('hearts', '10', 1)],
+    [card('hearts', 'A', 0), card('hearts', 'A', 1)]
+  ]);
+  const scoring = result.roundUpdate.scoreInfo.weighingThousandJin;
+
+  assert.equal(result.roundUpdate.scoreInfo.winnerIsAttacker, true);
+  assert.equal(scoring.mode, 'subtract_five');
+  assert.equal(scoring.dealerRank, 2);
+  assert.equal(scoring.outrankedAttackerCount, 1);
+  assert.equal(scoring.originalRoundPoints, 20);
+  assert.equal(scoring.adjustedRoundPoints, 10);
+  assert.equal(result.roundUpdate.scoreInfo.baseRoundPoints, 10);
+  assert.equal(result.roundUpdate.scoreInfo.roundPoints, 10);
+  assert.equal(result.roundUpdate.scoreInfo.roundPointCards.length, 2);
+  assert.equal(room.gameState.attackerScore, 10);
+});
+
+test('上称千斤在庄家未压过任一闲家时逐张翻倍', () => {
+  const { room, result } = playWeighingThousandJinRound([
+    [card('hearts', 'J', 10)],
+    [card('hearts', 'Q', 10)],
+    [card('hearts', 'K', 10)],
+    [card('hearts', 'A', 10)]
+  ]);
+  const scoring = result.roundUpdate.scoreInfo.weighingThousandJin;
+
+  assert.equal(result.roundUpdate.scoreInfo.winnerIsAttacker, true);
+  assert.equal(scoring.mode, 'double');
+  assert.equal(scoring.dealerRank, 4);
+  assert.equal(scoring.outrankedAttackerCount, 0);
+  assert.equal(scoring.originalRoundPoints, 10);
+  assert.equal(scoring.adjustedRoundPoints, 20);
+  assert.equal(result.roundUpdate.scoreInfo.roundPoints, 20);
+  assert.equal(room.gameState.attackerScore, 20);
+});
+
+test('上称千斤沿用力争上游完全相同时后出者更小的顺序', () => {
+  const { result } = playWeighingThousandJinRound([
+    [card('hearts', 'J', 20)],
+    [card('hearts', 'J', 21)],
+    [card('hearts', 'K', 20)],
+    [card('hearts', 'A', 20)]
+  ]);
+  const scoring = result.roundUpdate.scoreInfo.weighingThousandJin;
+  const tiedAttacker = scoring.attackerComparisons.find(
+    comparison => comparison.playerIndex === 1
+  );
+
+  assert.equal(scoring.mode, 'subtract_five');
+  assert.equal(scoring.outrankedAttackerCount, 1);
+  assert.equal(tiedAttacker.dealerOutranks, true);
+  assert.equal(scoring.originalRoundPoints, 10);
+  assert.equal(scoring.adjustedRoundPoints, 5);
 });
