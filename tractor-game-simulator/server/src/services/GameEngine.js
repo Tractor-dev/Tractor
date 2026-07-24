@@ -405,6 +405,28 @@ export class GameEngine {
       return chooser;
     }
 
+    // 「无特殊规则」模式：等同于强制使用 normal_game，跳过二选一。
+    if (this.room.config.normalModeOnly) {
+      const normalRule = getRuleById(RuleIds.NORMAL_GAME);
+      const ruleSetup = getRuleSetup(normalRule);
+      gameState.selectedRule = normalRule;
+      gameState.ruleOptions = [];
+      gameState.ruleChooserPlayerId = null;
+      gameState.isRuleSelectionPending = false;
+      gameState.ruleSelectionMode = null;
+      gameState.bottomCardsCount = ruleSetup.bottomCardsCount;
+      gameState.attackerScore = ruleSetup.attackerStartingScore;
+      this.initializeFocusFigureCandidates();
+      this.io.to(this.room.id).emit('rule_selected', {
+        playerId: null,
+        playerName: '普通对局',
+        rule: normalRule,
+        normalModeOnly: true
+      });
+      logger.info(`房间 ${this.room.id} 普通对局模式，直接使用规则: ${normalRule.name}`);
+      return null;
+    }
+
     const rememberedIndex = gameState.nextRuleChooserIndex;
     const chooserIndex = Number.isInteger(rememberedIndex) && players[rememberedIndex]
       ? rememberedIndex

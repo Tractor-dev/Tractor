@@ -69,6 +69,9 @@ export class Room {
     if (testMode && !testRule) {
       throw new Error('测试模式必须选择一条已实现规则');
     }
+    // 「无特殊规则」模式：每局直接使用 normal_game，跳过随机二选一。
+    // 与 testMode 互斥；同时开启时以 testMode 为准，避免歧义。
+    const normalModeOnly = !testMode && config.normalModeOnly === true;
     if (!Number.isInteger(config.bottomCardsCount) ||
         config.bottomCardsCount < 1 ||
         config.bottomCardsCount > 20) {
@@ -100,7 +103,8 @@ export class Room {
     return {
       ...config,
       testMode,
-      testRuleId: testRule?.id || null
+      testRuleId: testRule?.id || null,
+      normalModeOnly
     };
   }
 
