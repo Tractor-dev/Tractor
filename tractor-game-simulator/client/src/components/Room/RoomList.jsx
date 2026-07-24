@@ -61,6 +61,7 @@ export default function RoomList({ rooms, onJoinRoom, onRefresh, loading = false
       render: (_, record) => {
         const isFull = record.playerCount >= record.maxPlayers;
         const phase = record.gameState?.phase || record.phase;
+        // 准备阶段仍属于可补位的 waiting；摸牌开始后才锁定座位。
         const isPlaying = phase && phase !== 'waiting' && phase !== 'finished';
         const canJoin = !isFull && !isPlaying;
 
