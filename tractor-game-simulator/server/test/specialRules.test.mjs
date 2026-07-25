@@ -191,7 +191,7 @@ function singlePlay(cardValue, trumpSuit, trumpRank, rule) {
   };
 }
 
-test('甩出的两张散牌不会被同花色对子按牌型强行压过', () => {
+test('首家甩散牌时对子可拆成单牌通道，仍由最大单张决定', () => {
   const trumpSuit = 'spades';
   const trumpRank = '2';
   const leadingCards = [card('hearts', 'A'), card('hearts', 'K')];
@@ -234,7 +234,8 @@ test('甩出的两张散牌不会被同花色对子按牌型强行压过', () =>
       leadingPattern.suit,
       trumpSuit,
       trumpRank,
-      NORMAL_RULE
+      NORMAL_RULE,
+      leadingPattern
     ) <= 0
   );
 
@@ -258,6 +259,112 @@ test('甩出的两张散牌不会被同花色对子按牌型强行压过', () =>
   engine.playCards(room.players[1].id, pairTens.map(value => value.id));
 
   assert.equal(room.gameState.currentWinnerIndex, 0);
+});
+
+test('首家甩三张散主时，小王加对子按最大单张取得牌权', () => {
+  const trumpSuit = 'hearts';
+  const trumpRank = '2';
+  const leadingCards = [
+    card('clubs', trumpRank, 10),
+    card(trumpSuit, 'A', 10),
+    card(trumpSuit, 'Q', 10)
+  ];
+  const leadingThrow = parseThrowCombination(
+    leadingCards,
+    trumpSuit,
+    trumpRank,
+    NORMAL_RULE
+  );
+  const leadingPattern = {
+    type: PatternTypes.THROW,
+    suit: leadingThrow.suit,
+    components: leadingThrow.components,
+    length: leadingCards.length,
+    strength: Math.max(...leadingThrow.components.map(component => component.strength))
+  };
+  const challengerCards = [
+    card('joker', 'small_joker', 10),
+    card(trumpSuit, '7', 10),
+    card(trumpSuit, '7', 11)
+  ];
+  const challengerThrow = parseThrowCombination(
+    challengerCards,
+    trumpSuit,
+    trumpRank,
+    NORMAL_RULE
+  );
+  const challengerPattern = {
+    type: PatternTypes.THROW,
+    suit: challengerThrow.suit,
+    components: challengerThrow.components,
+    length: challengerCards.length,
+    strength: Math.max(...challengerThrow.components.map(component => component.strength))
+  };
+
+  assert.deepEqual(
+    leadingPattern.components.map(component => component.type),
+    [PatternTypes.SINGLE, PatternTypes.SINGLE, PatternTypes.SINGLE]
+  );
+  assert.deepEqual(
+    challengerPattern.components.map(component => component.type).sort(),
+    [PatternTypes.PAIR, PatternTypes.SINGLE].sort()
+  );
+  assert.equal(
+    compareCards(
+      { cards: challengerCards, pattern: challengerPattern },
+      { cards: leadingCards, pattern: leadingPattern },
+      leadingPattern.suit,
+      trumpSuit,
+      trumpRank,
+      NORMAL_RULE,
+      leadingPattern
+    ),
+    1
+  );
+});
+
+test('已按首家散牌结构完成毙牌后，异门对子加单牌不能反压主牌', () => {
+  const trumpSuit = 'spades';
+  const trumpRank = '2';
+  const makeThrowPattern = cards => {
+    const parsed = parseThrowCombination(cards, trumpSuit, trumpRank, NORMAL_RULE);
+    return {
+      type: PatternTypes.THROW,
+      suit: parsed.suit,
+      components: parsed.components,
+      length: cards.length,
+      strength: Math.max(...parsed.components.map(component => component.strength))
+    };
+  };
+  const leadingCards = [
+    card('hearts', 'Q', 20),
+    card('hearts', '8', 20),
+    card('hearts', '7', 20)
+  ];
+  const trumpCards = [
+    card(trumpSuit, 'K', 20),
+    card(trumpSuit, 'J', 20),
+    card(trumpSuit, '5', 20)
+  ];
+  const offSuitCards = [
+    card('diamonds', '8', 20),
+    card('diamonds', '8', 21),
+    card('diamonds', '7', 20)
+  ];
+  const leadingPattern = makeThrowPattern(leadingCards);
+
+  assert.equal(
+    compareCards(
+      { cards: offSuitCards, pattern: makeThrowPattern(offSuitCards) },
+      { cards: trumpCards, pattern: makeThrowPattern(trumpCards) },
+      leadingPattern.suit,
+      trumpSuit,
+      trumpRank,
+      NORMAL_RULE,
+      leadingPattern
+    ),
+    -1
+  );
 });
 
 test('毙了和盖毙结果会记录攻击者与被压牌玩家，供局部动画定位', () => {
@@ -2789,6 +2896,7 @@ test('改革开放由庄家队友拿起首次底牌再埋，完成后仍由原�
   assert.equal(finalResult.isSecondary, true);
   assert.equal(room.gameState.phase, GamePhases.PLAYING);
   assert.equal(room.gameState.secondaryBuryingPlayerId, null);
+  assert.equal(room.gameState.reformAndOpeningUpTeammatePlayerId, teammate.id);
   assert.equal(room.gameState.firstPlayerId, dealer.id);
   assert.equal(room.gameState.currentPlayerIndex, 0);
   assert.equal(room.gameState.roundStartPlayerIndex, 0);
@@ -2801,6 +2909,40 @@ test('改革开放由庄家队友拿起首次底牌再埋，完成后仍由原�
   assert.equal(
     io.events.filter(({ event }) => event === 'first_player_set').at(-1).payload.playerId,
     dealer.id
+  );
+
+  const viewBottomAs = viewer => {
+    const handlers = new Map();
+    const emitted = [];
+    const socket = {
+      id: viewer.socketId,
+      on(event, handler) {
+        handlers.set(event, handler);
+      },
+      emit(event, payload) {
+        emitted.push({ event, payload });
+      }
+    };
+    registerGameHandlers(createIo(), socket, {
+      getRoom: roomId => roomId === room.id ? room : null
+    });
+    handlers.get('view_my_bottom_cards')({ roomId: room.id });
+    return emitted;
+  };
+  const expectedBottomIds = new Set(finalBottom.map(value => value.id));
+  for (const viewer of [dealer, teammate]) {
+    const response = viewBottomAs(viewer)
+      .find(({ event }) => event === 'my_bottom_cards');
+    assert.ok(response);
+    assert.equal(response.payload.isReformAndOpeningUp, true);
+    assert.deepEqual(
+      new Set(response.payload.bottomCards.map(value => value.id)),
+      expectedBottomIds
+    );
+  }
+  assert.match(
+    viewBottomAs(room.players[1]).find(({ event }) => event === 'error').payload.message,
+    /只有本局庄家和庄家队友/
   );
 });
 
@@ -3536,22 +3678,75 @@ test('发牌完成后先保留反主窗口，锁定庄家后换牌，换牌完�
   assert.ok(eventNames.indexOf('card_exchange_resolved') < eventNames.indexOf('bottom_cards_received'));
 });
 
+test('中流砥柱必须等庄家完成埋底后才开始，并按埋底后的手牌判断', () => {
+  const room = createRoom();
+  const io = createIo();
+  const engine = new GameEngine(room, io);
+  const dealer = room.players[0];
+  const cardsToBury = ['3', '4', '5', '6', '7', '8', '9', '10']
+    .map((rank, index) => card('hearts', rank, 1900 + index));
+  const keptCards = [
+    card('spades', '3', 1910),
+    card('clubs', 'J', 1911),
+    card('clubs', 'Q', 1912),
+    card('clubs', 'K', 1913),
+    card('clubs', 'A', 1914)
+  ];
+  [...cardsToBury, ...keptCards].forEach(value => dealer.addCard(value));
+  room.players.slice(1).forEach((player, playerIndex) => {
+    ['3', '4', '6', '7', '8'].forEach((rank, rankIndex) => {
+      player.addCard(card('clubs', rank, 1920 + playerIndex * 10 + rankIndex));
+    });
+  });
+
+  room.gameState.selectedRule = MAINSTAY_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.dealerPlayerIndex = 0;
+  room.gameState.bottomCardsCount = cardsToBury.length;
+  room.gameState.phase = GamePhases.DRAWING;
+
+  assert.equal(engine.handleDealerSelected(dealer), false);
+  assert.equal(room.gameState.mainstayCurrentAction, null);
+  assert.equal(io.events.some(({ event }) => event === 'mainstay_started'), false);
+
+  room.gameState.phase = GamePhases.BURYING;
+  room.gameState.buryingPlayerId = dealer.id;
+  const result = engine.buryCards(dealer.id, cardsToBury.map(value => value.id));
+
+  assert.equal(result.completed, true);
+  assert.deepEqual(dealer.cards.map(value => value.id), keptCards.map(value => value.id));
+  assert.equal(room.gameState.mainstayCurrentAction.actorPlayerId, dealer.id);
+  assert.equal(room.gameState.mainstayCurrentAction.trumpCount, 1);
+  assert.equal(room.gameState.currentPlayerIndex, null);
+  assert.throws(
+    () => engine.playCards(dealer.id, [keptCards[0].id]),
+    /请先完成中流砥柱/
+  );
+  const eventNames = io.events.map(({ event }) => event);
+  assert.ok(
+    eventNames.indexOf('cards_buried') < eventNames.indexOf('mainstay_started'),
+    '必须先完成并公布埋底，再询问中流砥柱'
+  );
+});
+
 test('中流砥柱按实时手牌依次判断，同队两人可以先后发动并把全部主牌交回', () => {
   const room = createRoom();
   const io = createIo();
   const engine = new GameEngine(room, io);
-  let dealerCompletions = 0;
-  engine.drawingManager = {
-    completeDealerAssignment(dealerId) {
-      dealerCompletions++;
-      assert.equal(dealerId, room.players[0].id);
-    }
+  let resumedTurns = 0;
+  engine.onBotTurn = () => {
+    resumedTurns++;
   };
-  room.gameState.phase = GamePhases.DRAWING;
+  room.gameState.phase = GamePhases.PLAYING;
   room.gameState.selectedRule = MAINSTAY_RULE;
   room.gameState.trumpSuit = 'spades';
   room.gameState.trumpRank = '2';
-  room.gameState.pendingDealerPlayerId = room.players[0].id;
+  room.gameState.dealerPlayerIndex = 0;
+  room.gameState.firstPlayerId = room.players[0].id;
+  room.gameState.currentPlayerIndex = 0;
+  room.gameState.roundStartPlayerIndex = 0;
+  room.gameState.currentRound = 1;
 
   const hands = [
     [
@@ -3576,6 +3771,7 @@ test('中流砥柱按实时手牌依次判断，同队两人可以先后发动�
   const firstPlayerOriginalTrumps = engine.getMainstayTrumpCards(room.players[0]);
   const teammateOriginalTrumps = engine.getMainstayTrumpCards(room.players[2]);
   engine.startMainstay();
+  assert.equal(room.gameState.currentPlayerIndex, null, '四家决定期间必须冻结第一轮出牌权');
   assert.equal(room.gameState.mainstayCurrentAction.actorPlayerId, room.players[0].id);
   assert.equal(room.gameState.mainstayCurrentAction.trumpCount, 2);
   assert.equal('trumpCount' in room.gameState.toJSON().mainstay.currentAction, false);
@@ -3642,7 +3838,8 @@ test('中流砥柱按实时手牌依次判断，同队两人可以先后发动�
   engine.respondMainstay(room.players[3].id, false);
   assert.equal(room.gameState.mainstayCurrentAction, null);
   assert.equal(room.gameState.mainstayPlayerQueue.length, 0);
-  assert.equal(dealerCompletions, 1);
+  assert.equal(room.gameState.currentPlayerIndex, 0, '全部决定完成后恢复原定首发玩家');
+  assert.equal(resumedTurns, 1);
   assert.deepEqual(
     room.gameState.mainstayResults.filter(result => result.accepted).map(result => result.playerId),
     [room.players[0].id, room.players[2].id]
@@ -3652,10 +3849,14 @@ test('中流砥柱按实时手牌依次判断，同队两人可以先后发动�
 test('中流砥柱首轮交牌必须包含当前全部主牌，无主局则不进入流程', () => {
   const room = createRoom();
   const engine = new GameEngine(room, createIo());
-  room.gameState.phase = GamePhases.DRAWING;
+  room.gameState.phase = GamePhases.PLAYING;
   room.gameState.selectedRule = MAINSTAY_RULE;
   room.gameState.trumpSuit = 'hearts';
   room.gameState.trumpRank = '2';
+  room.gameState.dealerPlayerIndex = 0;
+  room.gameState.currentPlayerIndex = 0;
+  room.gameState.roundStartPlayerIndex = 0;
+  room.gameState.currentRound = 1;
   const firstHand = [
     card('hearts', '3', 2400), card('clubs', '2', 2401),
     card('clubs', '3', 2402), card('clubs', '4', 2403), card('clubs', '5', 2404),
@@ -3683,9 +3884,10 @@ test('中流砥柱首轮交牌必须包含当前全部主牌，无主局则不�
   const noTrumpRoom = createRoom();
   const noTrumpIo = createIo();
   const noTrumpEngine = new GameEngine(noTrumpRoom, noTrumpIo);
-  noTrumpRoom.gameState.phase = GamePhases.DRAWING;
+  noTrumpRoom.gameState.phase = GamePhases.PLAYING;
   noTrumpRoom.gameState.selectedRule = MAINSTAY_RULE;
   noTrumpRoom.gameState.trumpSuit = 'no_trump';
+  noTrumpRoom.gameState.currentPlayerIndex = 0;
   assert.equal(noTrumpEngine.startMainstay(), false);
   assert.equal(noTrumpRoom.gameState.mainstayCurrentAction, null);
   assert.ok(noTrumpIo.events.some(({ event, payload }) => (
@@ -3696,12 +3898,14 @@ test('中流砥柱首轮交牌必须包含当前全部主牌，无主局则不�
 test('中流砥柱以庄家为一号位开始，而不是固定从房间数组下标零开始', () => {
   const room = createRoom();
   const engine = new GameEngine(room, createIo());
-  room.gameState.phase = GamePhases.DRAWING;
+  room.gameState.phase = GamePhases.PLAYING;
   room.gameState.selectedRule = MAINSTAY_RULE;
   room.gameState.trumpSuit = 'hearts';
   room.gameState.trumpRank = '2';
-  room.gameState.pendingDealerPlayerId = room.players[1].id;
   room.gameState.dealerPlayerIndex = 1;
+  room.gameState.currentPlayerIndex = 1;
+  room.gameState.roundStartPlayerIndex = 1;
+  room.gameState.currentRound = 1;
   room.players.forEach((player, playerIndex) => {
     ['3', '4', '5', '6', '7'].forEach((rank, rankIndex) => {
       player.addCard(card('clubs', rank, 2600 + playerIndex * 10 + rankIndex));

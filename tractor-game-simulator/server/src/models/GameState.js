@@ -57,6 +57,8 @@ export class GameState {
     this.bottomCardsCount = DEFAULT_CONFIG.bottomCardsCount;
     this.buryingPlayerId = null;
     this.secondaryBuryingPlayerId = null;
+    // “改革开放”的二次埋底者在完成后仍需与庄家共同拥有最终底牌查看权。
+    this.reformAndOpeningUpTeammatePlayerId = null;
     // “人民公社”四家依次各埋两张；具体牌面只保存在服务端 Map 中，终局统一公开。
     this.peopleCommuneBuryingOrder = [];
     this.peopleCommuneCurrentBuryingPlayerId = null;
@@ -136,6 +138,7 @@ export class GameState {
     this.woodenOxRoundWindow = null;
     this.strengthCompensation = null;
     this.isTrumpDeclarationLocked = false; // 倒计时结束后锁定，换牌期间不可再反主
+    // 开局衔接阶段；mainstay 在庄家完成埋底后生效，其余值位于摸牌结束至收底牌之间。
     this.postDrawStage = null; // dealing | trump_window | card_exchange | remove_firewood_exchange | mainstay
     this.pendingDealerPlayerId = null; // 已锁定但尚未收底牌的庄家
     this.isWaitingForReady = false; // 是否在等待玩家准备
@@ -319,6 +322,7 @@ export class GameState {
     this.bottomCardsCount = DEFAULT_CONFIG.bottomCardsCount;
     this.buryingPlayerId = null;
     this.secondaryBuryingPlayerId = null;
+    this.reformAndOpeningUpTeammatePlayerId = null;
     this.peopleCommuneBuryingOrder = [];
     this.peopleCommuneCurrentBuryingPlayerId = null;
     this.peopleCommuneBuriedCardsByPlayerId.clear();
@@ -585,6 +589,7 @@ export class GameState {
       } : {}),
       buryingPlayerId: this.buryingPlayerId,
       secondaryBuryingPlayerId: this.secondaryBuryingPlayerId,
+      reformAndOpeningUpTeammatePlayerId: this.reformAndOpeningUpTeammatePlayerId,
       peopleCommune: isPeopleCommuneRule(this.selectedRule) ? {
         requiredCards: 2,
         currentBuryingPlayerId: this.peopleCommuneCurrentBuryingPlayerId,

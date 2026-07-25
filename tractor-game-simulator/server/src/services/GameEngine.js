@@ -279,6 +279,394 @@ export class GameEngine {
     this.hiddenDragonOptionsByPlayerId = new Map();
     this.antinomyPendingSelections = new Map();
     this.isFinalizingDestroyDykeRound = false;
+    this.mainstayResumePlayerIndex = null;
+    this.mainstayCompletionMode = null;
+  }
+
+  /**
+   * 为断线重连的单个真人恢复只属于他的私密状态。
+   *
+   * 房间 toJSON 只能携带公开信息；暗选牌面、尚未提交的投票以及政治审查
+   * 放行凭证不能广播给全房间。客户端在牌桌监听器挂载完成后显式请求本列表，
+   * 再复用既有 Socket 事件恢复对应交互。
+   */
+  getPrivateGameStateSyncEvents(playerId) {
+    const player = this.room.findPlayerById(playerId);
+    if (!player || player.isBot) return [];
+
+    const { gameState } = this.room;
+    const events = [];
+    const add = (event, payload) => {
+      if (!event || payload === null || payload === undefined) return;
+      events.push({
+        event,
+        payload: typeof payload === 'object'
+          ? { ...payload, recovered: true }
+          : payload
+      });
+    };
+
+    // 持续明置类规则的可见手牌同样属于“按观看者生成”的私密快照。
+    add('rule_visible_hands_updated', {
+      hands: this.createRuleVisibleHandsFor(player),
+      announcement: null
+    });
+
+    const removeFirewoodDecision = gameState.removeFirewoodCurrentDecision;
+    if (removeFirewoodDecision?.counteredPlayerId === player.id) {
+      add('remove_firewood_decision_required', removeFirewoodDecision);
+    }
+
+    const mainstayAction = gameState.mainstayCurrentAction;
+    if (mainstayAction?.chooserPlayerId === player.id) {
+      add(
+        mainstayAction.stage === 'decision'
+          ? 'mainstay_decision_required'
+          : 'mainstay_cards_required',
+        mainstayAction.stage === 'decision'
+          ? {
+              actionId: mainstayAction.id,
+              trumpCount: mainstayAction.trumpCount || 0
+            }
+          : {
+              actionId: mainstayAction.id,
+              stage: mainstayAction.stage,
+              requiredCards: mainstayAction.requiredCards || MAINSTAY_CARD_COUNT
+            }
+      );
+    }
+
+    const mule = Array.from(gameState.woodenOxMulesByTeam.values())
+      .find(candidate => candidate.holderPlayerId === player.id) || null;
+    add('wooden_ox_private_state', mule ? {
+      teamIndex: mule.teamIndex,
+      holderPlayerId: mule.holderPlayerId,
+      storedCard: mule.storedCard?.toJSON ? mule.storedCard.toJSON() : mule.storedCard,
+      transfersUsed: mule.transfersUsed,
+      maxTransfers: mule.maxTransfers
+    } : null);
+    if (gameState.woodenOxRoundWindow?.pendingPlayerIds?.has(player.id) && mule) {
+      add('wooden_ox_decision_required', {
+        round: gameState.woodenOxRoundWindow.round,
+        teamIndex: mule.teamIndex,
+        holderPlayerId: player.id,
+        hasStoredCard: Boolean(mule.storedCard),
+        storedCard: mule.storedCard?.toJSON ? mule.storedCard.toJSON() : mule.storedCard,
+        transfersUsed: mule.transfersUsed,
+        maxTransfers: mule.maxTransfers,
+        mustTransfer: gameState.woodenOxRoundWindow.requiredTransferPlayerIds.has(player.id)
+      });
+    }
+
+    const politicalPending = gameState.politicalReviewPending;
+    if (politicalPending) {
+      const publicPending = {
+        id: politicalPending.id,
+        round: politicalPending.round,
+        reviewerPlayerId: politicalPending.reviewerPlayerId,
+        reviewerPlayerName: politicalPending.reviewerPlayerName,
+        teammatePlayerId: politicalPending.teammatePlayerId,
+        teammatePlayerName: politicalPending.teammatePlayerName,
+        cards: politicalPending.cards.map(card => ({ ...card }))
+      };
+      if (politicalPending.reviewerPlayerId === player.id) {
+        add('political_review_decision_required', publicPending);
+      }
+      if (politicalPending.requestingPlayerId === player.id) {
+        add('political_review_play_held', {
+          ...publicPending,
+          handCards: player.cards.map(card => card.toJSON ? card.toJSON() : card)
+        });
+      }
+    }
+
+    const politicalApproval = gameState.politicalReviewApproval;
+    if (politicalApproval?.requestingPlayerId === player.id) {
+      add('political_review_play_approved', {
+        id: politicalApproval.id,
+        cardIds: [...politicalApproval.cardIds],
+        controlledPlayerId: politicalApproval.controlledPlayerId,
+        activeSkillId: politicalApproval.activeSkillId || null,
+        ...(politicalApproval.playOptions || {})
+      });
+    }
+
+    if (
+      gameState.timeReversalDecisionState === 'awaiting_response'
+      && gameState.timeReversalReservations.has(player.id)
+    ) {
+      add('time_reversal_decision_required', {
+        round: gameState.timeReversalWindowRound,
+        playerId: player.id,
+        playerName: player.name,
+        players: Array.from(gameState.timeReversalReservations.values(), reservation => ({
+          playerId: reservation.playerId,
+          playerName: reservation.playerName
+        }))
+      });
+    }
+
+    if (gameState.lastStandPendingPlayerIds.has(player.id)) {
+      add('last_stand_decision_required', {
+        playerId: player.id,
+        playerName: player.name,
+        cardsCount: player.cards.length,
+        suit: player.cards[0]?.suit || null
+      });
+    }
+
+    if (gameState.teammateCheerPending?.playerId === player.id) {
+      add('teammate_cheer_decision_required', gameState.teammateCheerPending);
+    }
+    if (gameState.afterglowPending?.playerId === player.id) {
+      add('afterglow_decision_required', gameState.afterglowPending);
+    }
+
+    if (gameState.forbiddenMagicCurrentDecisionPlayerId === player.id) {
+      add('forbidden_magic_decision_required', {
+        round: gameState.forbiddenMagicDecisionRound,
+        playerId: player.id,
+        playerName: player.name,
+        queuedPlayerIds: [...gameState.forbiddenMagicDecisionQueue]
+      });
+    }
+
+    const lureTigerDecision = gameState.lureTigerCurrentDecision;
+    if (lureTigerDecision?.playerId === player.id) {
+      add(
+        lureTigerDecision.stage === 'target'
+          ? 'lure_tiger_target_required'
+          : 'lure_tiger_decision_required',
+        {
+          ...lureTigerDecision,
+          eligibleTargetIds: [...(lureTigerDecision.eligibleTargetIds || [])]
+        }
+      );
+    }
+
+    if (gameState.icebergPendingPlayerIds.has(player.id)) {
+      let request = this.icebergSelectionRequests.get(player.id);
+      if (!request) {
+        const handIds = new Set(player.cards.map(card => card.id));
+        const currentlyRevealedCardIds = [
+          ...(gameState.icebergRevealedCardIdsByPlayer.get(player.id) || [])
+        ].filter(cardId => handIds.has(cardId));
+        const targetCount = Math.min(ICEBERG_REVEALED_CARD_COUNT, player.cards.length);
+        request = {
+          playerId: player.id,
+          reason: this.icebergInitialSelectionActive ? 'initial' : 'replenish',
+          requiredCount: Math.max(0, targetCount - currentlyRevealedCardIds.length),
+          targetCount,
+          currentlyRevealedCardIds
+        };
+        this.icebergSelectionRequests.set(player.id, request);
+      }
+      add('iceberg_reveal_selection_required', {
+        reason: request.reason,
+        requiredCount: request.requiredCount,
+        targetCount: request.targetCount,
+        currentlyRevealedCardIds: [...request.currentlyRevealedCardIds]
+      });
+    }
+
+    if (gameState.tenSidedAmbushSelectorPlayerId === player.id) {
+      if (gameState.isTenSidedAmbushSelectionPending) {
+        add('ten_sided_ambush_selection_required', {
+          eligibleRanks: this.getEligibleTenSidedAmbushRanks(),
+          trumpRank: gameState.trumpRank
+        });
+      } else if (gameState.tenSidedAmbushRank && !gameState.isTenSidedAmbushRevealed) {
+        add('ten_sided_ambush_rank_selected', {
+          rank: gameState.tenSidedAmbushRank,
+          isPrivate: true
+        });
+      }
+    }
+
+    gameState.threePowersSlots
+      .filter(slot => slot.selectorPlayerId === player.id)
+      .forEach(slot => {
+        if (!slot.selectedRank) {
+          add('three_powers_selection_required', {
+            sourceRank: slot.sourceRank,
+            pointValue: slot.pointValue,
+            selectorPosition: slot.selectorPosition,
+            eligibleRanks: this.getEligibleThreePowersRanks(),
+            trumpRank: gameState.trumpRank
+          });
+        } else if (!slot.isRevealed) {
+          add('three_powers_rank_selected', {
+            sourceRank: slot.sourceRank,
+            pointValue: slot.pointValue,
+            rank: slot.selectedRank,
+            isPrivate: true
+          });
+        }
+      });
+
+    if (gameState.waitingRabbitPendingSelectionPlayerIds.has(player.id)) {
+      add('waiting_rabbit_selection_required', this.getWaitingRabbitSelectionOptions());
+    } else {
+      const declaration = gameState.waitingRabbitDeclarationsByPlayerId.get(player.id);
+      if (declaration) {
+        add('waiting_rabbit_target_selected', {
+          ...declaration,
+          isPrivate: true
+        });
+      }
+    }
+    const waitingRabbitDecision = gameState.waitingRabbitDecision;
+    if (waitingRabbitDecision?.chooserPlayerId === player.id) {
+      add('waiting_rabbit_exchange_required', {
+        ...this.getWaitingRabbitPublicDecision(waitingRabbitDecision),
+        eligibleDiscardCardIds: player.cards
+          .filter(card => this.getRuleCardPoints(card) === 0)
+          .map(card => card.id)
+      });
+    }
+
+    if (gameState.gentlemanPromisePendingPlayerIds.has(player.id)) {
+      const options = this.getGentlemanPromiseEligibleSuits(player);
+      this.gentlemanPromiseOptionsByPlayerId.set(player.id, options.eligibleSuits);
+      add('gentleman_promise_selection_required', {
+        eligibleSuits: [...options.eligibleSuits],
+        suitCounts: { ...options.counts },
+        minimumCount: options.minimumCount
+      });
+    }
+
+    if (gameState.hiddenDragonPendingPlayerIds.has(player.id)) {
+      const options = this.getHiddenDragonEligibleRanks(player);
+      this.hiddenDragonOptionsByPlayerId.set(player.id, options.eligibleRanks);
+      add('hidden_dragon_selection_required', {
+        eligibleRanks: [...options.eligibleRanks],
+        rankCounts: { ...options.counts },
+        maximumCount: options.maximumCount,
+        trumpRank: gameState.trumpRank
+      });
+    }
+
+    if (gameState.antinomyPendingPlayerIds.has(player.id)) {
+      add('antinomy_selection_required', {
+        stage: gameState.antinomySelectionStage || 'opening',
+        triggerRound: gameState.antinomyTriggerRound,
+        eligibleSuits: [...ANTINOMY_SUITS],
+        eligibleRanks: [...ANTINOMY_RANKS],
+        currentDeclaration: gameState.antinomyDeclarationsByPlayerId.get(player.id) || null
+      });
+    }
+
+    if (gameState.riceToMulberryPendingPlayerIds.has(player.id)) {
+      const eligibleCardIds = player.cards
+        .filter(card => !card.isRiceToMulberryTransformed && this.getRuleCardPoints(card) > 0)
+        .map(card => card.id);
+      add('rice_to_mulberry_selection_required', {
+        requiredCount: Math.floor(eligibleCardIds.length / 2),
+        eligibleCardIds
+      });
+    }
+
+    if (gameState.destroyDykeDecision?.dealerPlayerId === player.id) {
+      add('destroy_dyke_decision_required', gameState.destroyDykeDecision);
+    }
+
+    const administrativeReview = gameState.administrativeReview;
+    if (administrativeReview) {
+      if (
+        administrativeReview.suitSelectorPlayerId === player.id
+        && !administrativeReview.suit
+      ) {
+        add('administrative_review_selection_required', {
+          type: 'suit',
+          eligibleOptions: this.getAdministrativeReviewSuitOptions(),
+          trumpSuit: gameState.trumpSuit,
+          trumpRank: gameState.trumpRank
+        });
+      }
+      if (
+        administrativeReview.rankSelectorPlayerId === player.id
+        && !administrativeReview.rank
+      ) {
+        add('administrative_review_selection_required', {
+          type: 'rank',
+          eligibleOptions: [...HIDDEN_DRAGON_RANKS],
+          trumpSuit: gameState.trumpSuit,
+          trumpRank: gameState.trumpRank
+        });
+      }
+    }
+
+    const focusTeam = this.getFocusFigureTeamForPlayer(player.id);
+    if (focusTeam?.isFinalized) {
+      const focusPlayer = this.room.findPlayerById(focusTeam.finalPlayerId);
+      add('focus_figure_team_finalized', {
+        team: focusTeam.team,
+        attempt: focusTeam.attempt,
+        focusPlayerId: focusPlayer?.id || null,
+        focusPlayerName: focusPlayer?.name || '未知玩家'
+      });
+    } else if (
+      gameState.isFocusFigureVotingStarted
+      && focusTeam
+      && !focusTeam.votes.has(player.id)
+    ) {
+      const nominee = this.room.findPlayerById(focusTeam.nomineePlayerId);
+      add('focus_figure_vote_required', {
+        team: focusTeam.team,
+        attempt: focusTeam.attempt,
+        nomineePlayerId: nominee?.id || null,
+        nomineePlayerName: nominee?.name || '未知玩家'
+      });
+    }
+
+    const challenge = gameState.equivalentReciprocityChallenge;
+    const challengePlayerIds = challenge
+      ? [challenge.initiatorPlayerId, challenge.targetPlayerId]
+      : [];
+    if (
+      challengePlayerIds.includes(player.id)
+      && !challenge.selectedCardsByPlayerId?.has(player.id)
+    ) {
+      const opponentPlayerId = challengePlayerIds.find(id => id !== player.id);
+      const opponent = this.room.findPlayerById(opponentPlayerId);
+      add('equivalent_reciprocity_card_required', {
+        challengeId: challenge.id,
+        opponentPlayerId,
+        opponentPlayerName: opponent?.name || '对手'
+      });
+    }
+
+    const ambiguousDecision = gameState.ambiguousRoundDecision;
+    if (ambiguousDecision?.currentPlayerId === player.id) {
+      const selection = ambiguousDecision.selections.find(item => item.playerId === player.id);
+      if (selection) {
+        add('ambiguous_choice_required', {
+          round: ambiguousDecision.round,
+          playerId: player.id,
+          playerName: player.name,
+          position: selection.position,
+          options: selection.options.map(option => ({
+            index: option.index,
+            cards: option.cards.map(card => card.toJSON ? card.toJSON() : card)
+          }))
+        });
+      }
+    }
+
+    const magicTrickSelection = gameState.magicTrickSelection;
+    if (magicTrickSelection?.playerId === player.id) {
+      add('magic_trick_prepared', {
+        round: magicTrickSelection.round,
+        playerId: player.id,
+        playerName: player.name,
+        targetPlayerIds: [...magicTrickSelection.targetPlayerIds],
+        targetPlayerNames: magicTrickSelection.targetPlayerIds.map(
+          targetId => this.room.findPlayerById(targetId)?.name || '未知玩家'
+        )
+      });
+    }
+
+    return events;
   }
 
   getRuleRuntimeContext() {
@@ -796,9 +1184,6 @@ export class GameEngine {
     if (isHappyTwinsRule(this.room.gameState.selectedRule)) {
       this.applyHappyTwinsPositionSwap(dealer);
     }
-    if (isMainstayRule(this.room.gameState.selectedRule)) {
-      return this.startMainstay();
-    }
     if (!isOpeningCardExchangeRule(this.room.gameState.selectedRule)) return false;
     this.startOpeningCardExchange();
     return true;
@@ -1179,12 +1564,12 @@ export class GameEngine {
    * “中流砥柱”必须按一至四号位串行处理。队友收到牌后，等轮到自己时会用
    * 已变化的实时手牌重新计算主牌数，因此同队两人可以先后发动并把主牌交回去。
    */
-  startMainstay() {
+  startMainstay({ completionMode = 'opening' } = {}) {
     const { gameState, players } = this.room;
-    if (gameState.phase !== GamePhases.DRAWING) {
-      throw new Error('只有摸牌结束后才能开始中流砥柱');
-    }
     if (!isMainstayRule(gameState.selectedRule)) return false;
+    if (gameState.phase !== GamePhases.PLAYING) {
+      throw new Error('只有庄家完成埋底后才能开始中流砥柱');
+    }
     if (players.length !== 4) throw new Error('中流砥柱仅支持四人局');
 
     gameState.isTrumpDeclarationLocked = true;
@@ -1202,13 +1587,16 @@ export class GameEngine {
     }
 
     gameState.postDrawStage = 'mainstay';
+    this.mainstayResumePlayerIndex = Number.isInteger(gameState.currentPlayerIndex)
+      ? gameState.currentPlayerIndex
+      : gameState.roundStartPlayerIndex;
+    this.mainstayCompletionMode = completionMode;
+    // 中流砥柱完成前没有任何玩家拥有出牌权；原行动位在流程结束后恢复。
+    gameState.currentPlayerIndex = null;
     // 开局号位以庄家为一号位，沿玩家数组（牌桌逆时针）依次为二、三、四号位。
-    const pendingDealerIndex = this.room.getPlayerIndex(gameState.pendingDealerPlayerId);
-    const firstPositionIndex = pendingDealerIndex >= 0
-      ? pendingDealerIndex
-      : Number.isInteger(gameState.dealerPlayerIndex)
-        ? gameState.dealerPlayerIndex
-        : 0;
+    const firstPositionIndex = Number.isInteger(gameState.dealerPlayerIndex)
+      ? gameState.dealerPlayerIndex
+      : 0;
     gameState.mainstayPlayerQueue = Array.from(
       { length: players.length },
       (_, offset) => players[(firstPositionIndex + offset) % players.length].id
@@ -1266,12 +1654,9 @@ export class GameEngine {
       if (!actor || !teammate) throw new Error('中流砥柱的玩家或队友不存在');
 
       const trumpCount = this.getMainstayTrumpCards(actor).length;
-      const pendingDealerIndex = this.room.getPlayerIndex(gameState.pendingDealerPlayerId);
-      const firstPositionIndex = pendingDealerIndex >= 0
-        ? pendingDealerIndex
-        : Number.isInteger(gameState.dealerPlayerIndex)
-          ? gameState.dealerPlayerIndex
-          : 0;
+      const firstPositionIndex = Number.isInteger(gameState.dealerPlayerIndex)
+        ? gameState.dealerPlayerIndex
+        : 0;
       const actorIndex = this.room.getPlayerIndex(actor.id);
       const position = ((actorIndex - firstPositionIndex + this.room.players.length)
         % this.room.players.length) + 1;
@@ -1312,6 +1697,13 @@ export class GameEngine {
 
     gameState.mainstayCurrentAction = null;
     gameState.postDrawStage = null;
+    const resumePlayerIndex = this.mainstayResumePlayerIndex;
+    const completionMode = this.mainstayCompletionMode;
+    this.mainstayResumePlayerIndex = null;
+    this.mainstayCompletionMode = null;
+    if (Number.isInteger(resumePlayerIndex)) {
+      gameState.currentPlayerIndex = resumePlayerIndex;
+    }
     const results = gameState.mainstayResults.map(result => Object.fromEntries(
       Object.entries(result).filter(([key]) => key !== 'trumpCount')
     ));
@@ -1321,10 +1713,19 @@ export class GameEngine {
       activatedCount: results.filter(result => result.accepted).length
     });
     this.broadcastRoomUpdate();
-    if (gameState.pendingDealerPlayerId) {
-      this.drawingManager?.completeDealerAssignment(gameState.pendingDealerPlayerId);
+    if (completionMode === 'opening') {
+      this.continueOpeningAfterBury();
+    } else if (this.onBotTurn) {
+      this.onBotTurn();
     }
     return null;
+  }
+
+  hasPendingMainstayAction() {
+    const { gameState } = this.room;
+    return gameState.postDrawStage === 'mainstay'
+      || Boolean(gameState.mainstayCurrentAction)
+      || gameState.mainstayPlayerQueue.length > 0;
   }
 
   respondMainstay(playerId, accept = false) {
@@ -2441,7 +2842,21 @@ export class GameEngine {
         requestingPlayerId: pending.requestingPlayerId,
         controlledPlayerId: pending.controlledPlayerId,
         teammatePlayerId: pending.teammatePlayerId,
-        cardIds: [...pending.cardIds]
+        cardIds: [...pending.cardIds],
+        activeSkillId: pending.activeSkillId,
+        playOptions: {
+          ...pending.playOptions,
+          jokerSubstitutions: [...(pending.playOptions?.jokerSubstitutions || [])],
+          clusterAnalysisSubstitutions: [
+            ...(pending.playOptions?.clusterAnalysisSubstitutions || [])
+          ],
+          forbiddenMagicSubstitutions: [
+            ...(pending.playOptions?.forbiddenMagicSubstitutions || [])
+          ],
+          ambiguousAlternativeCardIds: [
+            ...(pending.playOptions?.ambiguousAlternativeCardIds || [])
+          ]
+        }
       };
     }
 
@@ -5150,6 +5565,9 @@ export class GameEngine {
     }
 
     const firstPlayer = result.firstPlayer;
+    const willStartMainstay = isMainstayRule(this.room.gameState.selectedRule)
+      && Boolean(this.room.gameState.trumpSuit)
+      && this.room.gameState.trumpSuit !== Suits.NO_TRUMP;
     this.io.to(this.room.id).emit('first_player_set', {
       playerId: firstPlayer.id,
       playerName: firstPlayer.name,
@@ -5157,19 +5575,29 @@ export class GameEngine {
     });
     this.io.to(this.room.id).emit('phase_changed', {
       phase: GamePhases.PLAYING,
-      message: result.isSecondary
-        ? `${actor.name} 完成再埋底，${firstPlayer.name} 先出牌`
-        : result.peopleCommune
-          ? `人民公社四家埋底完成，${firstPlayer.name} 先出牌`
-        : result.skipped
-          ? `本局没有底牌，${firstPlayer.name} 先出牌`
-          : `埋底完成，${firstPlayer.name} 先出牌`
+      message: willStartMainstay
+        ? `${actor.name}完成${result.isSecondary ? '再' : ''}埋底，开始中流砥柱`
+        : result.isSecondary
+          ? `${actor.name} 完成再埋底，${firstPlayer.name} 先出牌`
+          : result.peopleCommune
+            ? `人民公社四家埋底完成，${firstPlayer.name} 先出牌`
+            : result.skipped
+              ? `本局没有底牌，${firstPlayer.name} 先出牌`
+              : `埋底完成，${firstPlayer.name} 先出牌`
     });
     this.broadcastRoomUpdate();
+    if (this.startMainstay({ completionMode: 'opening' })) return;
+    this.continueOpeningAfterBury(firstPlayer);
+  }
+
+  continueOpeningAfterBury(firstPlayer = null) {
+    const openingPlayer = firstPlayer
+      || this.room.findPlayerByIndex(this.room.gameState.currentPlayerIndex)
+      || this.room.findPlayerById(this.room.gameState.firstPlayerId);
     // 埋底本身也是一次手牌变化。绝处逢生的首轮检查必须放在埋底完成后，
     // 此时主牌已锁定且不会让庄家在埋底前提前获得额外信息。
     this.room.players.forEach(player => this.requestLastStandIfEligible(player));
-    this.beginOpeningAfterglowDecision(firstPlayer);
+    this.beginOpeningAfterglowDecision(openingPlayer);
     if (
       !this.hasPendingLastStandDecision() &&
       !this.hasPendingAfterglowDecision() &&
@@ -7257,10 +7685,13 @@ export class GameEngine {
     });
     this.io.to(this.room.id).emit('phase_changed', {
       phase: GamePhases.PLAYING,
-      message: `行政审查埋底完成，继续第${gameState.currentRound}轮`
+      message: isMainstayRule(gameState.selectedRule) && gameState.trumpSuit !== Suits.NO_TRUMP
+        ? '行政审查埋底完成，开始中流砥柱'
+        : `行政审查埋底完成，继续第${gameState.currentRound}轮`
     });
     this.broadcastRoomUpdate();
-    if (this.onBotTurn) this.onBotTurn();
+    const mainstayStarted = this.startMainstay({ completionMode: 'resume' });
+    if (!mainstayStarted && this.onBotTurn) this.onBotTurn();
     logger.info(`房间 ${this.room.id} 行政审查：${dealer.name}埋底完成，续接原牌局`);
     return {
       completed: true,
@@ -8102,7 +8533,8 @@ export class GameEngine {
         gameState.leadingPattern?.suit,
         gameState.trumpSuit,
         gameState.trumpRank,
-        this.getRuleRuntimeContext()
+        this.getRuleRuntimeContext(),
+        gameState.leadingPattern
       );
       if (comparison > 0) winner = play;
     }
@@ -8772,7 +9204,8 @@ export class GameEngine {
             leadingPattern.suit,
             gameState.trumpSuit,
             gameState.trumpRank,
-            this.getRuleRuntimeContext()
+            this.getRuleRuntimeContext(),
+            leadingPattern
           ) > 0;
         });
 
@@ -9045,6 +9478,7 @@ export class GameEngine {
       secondaryBuryingPlayer.cards = DeckService.autoSortCards(secondaryBuryingPlayer.cards);
       this.room.gameState.bottomCards = [];
       this.room.gameState.secondaryBuryingPlayerId = secondaryBuryingPlayer.id;
+      this.room.gameState.reformAndOpeningUpTeammatePlayerId = secondaryBuryingPlayer.id;
 
       const result = {
         completed: false,
@@ -9346,6 +9780,9 @@ export class GameEngine {
   ) {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
       throw new Error('当前不是出牌阶段');
+    }
+    if (this.hasPendingMainstayAction()) {
+      throw new Error('请先完成中流砥柱');
     }
     const ironEvidenceModeForPlay = this.ensureIronEvidenceRoundMode();
     if (this.hasPendingStrawBoatBorrowingArrowsDecision()) {
@@ -9987,7 +10424,8 @@ export class GameEngine {
           this.room.gameState.leadingPattern.suit,
           trumpSuit,
           trumpRank,
-          playRuleContext
+          playRuleContext,
+          this.room.gameState.leadingPattern
         );
 
         if (comparison > 0) {
@@ -11272,7 +11710,8 @@ export class GameEngine {
           this.room.gameState.leadingPattern.suit,
           this.room.gameState.trumpSuit,
           this.room.gameState.trumpRank,
-          this.getRuleRuntimeContext()
+          this.getRuleRuntimeContext(),
+          this.room.gameState.leadingPattern
         );
         if (comparison > 0) winningPlay = play;
       }

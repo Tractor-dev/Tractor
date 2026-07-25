@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  canPlayerViewBottomCards,
   getActiveBuryingPlayerId,
   getActiveSkillAvailability,
   getFinalTrickAutoSelectedCardIds,
@@ -28,6 +29,37 @@ import { detectThreeSixNineDeclarations } from '../src/utils/trumpUtils.js';
 import { isIronEvidenceSpecialCard } from '../src/utils/ironEvidenceUtils.js';
 
 const card = (id, suit, rank) => ({ id, suit, rank });
+
+test('改革开放再埋底完成后庄家与队友都能查看最终底牌', () => {
+  const finalizedState = {
+    phase: 'playing',
+    selectedRule: { id: 'reform_and_opening_up' },
+    buryingPlayerId: 'dealer',
+    secondaryBuryingPlayerId: null,
+    reformAndOpeningUpTeammatePlayerId: 'teammate'
+  };
+  const canView = currentPlayerId => canPlayerViewBottomCards({
+    gameState: finalizedState,
+    currentPlayerId,
+    bottomCardsCount: 8
+  });
+
+  assert.equal(canView('dealer'), true);
+  assert.equal(canView('teammate'), true);
+  assert.equal(canView('attacker-1'), false);
+  assert.equal(canView('attacker-2'), false);
+
+  const secondaryBuryingState = {
+    ...finalizedState,
+    phase: 'burying',
+    secondaryBuryingPlayerId: 'teammate'
+  };
+  assert.equal(canPlayerViewBottomCards({
+    gameState: secondaryBuryingState,
+    currentPlayerId: 'dealer',
+    bottomCardsCount: 8
+  }), false);
+});
 
 test('最后一墩首家出完后，按本墩首家位置自动选中跟牌者的全部剩余手牌', () => {
   const players = [

@@ -67,6 +67,37 @@ export function getActiveBuryingPlayerId(gameState) {
     || null;
 }
 
+export function canPlayerViewBottomCards({
+  gameState,
+  currentPlayerId,
+  selectedRule = null,
+  bottomCardsCount = 0
+} = {}) {
+  if (!gameState || !currentPlayerId || bottomCardsCount <= 0) return false;
+  const activeRule = gameState.selectedRule || selectedRule;
+  const isPeopleCommune = ruleIncludesId(activeRule, 'people_commune');
+  if (isPeopleCommune) {
+    return Boolean(
+      gameState.peopleCommune?.submittedPlayerIds?.includes(currentPlayerId)
+    );
+  }
+  if (ruleIncludesId(activeRule, 'administrative_review')) {
+    if (!gameState.administrativeReview?.isBottomReleased) return false;
+  }
+  if (ruleIncludesId(activeRule, 'openly_revealed')) return true;
+
+  const isDealer = gameState.buryingPlayerId === currentPlayerId;
+  const isReformAndOpeningUp = ruleIncludesId(activeRule, 'reform_and_opening_up');
+  if (!isReformAndOpeningUp) return isDealer;
+
+  // 首次埋底时庄家照常查看；底牌交给队友后暂时没有“最终底牌”，因此隐藏按钮。
+  if (gameState.phase === 'burying') {
+    return isDealer && !gameState.secondaryBuryingPlayerId;
+  }
+  return isDealer
+    || gameState.reformAndOpeningUpTeammatePlayerId === currentPlayerId;
+}
+
 function isLeadingPlayState(gameState) {
   const noRecordedPlays = Array.isArray(gameState?.currentRoundPlays)
     ? gameState.currentRoundPlays.length === 0

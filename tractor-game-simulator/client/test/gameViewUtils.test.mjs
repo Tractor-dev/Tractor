@@ -5,6 +5,7 @@ import {
   getCanonicalOpenHandCards,
   getDestroyDykeDisplayState,
   getDisplayedDefenseAsOffense,
+  getPendingPoliticalReviewDecision,
   getRecordOnFileTrackerView,
   getRuleSelectionAccess,
   getStriveUpstreamActionOrder,
@@ -107,6 +108,37 @@ test('算无遗策的明手本人使用服务端公开手牌作为权威牌面',
   assert.equal(getCanonicalOpenHandCards(gameState, 'open-hand'), cards);
   assert.equal(getCanonicalOpenHandCards(gameState, 'dealer'), null);
   assert.equal(getCanonicalOpenHandCards({ openHand: null }, 'open-hand'), null);
+});
+
+test('政治审查的审查者断线重连后可从房间快照恢复待决询问', () => {
+  const pending = {
+    id: 'political-review-3-1',
+    round: 3,
+    reviewerPlayerId: 'reviewer',
+    reviewerPlayerName: '审查者',
+    teammatePlayerId: 'teammate',
+    teammatePlayerName: '队友',
+    cards: [
+      { id: 'spades-Q-0', suit: 'spades', rank: 'Q' },
+      { id: 'spades-K-0', suit: 'spades', rank: 'K' }
+    ]
+  };
+  const gameState = {
+    politicalReview: { pending }
+  };
+
+  assert.equal(
+    getPendingPoliticalReviewDecision(gameState, 'reviewer'),
+    pending
+  );
+  assert.equal(
+    getPendingPoliticalReviewDecision(gameState, 'teammate'),
+    null
+  );
+  assert.equal(
+    getPendingPoliticalReviewDecision({ politicalReview: { pending: null } }, 'reviewer'),
+    null
+  );
 });
 
 test('算无遗策代打甩牌失败时不向明手本地重复恢复卡牌', () => {

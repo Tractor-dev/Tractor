@@ -1251,8 +1251,21 @@
 }
 
 .player-name {
+  display: block;
   min-width: 0;
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.player-left .player-name,
+.player-right .player-name {
+  max-width: 6em;
+}
+
+.player-name-self {
+  max-width: 12em;
 }
 
 .player-avatar-self {
@@ -2394,14 +2407,41 @@
 .bottom-player-header .player-info { flex: 0 0 auto; text-align: left; }
 
 .inline-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   flex: 0 1 auto;
-  max-width: 720px;
+  gap: 6px;
+  width: max-content;
+  min-width: 0;
+  max-width: 900px;
   padding: 6px 8px;
   margin-left: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid rgba(210, 242, 218, 0.16);
   border-radius: 13px;
   background: rgba(2, 36, 29, 0.5);
   backdrop-filter: blur(12px);
+}
+
+.inline-controls > .play-controls {
+  flex: 0 0 auto;
+}
+
+.inline-controls .leave-room-button.ant-btn {
+  flex: 0 0 auto;
+  width: 100px;
+  border-color: rgba(255, 154, 154, 0.62);
+  color: #ffe7e7;
+  background: linear-gradient(180deg, rgba(151, 56, 56, 0.96), rgba(93, 29, 33, 0.96));
+}
+
+.inline-controls .leave-room-button.ant-btn:hover,
+.inline-controls .leave-room-button.ant-btn:focus-visible {
+  border-color: #ffb0b0;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(180, 68, 68, 0.98), rgba(116, 34, 39, 0.98));
 }
 
 .inline-controls .ant-btn,
@@ -3520,7 +3560,7 @@
   .open-hand-opposite { width: min(390px, 72vw); }
   .open-hand-title { max-width: 120px; }
   .bottom-player-header { flex-direction: column; align-items: stretch; }
-  .inline-controls { margin-left: 0; max-width: none; overflow-x: auto; }
+  .inline-controls { width: 100%; margin-left: 0; max-width: 100%; }
   .my-hand { padding-inline: 4px; }
 }
 

@@ -279,7 +279,7 @@ function App() {
   if (currentRoom) {
     // 规则选择属于两局之间的牌桌流程，不能因为阶段暂时回到 WAITING 就卸载牌桌。
     if (shouldShowGameBoard(currentRoom.gameState)) {
-      return <GameBoard />;
+      return <GameBoard onLeaveRoom={handleLeaveRoom} />;
     }
 
     // 否则显示房间等待界面

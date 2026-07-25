@@ -29,6 +29,7 @@ const { Text } = Typography;
  * @param {Object} props
  * @param {Array} props.players - 所有玩家
  * @param {Object} props.currentPlayer - 当前玩家
+ * @param {Function} props.onLeaveRoom - 主动退出房间的回调
  * @param {Object} props.playedCards - 每个玩家出的牌 { [playerId]: { playerName, cards } }
  * @param {Object} props.throwFailedPreviews - 甩牌失败时短暂停留的完整尝试牌面
  * @param {Object} props.shownCards - 摸牌阶段展示的牌 { [playerId]: { playerName, cards } }
@@ -69,6 +70,7 @@ const { Text } = Typography;
 export default function GameTable({
   players,
   currentPlayer,
+  onLeaveRoom,
   playedCards = {},
   throwFailedPreviews = {},
   shownCards = {},
@@ -522,7 +524,7 @@ export default function GameTable({
                 </span>
               )}
             </span>
-            <Text strong className="player-name">{player.name}</Text>
+            <Text strong className="player-name" title={player.name}>{player.name}</Text>
             {renderStriveUpstreamOrderBadge(player)}
             {defenseAsOffenseDelta > 0 && (
               <span
@@ -2280,7 +2282,13 @@ export default function GameTable({
                   <span className="player-avatar player-avatar-self" aria-hidden="true">
                     {(positions.bottom.name || '我').slice(0, 1).toUpperCase()}
                   </span>
-                  <Text strong>{positions.bottom.name} (我)</Text>
+                  <Text
+                    strong
+                    className="player-name player-name-self"
+                    title={positions.bottom.name}
+                  >
+                    {positions.bottom.name} (我)
+                  </Text>
                   {renderStriveUpstreamOrderBadge(positions.bottom)}
                   {defenseAsOffense?.playerId === positions.bottom.id && Number(defenseAsOffense.delta) > 0 && (
                     <span
@@ -2374,9 +2382,18 @@ export default function GameTable({
               </div>
 
               {/* 控制按钮区域 - 右侧 */}
-              {renderControls && (
+              {(renderControls || onLeaveRoom) && (
                 <div className="inline-controls">
                   {renderControls}
+                  {onLeaveRoom && (
+                    <Button
+                      className="leave-room-button"
+                      danger
+                      onClick={onLeaveRoom}
+                    >
+                      退出房间
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

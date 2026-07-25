@@ -20,6 +20,7 @@ export const SOCKET_EVENTS = {
   CREATE_ROOM: 'create_room',
   JOIN_ROOM: 'join_room',
   RESUME_ROOM: 'resume_room',
+  REQUEST_PRIVATE_GAME_STATE_SYNC: 'request_private_game_state_sync',
   LEAVE_ROOM: 'leave_room',
   GET_ROOM_LIST: 'get_room_list',
   UPDATE_CONFIG: 'update_config',

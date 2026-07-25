@@ -3,7 +3,8 @@ import { GamePhases } from '../../utils/constants.js';
 import {
   isAdministrativeReviewRule,
   isOpenlyRevealedRule,
-  isPeopleCommuneRule
+  isPeopleCommuneRule,
+  isReformAndOpeningUpRule
 } from '../../rules/ruleRegistry.js';
 import BotService from '../../services/BotService.js';
 import logger from '../../utils/logger.js';
@@ -581,6 +582,10 @@ async function triggerBotPlay(io, room, gameEngine) {
     logger.info('两队尚未完成焦点人物表决，暂不触发Bot出牌');
     return;
   }
+  if (gameEngine.hasPendingMainstayAction()) {
+    logger.info('中流砥柱尚未完成，暂不触发Bot出牌');
+    return;
+  }
   if (gameEngine.hasPendingLastStandDecision()) {
     logger.info('仍有玩家需要决定是否发动绝处逢生，暂不触发Bot出牌');
     return;
@@ -918,6 +923,30 @@ async function triggerBotPlay(io, room, gameEngine) {
 }
 
 export function registerGameHandlers(io, socket, roomManager) {
+  socket.on('request_private_game_state_sync', ({ roomId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) throw new Error('房间不存在');
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) throw new Error('玩家不存在');
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) {
+        socket.emit('private_game_state_synced', { roomId, eventCount: 0 });
+        return;
+      }
+
+      const events = gameEngine.getPrivateGameStateSyncEvents(player.id);
+      events.forEach(({ event, payload }) => socket.emit(event, payload));
+      socket.emit('private_game_state_synced', {
+        roomId,
+        eventCount: events.length
+      });
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('恢复玩家私密牌局状态失败:', error);
+    }
+  });
+
   socket.on('select_initial_candle_state', ({ roomId, isLit }) => {
     try {
       const room = roomManager.getRoom(roomId);
@@ -2473,17 +2502,43 @@ export function registerGameHandlers(io, socket, roomManager) {
       const isPublic = isOpenlyRevealedRule(room.gameState.selectedRule);
       const isPeopleCommune = isPeopleCommuneRule(room.gameState.selectedRule);
       const isAdministrativeReview = isAdministrativeReviewRule(room.gameState.selectedRule);
+      const isReformAndOpeningUp = isReformAndOpeningUpRule(room.gameState.selectedRule);
       const ownPeopleCommuneCards = isPeopleCommune
         ? room.gameState.peopleCommuneBuriedCardsByPlayerId.get(player.id)
         : null;
+      const isDealer = room.gameState.buryingPlayerId === player.id;
+      const isReformTeammate = (
+        isReformAndOpeningUp
+        && room.gameState.reformAndOpeningUpTeammatePlayerId === player.id
+      );
+      const isReformBottomFinalized = (
+        isReformAndOpeningUp
+        && room.gameState.phase !== GamePhases.BURYING
+        && !room.gameState.secondaryBuryingPlayerId
+        && room.gameState.bottomCards.length === room.gameState.bottomCardsCount
+      );
 
       // 人民公社只允许看自己已经埋下的两张牌；其他三家的牌仍然保密。
       if (isPeopleCommune && !ownPeopleCommuneCards) {
         throw new Error('请先完成自己的埋牌');
       }
-      // 普通规则的埋底玩家就是本局庄家；昭然若揭则不限制玩家身份和阶段。
-      if (!isPublic && !isPeopleCommune && room.gameState.buryingPlayerId !== player.id) {
-        throw new Error('只有本局庄家可以查看底牌');
+      // 改革开放在队友完成再埋底后，由庄家和该队友共同查看最终底牌。
+      // 其他普通规则的私密查看权仍只属于庄家；昭然若揭不限制身份和阶段。
+      const canViewPrivateBottom = isDealer
+        || (isReformBottomFinalized && isReformTeammate);
+      if (!isPublic && !isPeopleCommune && !canViewPrivateBottom) {
+        throw new Error(
+          isReformAndOpeningUp
+            ? '只有本局庄家和庄家队友可以查看底牌'
+            : '只有本局庄家可以查看底牌'
+        );
+      }
+      if (
+        isReformAndOpeningUp
+        && room.gameState.secondaryBuryingPlayerId
+        && isDealer
+      ) {
+        throw new Error('庄家队友尚未完成再埋底');
       }
       if (
         isAdministrativeReview
@@ -2498,7 +2553,8 @@ export function registerGameHandlers(io, socket, roomManager) {
       socket.emit('my_bottom_cards', {
         bottomCards: visibleBottomCards.map(c => c.toJSON()),
         isPublic,
-        isPeopleCommune
+        isPeopleCommune,
+        isReformAndOpeningUp
       });
 
     } catch (error) {

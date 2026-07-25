@@ -14,6 +14,7 @@ import {
   isTrumpCard
 } from '../../utils/cardPatternUtils';
 import {
+  canPlayerViewBottomCards,
   getActiveBuryingPlayerId,
   getActiveSkillAvailability,
   getFinalTrickAutoSelectedCardIds,
@@ -28,6 +29,7 @@ import {
 import { calculateCardPoints, getCardPoints, getMeticulousAccountingCardPoints } from '../../utils/scoringUtils';
 import {
   getCanonicalOpenHandCards,
+  getPendingPoliticalReviewDecision,
   getRuleSelectionAccess,
   getThrowFailedCardsToRestore,
   getThrowFailedPreview,
@@ -85,7 +87,7 @@ const formatPublicCard = card => {
   return `${CARD_SUIT_SYMBOLS[card.suit] || ''}${card.rank}`;
 };
 
-export default function GameBoard() {
+export default function GameBoard({ onLeaveRoom }) {
   const {
     currentRoom,
     currentPlayer,
@@ -102,6 +104,7 @@ export default function GameBoard() {
   } = useGameStore();
 
   const [messageApi, contextHolder] = message.useMessage();
+  const [modalApi, modalContextHolder] = Modal.useModal();
   const [buryingPlayerModal, setBuryingPlayerModal] = useState(false);
   const [firstPlayerModal, setFirstPlayerModal] = useState(false);
   const [selectedBuryingPlayer, setSelectedBuryingPlayer] = useState(null);
@@ -246,6 +249,7 @@ export default function GameBoard() {
   const activeSkillAnimationTimerRef = useRef(null);
   const exchangeAnimationDurationRef = useRef(2200);
   const equivalentReciprocityTimerRef = useRef(null);
+  const politicalReviewApprovalSubmittingRef = useRef(new Set());
 
   const clearCardTransitionTimers = () => {
     [
@@ -366,6 +370,13 @@ export default function GameBoard() {
       pending?.dealerPlayerId === currentPlayer?.id ? pending : null
     );
   }, [gameState?.destroyDyke?.pending, currentPlayer?.id]);
+  useEffect(() => {
+    const pending = getPendingPoliticalReviewDecision(gameState, currentPlayer?.id);
+    setPoliticalReviewDecision(previous => {
+      if (!pending) return null;
+      return previous?.id === pending.id ? previous : pending;
+    });
+  }, [gameState?.politicalReview?.pending, currentPlayer?.id]);
   const ownAfterglowPending = gameState?.afterglow?.pending?.playerId === currentPlayer?.id
     ? gameState.afterglow.pending
     : null;
@@ -413,8 +424,8 @@ export default function GameBoard() {
     || ruleIncludesId(gameState?.selectedRule, 'openly_revealed');
   const isPeopleCommuneRule = ruleIncludesId(selectedRule, 'people_commune')
     || ruleIncludesId(gameState?.selectedRule, 'people_commune');
-  const isAdministrativeReviewRule = ruleIncludesId(selectedRule, 'administrative_review')
-    || ruleIncludesId(gameState?.selectedRule, 'administrative_review');
+  const isReformAndOpeningUpRule = ruleIncludesId(selectedRule, 'reform_and_opening_up')
+    || ruleIncludesId(gameState?.selectedRule, 'reform_and_opening_up');
   const displayedPublicBottomCards = isOpenlyRevealedRule
     ? (gameState?.publicBottomCards?.length ? gameState.publicBottomCards : publicBottomCards)
     : [];
@@ -2666,6 +2677,8 @@ export default function GameBoard() {
       divineWeaponSourceCardId = null,
       ambiguousAlternativeCardIds = []
     }) => {
+      if (!id || politicalReviewApprovalSubmittingRef.current.has(id)) return;
+      politicalReviewApprovalSubmittingRef.current.add(id);
       socket.emit(SOCKET_EVENTS.PLAY_CARDS, {
         roomId: currentRoom.id,
         cardIds,
@@ -4123,6 +4136,23 @@ export default function GameBoard() {
     };
   }, [socket, messageApi, clearSelection, addCard, removeCards, currentPlayer, currentRoom]);
 
+  // GameBoard 的私密事件监听器全部挂载后再主动拉取一次个人待办。
+  // 依赖 socketId 可同时覆盖整页刷新和 Socket 断线后换连接恢复，且不会随普通 room_updated 重复请求。
+  useEffect(() => {
+    if (!socket || !currentRoom?.id || !currentPlayer?.id) return;
+    // 同一连接内拦截 StrictMode 等造成的重复重放；一旦换了连接，则必须允许
+    // 尚未送达服务端的政治审查放行凭证重新提交。
+    politicalReviewApprovalSubmittingRef.current.clear();
+    socket.emit(SOCKET_EVENTS.REQUEST_PRIVATE_GAME_STATE_SYNC, {
+      roomId: currentRoom.id
+    });
+  }, [
+    socket,
+    currentRoom?.id,
+    currentPlayer?.id,
+    currentPlayer?.socketId
+  ]);
+
   // 庄家倒计时递减
   useEffect(() => {
     if (dealerCountdown === null || dealerCountdown <= 0) return;
@@ -5071,6 +5101,18 @@ export default function GameBoard() {
     setRenameModal(true);
   };
 
+  const handleConfirmLeaveRoom = () => {
+    modalApi.confirm({
+      title: '退出房间？',
+      content: '退出后会立即释放当前座位，且无法通过刷新恢复。若牌局正在进行，本局也会同时终止。',
+      okText: '确认退出',
+      cancelText: '继续游戏',
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: () => onLeaveRoom?.()
+    });
+  };
+
   // 处理规则选择
   const handleRuleSelected = (ruleOrRuleIds) => {
     // 发送规则选择事件到服务器
@@ -5499,20 +5541,13 @@ export default function GameBoard() {
     });
   };
 
-  const isBuryingPlayer = gameState?.buryingPlayerId === currentPlayer?.id;
   const isActiveBuryingPlayer = activeBuryingPlayerId === currentPlayer?.id;
-  const hasBuriedPeopleCommuneCards = Boolean(
-    isPeopleCommuneRule
-    && gameState?.peopleCommune?.submittedPlayerIds?.includes(currentPlayer?.id)
-  );
-  const canViewBottomCards = activeBottomCardsCount > 0
-    && (isPeopleCommuneRule
-      ? hasBuriedPeopleCommuneCards
-      : (isBuryingPlayer || isOpenlyRevealedRule))
-    && (
-      !isAdministrativeReviewRule
-      || Boolean(gameState?.administrativeReview?.isBottomReleased)
-    );
+  const canViewBottomCards = canPlayerViewBottomCards({
+    gameState,
+    currentPlayerId: currentPlayer?.id,
+    selectedRule,
+    bottomCardsCount: activeBottomCardsCount
+  });
   const knownThreePowersSlots = ruleIncludesId(selectedRule, 'three_powers')
     ? (threePowersView?.slots || []).filter(slot => slot.rank)
     : [];
@@ -6043,6 +6078,7 @@ export default function GameBoard() {
               <GameTable
                 players={tablePlayers}
                 currentPlayer={currentPlayer}
+                onLeaveRoom={handleConfirmLeaveRoom}
                 playedCards={{}}
                 shownCards={{}}
                 myCards={[]}
@@ -6148,6 +6184,7 @@ export default function GameBoard() {
               currentInferiorDeclaration={currentInferiorDeclaration}
               players={tablePlayers}
               currentPlayer={currentPlayer}
+              onLeaveRoom={handleConfirmLeaveRoom}
               playedCards={{}}
               shownCards={shownCards}
               myCards={myCards}
@@ -6193,6 +6230,7 @@ export default function GameBoard() {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
+              onLeaveRoom={handleConfirmLeaveRoom}
               playedCards={{}}
               shownCards={{}}
               myCards={myCards}
@@ -6255,6 +6293,7 @@ export default function GameBoard() {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
+              onLeaveRoom={handleConfirmLeaveRoom}
               playedCards={displayedPlayedCards}
               throwFailedPreviews={viewingLastRound ? {} : throwFailedPreviews}
               shownCards={{}}
@@ -6373,6 +6412,7 @@ export default function GameBoard() {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
+              onLeaveRoom={handleConfirmLeaveRoom}
               playedCards={playedCards}
               shownCards={{}}
               myCards={myCards}
@@ -6419,6 +6459,7 @@ export default function GameBoard() {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
+              onLeaveRoom={handleConfirmLeaveRoom}
               playedCards={playedCards}
               shownCards={{}}
               myCards={myCards}
@@ -6470,6 +6511,7 @@ export default function GameBoard() {
       data-iron-evidence-mode={gameState?.ironEvidence?.roundMode || undefined}
     >
       {contextHolder}
+      {modalContextHolder}
 
       <Modal
         title="烛尽天明 · 初始烛态"
@@ -6962,14 +7004,12 @@ export default function GameBoard() {
             roomId: currentRoom.id,
             returnPlay: true
           });
-          setPoliticalReviewDecision(null);
         }}
         onCancel={() => {
           socket.emit(SOCKET_EVENTS.RESPOND_POLITICAL_REVIEW, {
             roomId: currentRoom.id,
             returnPlay: false
           });
-          setPoliticalReviewDecision(null);
         }}
       >
         <p className="player-decision-primary-text">
@@ -7930,6 +7970,8 @@ export default function GameBoard() {
                 ? `你埋下的 ${myBottomCards.length} 张牌仅自己可随时查看。`
                 : isOpenlyRevealedRule
                   ? `当前 ${myBottomCards.length} 张底牌始终明置，所有玩家均可随时查看。`
+                  : isReformAndOpeningUpRule
+                    ? `本局最终 ${myBottomCards.length} 张底牌，庄家与庄家队友均可随时查看。`
                   : `本局已埋 ${myBottomCards.length} 张底牌，仅庄家可随时查看。`}
             </Text>
             <span className="bottom-cards-score">

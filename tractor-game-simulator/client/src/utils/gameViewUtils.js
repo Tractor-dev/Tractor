@@ -38,6 +38,16 @@ export function getCanonicalOpenHandCards(gameState, playerId) {
 }
 
 /**
+ * “政治审查”的首次询问通过私密 Socket 事件送达，但刷新或瞬时断线可能错过该事件。
+ * 待审状态本身会保存在房间快照中；只有被指定的审查者可以据此恢复决策框。
+ */
+export function getPendingPoliticalReviewDecision(gameState, playerId) {
+  const pending = gameState?.politicalReview?.pending;
+  if (!playerId || pending?.reviewerPlayerId !== playerId) return null;
+  return pending;
+}
+
+/**
  * 普通玩家发起甩牌时会先乐观移除整组牌，失败后需要加回未被强制打出的部分。
  * “算无遗策”代打没有移除明手本人的本地手牌，因此绝不能执行同一恢复动作。
  */

@@ -606,9 +606,18 @@ function arePairsConsecutive(current, next, trumpSuit, trumpRank, activeRule) {
  * @param {String} leadingSuit - 首发花色
  * @param {String} trumpSuit - 主花色
  * @param {String} trumpRank - 级牌
+ * @param {Object|null} leadingPattern - 本轮首家实际牌型
  * @returns {Number} 1表示play1大，-1表示play2大，0表示相等
  */
-export function compareCards(play1, play2, leadingSuit, trumpSuit, trumpRank, activeRule = null) {
+export function compareCards(
+  play1,
+  play2,
+  leadingSuit,
+  trumpSuit,
+  trumpRank,
+  activeRule = null,
+  leadingPattern = null
+) {
   const pattern1 = play1.pattern;
   const pattern2 = play2.pattern;
 
@@ -676,7 +685,15 @@ export function compareCards(play1, play2, leadingSuit, trumpSuit, trumpRank, ac
 
   // 如果是甩牌，使用特殊的比较逻辑
   if (pattern1.type === PatternTypes.THROW || pattern2.type === PatternTypes.THROW) {
-    return compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, activeRule);
+    return compareThrowCards(
+      play1,
+      play2,
+      leadingSuit,
+      trumpSuit,
+      trumpRank,
+      activeRule,
+      leadingPattern
+    );
   }
 
   // 主牌大于副牌
@@ -786,7 +803,8 @@ export function compareCardsForRespectElders(
       leadingSuit,
       trumpSuit,
       trumpRank,
-      activeRule
+      activeRule,
+      leadingPlay.pattern
     );
   }
 
@@ -970,9 +988,18 @@ function compareRespectLexicographically(
  * @param {String} leadingSuit - 首发花色
  * @param {String} trumpSuit - 主花色
  * @param {String} trumpRank - 级牌
+ * @param {Object|null} leadingPattern - 本轮首家实际牌型
  * @returns {Number} 1表示play1大，-1表示play2大，0表示相等
  */
-function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, activeRule) {
+function compareThrowCards(
+  play1,
+  play2,
+  leadingSuit,
+  trumpSuit,
+  trumpRank,
+  activeRule,
+  leadingPattern
+) {
   const pattern1 = play1.pattern;
   const pattern2 = play2.pattern;
 
@@ -1003,14 +1030,13 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, acti
         activeRule
       ).components
       || [];
-    const lowerComponents = lowerPlay.pattern.components
-      || parseThrowCombination(
-        lowerPlay.cards,
-        trumpSuit,
-        trumpRank,
-        activeRule
-      ).components
-      || [];
+    const lowerComponents = getLeadingThrowComponents(
+      leadingPattern,
+      lowerPlay,
+      trumpSuit,
+      trumpRank,
+      activeRule
+    );
     if (!canTrumpThrow(higherComponents, lowerComponents)) {
       return firstIsHigher ? -1 : 1;
     }
@@ -1020,7 +1046,14 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, acti
   if (isTrump1 && !isTrump2) {
     // play1是主牌，play2是副牌
     // 主牌必须匹配相同的牌型组合才能毙掉
-    if (pattern2.type === PatternTypes.THROW && pattern2.components) {
+    const sideComponents = getLeadingThrowComponents(
+      leadingPattern,
+      play2,
+      trumpSuit,
+      trumpRank,
+      activeRule
+    );
+    if (sideComponents.length > 0) {
       // 获取主牌的组件（如果不是THROW类型，先解析为组件）
       let trumpComponents = pattern1.components;
       if (!trumpComponents) {
@@ -1029,7 +1062,7 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, acti
       }
 
       // 检查主牌是否匹配了副牌的牌型组合（支持向下兼容）
-      if (canTrumpThrow(trumpComponents, pattern2.components)) {
+      if (canTrumpThrow(trumpComponents, sideComponents)) {
         return 1; // 主牌毙掉副牌
       } else {
         return -1; // 主牌牌型不匹配，无法毙掉
@@ -1040,7 +1073,14 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, acti
 
   if (!isTrump1 && isTrump2) {
     // play2是主牌，play1是副牌
-    if (pattern1.type === PatternTypes.THROW && pattern1.components) {
+    const sideComponents = getLeadingThrowComponents(
+      leadingPattern,
+      play1,
+      trumpSuit,
+      trumpRank,
+      activeRule
+    );
+    if (sideComponents.length > 0) {
       // 获取主牌的组件（如果不是THROW类型，先解析为组件）
       let trumpComponents = pattern2.components;
       if (!trumpComponents) {
@@ -1049,7 +1089,7 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, acti
       }
 
       // 检查主牌是否匹配了副牌的牌型组合（支持向下兼容）
-      if (canTrumpThrow(trumpComponents, pattern1.components)) {
+      if (canTrumpThrow(trumpComponents, sideComponents)) {
         return -1; // 主牌毙掉副牌
       } else {
         return 1; // 主牌牌型不匹配，无法毙掉
@@ -1079,10 +1119,30 @@ function compareThrowCards(play1, play2, leadingSuit, trumpSuit, trumpRank, acti
     }
   }
 
-  // 同花色比较（都是主牌或都是同一副牌花色）。
-  // 甩牌只能由相同的组件结构互相比较：一对不能被当作两个散牌，
-  // 否则“对10”会因为拥有对子组件而错误压过“A、K”两个单牌。
-  // 主牌毙副牌是否允许拆分，仍由上面的 canTrumpThrow 单独处理。
+  // 首家甩出的全部是散牌时，后家的对子/拖拉机可以向下拆成散牌通道；
+  // 此时整组只由最大单张决定。比如“小王 + 对7”可以压过三张较小的散主，
+  // 而“对10”拆开后仍压不过“A、K”。
+  if (isAllSingleThrowPattern(leadingPattern)) {
+    const expectedLength = leadingPattern.length;
+    if (
+      play1.cards?.length !== expectedLength
+      || play2.cards?.length !== expectedLength
+    ) {
+      return 0;
+    }
+    const max1 = Math.max(...play1.cards.map(card =>
+      getCardStrength(card, trumpSuit, trumpRank, activeRule)
+    ));
+    const max2 = Math.max(...play2.cards.map(card =>
+      getCardStrength(card, trumpSuit, trumpRank, activeRule)
+    ));
+    if (max1 > max2) return 1;
+    if (max1 < max2) return -1;
+    return 0;
+  }
+
+  // 首家含对子或拖拉机组件时，争大仍须匹配首家的组件结构。
+  // 主牌毙副牌是否允许向下拆分，仍由上面的 canTrumpThrow 单独处理。
   const components1 = getThrowComponents(play1, trumpSuit, trumpRank, activeRule);
   const components2 = getThrowComponents(play2, trumpSuit, trumpRank, activeRule);
   if (!haveSameThrowStructure(components1, components2)) {
@@ -1122,6 +1182,41 @@ function getThrowComponents(play, trumpSuit, trumpRank, activeRule) {
 
   const parsed = parseThrowCombination(play.cards, trumpSuit, trumpRank, activeRule);
   return parsed.valid ? parsed.components : [];
+}
+
+function getLeadingThrowComponents(
+  leadingPattern,
+  fallbackPlay,
+  trumpSuit,
+  trumpRank,
+  activeRule
+) {
+  if (
+    leadingPattern?.type === PatternTypes.THROW
+    && Array.isArray(leadingPattern.components)
+    && leadingPattern.components.length > 0
+  ) {
+    return leadingPattern.components;
+  }
+  if (fallbackPlay.pattern?.type !== PatternTypes.THROW) return [];
+  return getThrowComponents(fallbackPlay, trumpSuit, trumpRank, activeRule);
+}
+
+function isAllSingleThrowPattern(pattern) {
+  if (
+    pattern?.type !== PatternTypes.THROW
+    || !Array.isArray(pattern.components)
+    || pattern.components.length < 2
+  ) {
+    return false;
+  }
+
+  const representedCards = pattern.components.reduce(
+    (total, component) => total + (component.length ?? component.cards?.length ?? 0),
+    0
+  );
+  return pattern.components.every(component => component.type === PatternTypes.SINGLE)
+    && representedCards === pattern.length;
 }
 
 function haveSameThrowStructure(components1, components2) {

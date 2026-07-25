@@ -400,6 +400,20 @@ function handlePlayerLeave(io, socket, roomManager, roomId, { immediate = false 
   }
 }
 
+function deleteRoomAndResources(roomManager, room) {
+  const gameEngines = getGameEngines();
+  const gameEngine = gameEngines.get(room.id);
+  try {
+    gameEngine?.cleanup?.();
+  } catch (error) {
+    logger.error(`清理房间 ${room.id} 的游戏引擎失败:`, error);
+  } finally {
+    gameEngines.delete(room.id);
+    getBotServices().delete(room.id);
+    roomManager.deleteRoom(room.id);
+  }
+}
+
 function removePlayerPermanently(io, roomManager, room, player, socket) {
   try {
 
@@ -433,6 +447,14 @@ function removePlayerPermanently(io, roomManager, room, player, socket) {
       playerName: player.name
     });
 
+    // Bot-only rooms have no human who can continue or reclaim them. Delete
+    // the room immediately instead of transferring ownership to a bot.
+    if (!room.players.some(remainingPlayer => !remainingPlayer.isBot)) {
+      deleteRoomAndResources(roomManager, room);
+      logger.info(`玩家 ${player.name} 离开房间: ${room.id}，仅剩Bot，房间已删除`);
+      return;
+    }
+
     // 如果房主离开，转移房主权限或删除房间
     if (room.hostId === player.socketId) {
       if (room.players.length > 0) {
@@ -443,12 +465,7 @@ function removePlayerPermanently(io, roomManager, room, player, socket) {
         });
         logger.info(`房间 ${room.id} 房主转移给: ${room.players[0].name}`);
       } else {
-        // 房间被删除时也清理游戏引擎和bot服务
-        const gameEngines = getGameEngines();
-        const botServices = getBotServices();
-        gameEngines.delete(room.id);
-        botServices.delete(room.id);
-        roomManager.deleteRoom(room.id);
+        deleteRoomAndResources(roomManager, room);
         logger.info(`玩家 ${player.name} 离开房间: ${room.id}，房间已删除`);
         return; // 房间已删除，不需要再广播
       }
