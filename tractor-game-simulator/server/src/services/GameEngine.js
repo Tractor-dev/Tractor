@@ -143,6 +143,7 @@ import {
   isTrumpWinsRule,
   isWoodenOxFlowingHorseRule,
   isWeighingThousandJinRule,
+  isFearOfBreakingVaseRule,
   isTimeReversalRule,
   resolveOfferedRule,
   RuleIds
@@ -166,6 +167,7 @@ const SECOND_BATTLEFIELD_COMMUNITY_CARD_COUNT = 5;
 const SECOND_BATTLEFIELD_MIN_ACCUMULATED_CARDS = 5;
 const SECOND_BATTLEFIELD_FINAL_HAND_THRESHOLD = 5;
 const OUTWARD_HARMONY_AWARD = 5;
+const FEAR_OF_BREAKING_VASE_PENALTY = 10;
 const WOODEN_OX_MAX_TRANSFERS = 4;
 const INVITE_INTO_URN_SUITS = Object.freeze(['hearts', 'diamonds', 'clubs', 'spades']);
 const INVITE_INTO_URN_RANKS = Object.freeze([
@@ -1437,6 +1439,18 @@ export class GameEngine {
     const upstreamIndex = (dealerIndex - 1 + players.length) % players.length;
     const upstreamPlayer = players[upstreamIndex];
     const originalOrderPlayerIds = players.map(player => player.id);
+    const playerIdAtIndex = index => (
+      Number.isInteger(index) && players[index] ? players[index].id : null
+    );
+    // 换位前先把所有“按数组索引保存”的行动状态还原成玩家 ID。
+    // 否则索引会继续指向原物理位置，换位后就可能让庄家原位置上的上家先出牌。
+    const indexedPlayerIds = {
+      currentPlayerId: playerIdAtIndex(gameState.currentPlayerIndex),
+      roundStartPlayerId: playerIdAtIndex(gameState.roundStartPlayerIndex),
+      currentWinnerPlayerId: playerIdAtIndex(gameState.currentWinnerIndex),
+      lastRoundWinnerPlayerId: playerIdAtIndex(gameState.lastRoundWinnerIndex),
+      nextRuleChooserPlayerId: playerIdAtIndex(gameState.nextRuleChooserIndex)
+    };
 
     [players[dealerIndex], players[upstreamIndex]] = [
       players[upstreamIndex],
@@ -1448,6 +1462,24 @@ export class GameEngine {
 
     const swappedDealerIndex = this.room.getPlayerIndex(dealerPlayer.id);
     gameState.dealerPlayerIndex = swappedDealerIndex;
+    const remapIndex = playerId => (
+      playerId ? this.room.getPlayerIndex(playerId) : null
+    );
+    if (indexedPlayerIds.currentPlayerId) {
+      gameState.currentPlayerIndex = remapIndex(indexedPlayerIds.currentPlayerId);
+    }
+    if (indexedPlayerIds.roundStartPlayerId) {
+      gameState.roundStartPlayerIndex = remapIndex(indexedPlayerIds.roundStartPlayerId);
+    }
+    if (indexedPlayerIds.currentWinnerPlayerId) {
+      gameState.currentWinnerIndex = remapIndex(indexedPlayerIds.currentWinnerPlayerId);
+    }
+    if (indexedPlayerIds.lastRoundWinnerPlayerId) {
+      gameState.lastRoundWinnerIndex = remapIndex(indexedPlayerIds.lastRoundWinnerPlayerId);
+    }
+    if (indexedPlayerIds.nextRuleChooserPlayerId) {
+      gameState.nextRuleChooserIndex = remapIndex(indexedPlayerIds.nextRuleChooserPlayerId);
+    }
     gameState.happyTwins = {
       active: true,
       restored: false,
@@ -3015,7 +3047,7 @@ export class GameEngine {
 
     const isJoker = suit === Suits.JOKER;
     const validFace = isJoker
-      ? [Ranks.SMALL_JOKER, Ranks.BIG_JOKER].includes(rank)
+      ? [Ranks.SMALL_JOKER, Ranks.BIG_JOKER, Ranks.WHITE_JOKER].includes(rank)
       : INVITE_INTO_URN_SUITS.includes(suit) && INVITE_INTO_URN_RANKS.includes(rank);
     if (!validFace) throw new Error('请选择一种有效的实体牌面');
 
@@ -8507,7 +8539,7 @@ export class GameEngine {
     };
   }
 
-  recomputeRoundWinner(plays = this.room.gameState.currentRoundPlays) {
+  findRoundWinningPlay(plays = this.room.gameState.currentRoundPlays) {
     if (!Array.isArray(plays) || plays.length === 0) return null;
     const { gameState } = this.room;
     const comparablePlays = plays.filter(play => !play.lureTigerSilenced);
@@ -8538,8 +8570,141 @@ export class GameEngine {
       );
       if (comparison > 0) winner = play;
     }
-    gameState.currentWinnerIndex = winner.playerIndex;
     return winner;
+  }
+
+  recomputeRoundWinner(plays = this.room.gameState.currentRoundPlays) {
+    const winner = this.findRoundWinningPlay(plays);
+    if (!winner) return null;
+    this.room.gameState.currentWinnerIndex = winner.playerIndex;
+    return winner;
+  }
+
+  getFearOfBreakingVaseProtectedCards(play) {
+    const cards = play?.originalCards || play?.cards || [];
+    const faceCounts = new Map();
+    for (const card of cards) {
+      const faceKey = `${card.suit}:${card.rank}`;
+      faceCounts.set(faceKey, (faceCounts.get(faceKey) || 0) + 1);
+    }
+    const pairCount = [...faceCounts.values()].reduce(
+      (total, count) => total + Math.floor(count / 2),
+      0
+    );
+    const jokerCount = cards.filter(card => card.suit === Suits.JOKER).length;
+    return {
+      pairCount,
+      jokerCount,
+      qualifies: pairCount >= 2 || jokerCount >= 2
+    };
+  }
+
+  isFearOfBreakingVaseRuff(play, leadingPlay) {
+    if (!play || !leadingPlay || play.playerId === leadingPlay.playerId) return false;
+    const { gameState } = this.room;
+    const leadingPattern = leadingPlay.comparisonPattern || leadingPlay.pattern;
+    const playPattern = play.comparisonPattern || play.pattern;
+    const leadingSuit = leadingPattern?.suit;
+    if (!leadingSuit || leadingSuit === 'trump') return false;
+
+    const leadIsInferior = isThreeSixNineGradesRule(gameState.selectedRule)
+      && Boolean(gameState.inferiorSuit)
+      && leadingSuit === gameState.inferiorSuit;
+    const playIsOrdinarySide = playPattern?.suit !== 'trump'
+      && playPattern?.suit !== gameState.inferiorSuit;
+    const usesRuffSuit = playPattern?.suit === 'trump'
+      || (leadIsInferior && playIsOrdinarySide);
+    if (!usesRuffSuit) return false;
+
+    return compareCards(
+      {
+        cards: play.comparisonCards || play.cards,
+        pattern: playPattern,
+        playerIndex: play.playerIndex
+      },
+      {
+        cards: leadingPlay.comparisonCards || leadingPlay.cards,
+        pattern: leadingPattern,
+        playerIndex: leadingPlay.playerIndex
+      },
+      leadingSuit,
+      gameState.trumpSuit,
+      gameState.trumpRank,
+      this.getRuleRuntimeContext(),
+      leadingPattern
+    ) > 0;
+  }
+
+  resolveFearOfBreakingVaseAtRoundEnd(winnerIndex, completedRound) {
+    const { gameState, players } = this.room;
+    const plays = gameState.currentRoundPlays;
+    if (
+      !isFearOfBreakingVaseRule(gameState.selectedRule)
+      || players.length !== 4
+      || plays.length !== players.length
+    ) {
+      return null;
+    }
+
+    const winnerPlay = plays.find(play => play.playerIndex === winnerIndex);
+    const firstPlay = plays[0];
+    const secondPlay = plays[1];
+    if (!winnerPlay || !firstPlay || !secondPlay) return null;
+
+    const firstTeammate = this.getFixedTeammate(firstPlay.playerId);
+    const firstTeammatePlay = plays.find(play => play.playerId === firstTeammate?.id);
+    const protectedCards = this.getFearOfBreakingVaseProtectedCards(firstTeammatePlay);
+    const leaderHurtVessel = winnerPlay.playerId === firstPlay.playerId
+      && protectedCards.qualifies;
+
+    const ruffPlays = plays.filter(play => (
+      this.isFearOfBreakingVaseRuff(play, firstPlay)
+    ));
+    const secondTeammate = this.getFixedTeammate(secondPlay.playerId);
+    const strongestWithoutSecond = this.findRoundWinningPlay(
+      plays.filter(play => play.playerId !== secondPlay.playerId)
+    );
+    const secondHurtVessel = winnerPlay.playerId === secondPlay.playerId
+      && ruffPlays.length === 1
+      && ruffPlays[0].playerId === secondPlay.playerId
+      && strongestWithoutSecond?.playerId === secondTeammate?.id;
+
+    if (!leaderHurtVessel && !secondHurtVessel) return null;
+
+    const triggerType = leaderHurtVessel
+      ? 'leader_over_protected_teammate'
+      : 'sole_second_ruff_over_teammate';
+    const vesselPlayer = leaderHurtVessel ? firstTeammate : secondTeammate;
+    const dealerIndex = this.room.getPlayerIndex(gameState.buryingPlayerId);
+    const winnerIsAttacker = this.isAttackerPlayerIndex(winnerIndex, dealerIndex);
+    const scoreDelta = winnerIsAttacker
+      ? -FEAR_OF_BREAKING_VASE_PENALTY
+      : FEAR_OF_BREAKING_VASE_PENALTY;
+    gameState.attackerScore += scoreDelta;
+
+    const result = {
+      triggered: true,
+      triggerType,
+      round: completedRound,
+      winnerPlayerIndex: winnerIndex,
+      winnerPlayerId: winnerPlay.playerId,
+      winnerPlayerName: this.room.findPlayerById(winnerPlay.playerId)?.name || '未知玩家',
+      vesselPlayerId: vesselPlayer?.id || null,
+      vesselPlayerName: vesselPlayer?.name || '未知玩家',
+      pairCount: leaderHurtVessel ? protectedCards.pairCount : 0,
+      jokerCount: leaderHurtVessel ? protectedCards.jokerCount : 0,
+      winnerIsAttacker,
+      penalizedSide: winnerIsAttacker ? 'attacker' : 'dealer',
+      penalty: FEAR_OF_BREAKING_VASE_PENALTY,
+      scoreDelta,
+      attackerScore: gameState.attackerScore
+    };
+    logger.info(
+      `房间 ${this.room.id} 投鼠忌器：${result.winnerPlayerName}一方误伤队友` +
+      `${result.vesselPlayerName}，失去${result.penalty}分；` +
+      `闲家总分变化${scoreDelta > 0 ? '+' : ''}${scoreDelta}至${gameState.attackerScore}`
+    );
+    return result;
   }
 
   hasPendingDestroyDykeDecision() {
@@ -9500,7 +9665,11 @@ export class GameEngine {
     this.room.gameState.phase = GamePhases.PLAYING;
 
     // 一马当先只替换第一轮首发座位；庄家及底牌归属始终保持不变。
-    const dealerIndex = this.room.getPlayerIndex(dealer.id);
+    // 欢乐成双换位后必须按庄家身份重新定位，不能沿用换位前的物理座位索引。
+    const openingDealer = isHappyTwinsRule(this.room.gameState.selectedRule)
+      ? this.room.findPlayerById(this.room.gameState.happyTwins?.dealerPlayerId) || dealer
+      : dealer;
+    const dealerIndex = this.room.getPlayerIndex(openingDealer.id);
     const firstPlayerIndex = isOneHorseLeadsRule(this.room.gameState.selectedRule)
       ? (dealerIndex + 2) % this.room.players.length
       : dealerIndex;
@@ -11135,6 +11304,10 @@ export class GameEngine {
       const outwardHarmonyInnerDivision = this.resolveOutwardHarmonyInnerDivisionAtRoundEnd(
         roundUpdate?.round
       );
+      const fearOfBreakingVase = this.resolveFearOfBreakingVaseAtRoundEnd(
+        winnerIndex,
+        roundUpdate?.round ?? this.room.gameState.currentRound
+      );
 
       roundScoreInfo = {
         baseRoundPoints,
@@ -11171,6 +11344,7 @@ export class GameEngine {
         secondBattlefield,
         inviteIntoUrn,
         outwardHarmonyInnerDivision,
+        fearOfBreakingVase,
         focusFigureScoringPending,
         winnerIsAttacker,
         attackerScore: focusFigureScoringPending ? null : this.room.gameState.attackerScore,

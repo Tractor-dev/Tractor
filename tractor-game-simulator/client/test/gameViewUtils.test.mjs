@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  formatLevel,
   getCanonicalOpenHandCards,
   getDestroyDykeDisplayState,
   getDisplayedDefenseAsOffense,
@@ -10,12 +11,19 @@ import {
   getRuleSelectionAccess,
   getStriveUpstreamActionOrder,
   getThrowFailedPreview,
-  getThrowFailedCardsToRestore,
   mergeLivePlayerCardCounts,
   mergeTransferredHandCards,
   shouldShowGameBoard,
   THROW_FAILED_PREVIEW_DURATION_MS
 } from '../src/utils/gameViewUtils.js';
+
+test('等级显示使用对应牌面而不是 11 至 14 的内部编号', () => {
+  assert.deepEqual(
+    [2, 9, 10, 11, 12, 13, 14].map(formatLevel),
+    ['2', '9', '10', 'J', 'Q', 'K', 'A']
+  );
+  assert.equal(formatLevel('12'), 'Q');
+});
 
 test('以守为攻的玩家标签与轮末停留牌桌属于同一轮', () => {
   const gameState = {
@@ -141,39 +149,6 @@ test('政治审查的审查者断线重连后可从房间快照恢复待决询�
   );
 });
 
-test('算无遗策代打甩牌失败时不向明手本地重复恢复卡牌', () => {
-  const attemptedCardObjects = [
-    { id: 'hearts-K-0', suit: 'hearts', rank: 'K' },
-    { id: 'hearts-J-0', suit: 'hearts', rank: 'J' }
-  ];
-  const forcedCards = [attemptedCardObjects[1]];
-
-  assert.deepEqual(getThrowFailedCardsToRestore({
-    playerId: 'ordinary-player',
-    currentPlayerId: 'ordinary-player',
-    attemptedCardObjects,
-    forcedCards
-  }), [attemptedCardObjects[0]]);
-
-  assert.deepEqual(getThrowFailedCardsToRestore({
-    playerId: 'open-hand',
-    currentPlayerId: 'open-hand',
-    openHandPlayerId: 'open-hand',
-    isProxy: true,
-    attemptedCardObjects,
-    forcedCards
-  }), []);
-
-  // 即使连接到旧服务端、事件里尚未携带 isProxy，也能通过明手身份阻止重复恢复。
-  assert.deepEqual(getThrowFailedCardsToRestore({
-    playerId: 'open-hand',
-    currentPlayerId: 'open-hand',
-    openHandPlayerId: 'open-hand',
-    attemptedCardObjects,
-    forcedCards
-  }), []);
-});
-
 test('甩牌失败完整牌面保留一秒，再露出服务端强制打出的最小组件', () => {
   const attemptedCardObjects = [
     { id: 'hearts-A-0', suit: 'hearts', rank: 'A' },
@@ -268,7 +243,7 @@ test('换牌落入手牌时只重排一次，并按牌 ID 去除旧副本', () =
   assert.deepEqual(mergeTransferredHandCards(null, null, null), []);
 });
 
-test('记录在案用共用点数轴压缩四种花色，并精确保留两副牌计数和大小王', () => {
+test('记录在案用共用点数轴压缩四种花色，并精确保留两副牌计数和普通王、白王', () => {
   const view = getRecordOnFileTrackerView({
     activeRound: 3,
     lastActiveRound: null,
@@ -278,7 +253,7 @@ test('记录在案用共用点数轴压缩四种花色，并精确保留两副�
       hearts: { '10': 2 },
       clubs: {},
       diamonds: { '5': 1 },
-      joker: { small_joker: 1, big_joker: 2 }
+      joker: { small_joker: 1, big_joker: 2, white_joker: 1 }
     }
   }, 3);
 
@@ -286,7 +261,7 @@ test('记录在案用共用点数轴压缩四种花色，并精确保留两副�
   assert.equal(view.suits.length, 4);
   assert.equal(view.suits.find(suit => suit.id === 'hearts').counts[8], 2);
   assert.equal(view.suits.find(suit => suit.id === 'spades').counts[11], 1);
-  assert.deepEqual(view.jokers, [1, 2]);
+  assert.deepEqual(view.jokers, [1, 2, 1]);
   assert.equal(getRecordOnFileTrackerView({
     activeRound: 3,
     lastActiveRound: null

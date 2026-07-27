@@ -56,7 +56,7 @@ export default function RecordOnFileTracker({ recordOnFile, displayRoundNumber }
           ])}
         </div>
 
-        <div className="record-on-file-jokers" aria-label="大小王已出牌统计">
+        <div className="record-on-file-jokers" aria-label="王牌已出牌统计">
           <span className="record-on-file-jokers-title">王牌</span>
           <div className="record-joker-item">
             <span>小王</span>
@@ -65,6 +65,10 @@ export default function RecordOnFileTracker({ recordOnFile, displayRoundNumber }
           <div className="record-joker-item">
             <span>大王</span>
             {renderCount(view.jokers[1], 'big-joker', '大王')}
+          </div>
+          <div className="record-joker-item">
+            <span>白王</span>
+            {renderCount(view.jokers[2], 'white-joker', '白王')}
           </div>
         </div>
       </div>

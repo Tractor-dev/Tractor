@@ -7,7 +7,7 @@ import JoinRoomModal from './components/Room/JoinRoomModal';
 import RoomList from './components/Room/RoomList';
 import GameBoard from './components/Game/GameBoard';
 import { SOCKET_EVENTS } from './utils/constants';
-import { shouldShowGameBoard } from './utils/gameViewUtils';
+import { formatLevel, shouldShowGameBoard } from './utils/gameViewUtils';
 import { RULE_SELECT_OPTIONS } from './utils/ruleCatalog';
 import './styles/App.css';
 
@@ -312,7 +312,7 @@ function App() {
                   {player.socketId === currentRoom.hostId && ' (房主)'}
                   {player.id === currentPlayer?.id && ' (你)'}
                   {player.isBot && ' (Bot)'}
-                  {' - '} 分数: {player.score} - 等级: {player.level}
+                  {' - '} 分数: {player.score} - 等级: {formatLevel(player.level)}
                 </div>
               ))}
             </div>

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 async function createRoom(page, roomName = '我的房间', { testRuleName = null } = {}) {
+  await page.addInitScript(() => localStorage.removeItem('tractorRoomSession'));
   await page.goto('/');
   await expect(page.getByRole('button', { name: '创建房间' })).toBeEnabled();
   await page.getByRole('button', { name: '创建房间' }).click();
@@ -21,6 +22,7 @@ async function createRoom(page, roomName = '我的房间', { testRuleName = null
 }
 
 async function joinRoom(page, roomId, playerName) {
+  await page.addInitScript(() => localStorage.removeItem('tractorRoomSession'));
   await page.goto('/');
   await expect(page.getByRole('button', { name: '加入房间' })).toBeEnabled();
   await page.getByRole('button', { name: '加入房间' }).click();
@@ -2369,6 +2371,22 @@ test('时间倒流允许多人预备，并可在第四家出完后的窗口加�
     const lateDialog = lateActivatorPage.getByRole('dialog', { name: '时间倒流' });
     await expect(dialog).toBeVisible({ timeout: 3_000 });
     await expect(lateDialog).toBeVisible({ timeout: 3_000 });
+    let pendingTurnPage = null;
+    await expect.poll(async () => {
+      for (const page of pages) {
+        if (await page.locator('.player-bottom.current-turn').isVisible().catch(() => false)) {
+          pendingTurnPage = page;
+          return true;
+        }
+      }
+      return false;
+    }).toBe(true);
+    const pendingHandCount = await pendingTurnPage.locator('.my-hand .card').count();
+    await expect(pendingTurnPage.getByRole('button', { name: /^出牌\(\d+\)$/ })).toBeDisabled();
+    await expect(pendingTurnPage.locator('.my-hand .card').first()).toHaveAttribute('aria-disabled', 'true');
+    await pendingTurnPage.locator('.my-hand .card').first().dispatchEvent('click');
+    await expect(pendingTurnPage.locator('.my-hand .card.selected')).toHaveCount(0);
+    await expect(pendingTurnPage.locator('.my-hand .card')).toHaveCount(pendingHandCount);
     await expect(dialog).toContainText('收回本轮四家的出牌并重新出牌');
     const dialogBox = await dialog.boundingBox();
     expect(dialogBox.y).toBeGreaterThan(350);

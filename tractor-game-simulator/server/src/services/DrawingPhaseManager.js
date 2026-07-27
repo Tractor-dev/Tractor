@@ -4,12 +4,13 @@ import {
   isAdministrativeReviewRule,
   isFatalBeautyRule,
   isHeavyFogRule,
-    isLastStandRule,
-    isOneCountryTwoSystemsRule,
-    isOpenlyRevealedRule,
-    isPeopleCommuneRule,
-    isPlannedEconomyRule,
-    isThreeSixNineGradesRule,
+  isKingOverWhiteRule,
+  isLastStandRule,
+  isOneCountryTwoSystemsRule,
+  isOpenlyRevealedRule,
+  isPeopleCommuneRule,
+  isPlannedEconomyRule,
+  isThreeSixNineGradesRule,
   isUnarmedRule
 } from '../rules/ruleRegistry.js';
 import {
@@ -54,6 +55,9 @@ export class DrawingPhaseManager {
 
     // 创建并洗牌
     let deck = DeckService.shuffle(DeckService.createDeck());
+    if (isKingOverWhiteRule(this.room.gameState.selectedRule)) {
+      deck = DeckService.transformRandomJokerToWhite(deck, this.random);
+    }
     const isUnarmed = isUnarmedRule(this.room.gameState.selectedRule);
     if (isUnarmed) {
       deck = DeckService.prepareUnarmedDeck(deck);

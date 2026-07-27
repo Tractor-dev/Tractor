@@ -152,6 +152,8 @@ const CHANGE_RICE_TO_MULBERRY_RULE = getRuleById(RuleIds.CHANGE_RICE_TO_MULBERRY
 const DESTROY_DYKE_RULE = getRuleById(RuleIds.DESTROY_DYKE_FLOOD_FIELDS);
 const RECORD_ON_FILE_RULE = getRuleById(RuleIds.RECORD_ON_FILE);
 const WEIGHING_THOUSAND_JIN_RULE = getRuleById(RuleIds.WEIGHING_THOUSAND_JIN);
+const KING_OVER_WHITE_RULE = getRuleById(RuleIds.KING_OVER_WHITE);
+const FEAR_OF_BREAKING_VASE_RULE = getRuleById(RuleIds.FEAR_OF_BREAKING_VASE);
 
 function createRoom(config = {}) {
   const room = new Room('规则测试房', 'socket-0', { dealInterval: 10, ...config });
@@ -671,14 +673,70 @@ test('特殊开局规则具有正确的底牌数量与闲家初始分', () => {
     [RuleIds.CHANGE_RICE_TO_MULBERRY, '改稻为桑', 8, 0],
     [RuleIds.DESTROY_DYKE_FLOOD_FIELDS, '毁堤淹田', 8, 0],
     [RuleIds.RECORD_ON_FILE, '记录在案', 8, 0],
-    [RuleIds.WEIGHING_THOUSAND_JIN, '上称千斤', 8, 0]
+    [RuleIds.WEIGHING_THOUSAND_JIN, '上称千斤', 8, 0],
+    [RuleIds.KING_OVER_WHITE, '王上加白', 8, 0],
+    [RuleIds.FEAR_OF_BREAKING_VASE, '投鼠忌器', 8, 0]
   ];
 
-  assert.equal(getImplementedRules().length, 103);
+  assert.equal(getImplementedRules().length, 105);
   for (const [id, name, bottomCardsCount, attackerStartingScore] of expectedSetups) {
     assert.equal(getRuleById(id).name, name);
     assert.deepEqual(getRuleSetup({ id }), { bottomCardsCount, attackerStartingScore });
   }
+});
+
+test('王上加白在洗牌后随机将且仅将一张普通王变为全局最大的白王', () => {
+  assert.equal(KING_OVER_WHITE_RULE.name, '王上加白');
+  assert.deepEqual(getRuleSetup(KING_OVER_WHITE_RULE), {
+    bottomCardsCount: 8,
+    attackerStartingScore: 0
+  });
+
+  const room = createRoom();
+  const manager = new DrawingPhaseManager(
+    room,
+    createIo(),
+    null,
+    null,
+    null,
+    () => 0.5
+  );
+  const originalShuffle = DeckService.shuffle;
+  room.gameState.selectedRule = KING_OVER_WHITE_RULE;
+
+  try {
+    DeckService.shuffle = deck => [...deck];
+    manager.start();
+    manager.stop();
+  } finally {
+    DeckService.shuffle = originalShuffle;
+  }
+
+  const fullDeck = [
+    ...room.gameState.bottomCards,
+    ...room.gameState.deck
+  ];
+  const jokers = fullDeck.filter(value => value.suit === 'joker');
+  const whiteJokers = jokers.filter(value => value.rank === Ranks.WHITE_JOKER);
+  const ordinaryJokers = jokers.filter(value => (
+    [Ranks.SMALL_JOKER, Ranks.BIG_JOKER].includes(value.rank)
+  ));
+
+  assert.equal(fullDeck.length, 108);
+  assert.equal(jokers.length, 4);
+  assert.equal(whiteJokers.length, 1);
+  assert.equal(ordinaryJokers.length, 3);
+  assert.equal(whiteJokers[0].id, 'joker-small_joker-1');
+  assert.equal(whiteJokers[0].value, whiteJokers[0].calculateValue());
+  assert.equal(whiteJokers[0].toJSON().rank, Ranks.WHITE_JOKER);
+  assert.ok(
+    getCardStrength(whiteJokers[0], 'hearts', '2', KING_OVER_WHITE_RULE)
+      > getCardStrength(card('joker', Ranks.BIG_JOKER), 'hearts', '2', KING_OVER_WHITE_RULE)
+  );
+  assert.equal(
+    DeckService.createDeck().filter(value => value.rank === Ranks.WHITE_JOKER).length,
+    0
+  );
 });
 
 test('二鬼拍门在摸到第二张王时立即公开，后摸到的王也加入明置手牌', () => {
@@ -3952,6 +4010,60 @@ test('欢乐成双在庄家锁定后让庄家与原上家交换位置', () => {
   )));
 });
 
+test('欢乐成双首局换位后按玩家身份迁移牌权，并仍由庄家本人首发', () => {
+  const room = createRoom();
+  const io = createIo();
+  const engine = new GameEngine(room, io);
+  const originalPlayers = [...room.players];
+  const dealer = originalPlayers[2];
+  const originalUpstream = originalPlayers[1];
+  const buriedCard = card('clubs', '3', 2700);
+  const openingCard = card('diamonds', '6', 2701);
+  dealer.addCard(buriedCard);
+  dealer.addCard(openingCard);
+
+  room.gameState.phase = GamePhases.DRAWING;
+  room.gameState.selectedRule = HAPPY_TWINS_RULE;
+  room.gameState.pendingDealerPlayerId = dealer.id;
+  room.gameState.dealerPlayerIndex = 2;
+  // 模拟庄家锁定前已经按座位保存的行动状态；换位后这些状态必须继续跟随原玩家。
+  room.gameState.currentPlayerIndex = 2;
+  room.gameState.roundStartPlayerIndex = 2;
+  room.gameState.currentWinnerIndex = 2;
+  room.gameState.lastRoundWinnerIndex = 2;
+  room.gameState.nextRuleChooserIndex = 2;
+
+  engine.applyHappyTwinsPositionSwap(dealer);
+
+  assert.deepEqual(
+    room.players.map(player => player.id),
+    [originalPlayers[0].id, dealer.id, originalUpstream.id, originalPlayers[3].id]
+  );
+  assert.equal(room.gameState.dealerPlayerIndex, 1);
+  assert.equal(room.gameState.currentPlayerIndex, 1);
+  assert.equal(room.gameState.roundStartPlayerIndex, 1);
+  assert.equal(room.gameState.currentWinnerIndex, 1);
+  assert.equal(room.gameState.lastRoundWinnerIndex, 1);
+  assert.equal(room.gameState.nextRuleChooserIndex, 1);
+
+  room.gameState.phase = GamePhases.BURYING;
+  room.gameState.pendingDealerPlayerId = null;
+  room.gameState.buryingPlayerId = dealer.id;
+  room.gameState.bottomCardsCount = 1;
+  const result = engine.buryCards(dealer.id, [buriedCard.id]);
+
+  assert.equal(result.firstPlayer.id, dealer.id);
+  assert.equal(room.gameState.firstPlayerId, dealer.id);
+  assert.equal(room.gameState.currentPlayerIndex, room.getPlayerIndex(dealer.id));
+  assert.equal(room.gameState.roundStartPlayerIndex, room.getPlayerIndex(dealer.id));
+  assert.notEqual(result.firstPlayer.id, originalUpstream.id);
+  assert.ok(io.events.some(({ event, payload }) => (
+    event === 'first_player_set'
+    && payload.playerId === dealer.id
+    && payload.currentPlayerIndex === room.getPlayerIndex(dealer.id)
+  )));
+});
+
 test('欢乐成双终局恢复原座次：庄家方胜由固定队友上庄，闲家胜由原上家上庄', () => {
   const setup = attackerScore => {
     const room = createRoom();
@@ -7060,6 +7172,13 @@ test('第四家出牌后的两秒仍可为刚结束的一轮预备时间倒流',
   assert.equal(room.gameState.currentRound, 2);
   assert.equal(room.gameState.timeReversalDecisionState, 'holding');
   assert.equal(room.gameState.timeReversalWindowRound, 1);
+  const pendingLeader = room.players[room.gameState.currentPlayerIndex];
+  const pendingLeaderCardId = pendingLeader.cards[0].id;
+  assert.throws(
+    () => engine.playCards(pendingLeader.id, [pendingLeaderCardId]),
+    /本轮正在等待时间倒流决定/
+  );
+  assert.equal(pendingLeader.cards.some(cardData => cardData.id === pendingLeaderCardId), true);
 
   const lateReservation = engine.activateTimeReversal(room.players[1].id);
   assert.equal(lateReservation.round, 1, '轮末窗口预备的目标必须是刚结束的第一轮');
@@ -9552,6 +9671,19 @@ test('请君入瓮按本轮实体牌面固定扣5分，多张命中也不重复�
     /不能指定自己/
   );
 
+  const whiteTargetRoom = createRoom();
+  const whiteTargetEngine = new GameEngine(whiteTargetRoom, createIo());
+  whiteTargetRoom.gameState.phase = GamePhases.PLAYING;
+  whiteTargetRoom.gameState.selectedRule = INVITE_INTO_URN_RULE;
+  whiteTargetEngine.setFirstPlayer(whiteTargetRoom.players[0].id);
+  const whiteDeclaration = whiteTargetEngine.activateInviteIntoUrn(
+    whiteTargetRoom.players[0].id,
+    whiteTargetRoom.players[1].id,
+    'joker',
+    Ranks.WHITE_JOKER
+  );
+  assert.equal(whiteDeclaration.rank, Ranks.WHITE_JOKER);
+
   const runScenario = ({ leaderIndex, targetIndex, expectedScoreDelta }) => {
     const room = createRoom();
     const engine = new GameEngine(room, createIo());
@@ -11577,4 +11709,123 @@ test('上称千斤沿用力争上游完全相同时后出者更小的顺序', ()
   assert.equal(tiedAttacker.dealerOutranks, true);
   assert.equal(scoring.originalRoundPoints, 10);
   assert.equal(scoring.adjustedRoundPoints, 5);
+});
+
+function playFearOfBreakingVaseRound(plays, {
+  dealerIndex = 0,
+  startingScore = 0
+} = {}) {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  plays.forEach((cards, playerIndex) => {
+    cards.forEach(value => room.players[playerIndex].addCard(value));
+    room.players[playerIndex].addCard(
+      card('clubs', String(playerIndex + 3), 2800 + playerIndex)
+    );
+  });
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = FEAR_OF_BREAKING_VASE_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[dealerIndex].id;
+  room.gameState.dealerPlayerIndex = dealerIndex;
+  room.gameState.attackerScore = startingScore;
+  engine.setFirstPlayer(room.players[0].id);
+
+  let result = null;
+  plays.forEach((cards, playerIndex) => {
+    result = engine.playCards(
+      room.players[playerIndex].id,
+      cards.map(value => value.id)
+    );
+  });
+  return { room, engine, result };
+}
+
+test('投鼠忌器：首家最大且队友打出至少两对时，赢家庄家方失去10分', () => {
+  const { room, result } = playFearOfBreakingVaseRound([
+    [
+      card('hearts', 'A', 0), card('hearts', 'A', 1),
+      card('hearts', 'K', 0), card('hearts', 'K', 1)
+    ],
+    [
+      card('hearts', '10', 0), card('hearts', '10', 1),
+      card('hearts', '9', 0), card('hearts', '9', 1)
+    ],
+    [
+      card('hearts', 'Q', 0), card('hearts', 'Q', 1),
+      card('hearts', 'J', 0), card('hearts', 'J', 1)
+    ],
+    [
+      card('hearts', '8', 0), card('hearts', '8', 1),
+      card('hearts', '7', 0), card('hearts', '7', 1)
+    ]
+  ]);
+  const penalty = result.roundUpdate.scoreInfo.fearOfBreakingVase;
+
+  assert.equal(penalty.winnerPlayerIndex, 0);
+  assert.equal(penalty.triggerType, 'leader_over_protected_teammate');
+  assert.equal(penalty.vesselPlayerId, room.players[2].id);
+  assert.equal(penalty.pairCount, 2);
+  assert.equal(penalty.penalizedSide, 'dealer');
+  assert.equal(penalty.scoreDelta, 10);
+  assert.equal(room.gameState.attackerScore, 10);
+});
+
+test('投鼠忌器：第二家唯一毙牌且队友本为其余三家最大时，赢家闲家方失去10分', () => {
+  const { room, result } = playFearOfBreakingVaseRound([
+    [card('hearts', 'Q', 10)],
+    [card('spades', '3', 10)],
+    [card('hearts', 'J', 10)],
+    [card('hearts', 'A', 10)]
+  ]);
+  const penalty = result.roundUpdate.scoreInfo.fearOfBreakingVase;
+
+  assert.equal(penalty.winnerPlayerIndex, 1);
+  assert.equal(penalty.triggerType, 'sole_second_ruff_over_teammate');
+  assert.equal(penalty.vesselPlayerId, room.players[3].id);
+  assert.equal(penalty.penalizedSide, 'attacker');
+  assert.equal(penalty.scoreDelta, -10);
+  assert.equal(room.gameState.attackerScore, -10);
+});
+
+test('投鼠忌器：第二家唯一毙牌但队友并非其余三家最大时不扣分', () => {
+  const { room, result } = playFearOfBreakingVaseRound([
+    [card('hearts', 'Q', 20)],
+    [card('spades', '3', 20)],
+    [card('hearts', 'A', 20)],
+    [card('hearts', 'J', 20)]
+  ]);
+
+  assert.equal(room.gameState.lastRoundWinnerIndex, 1);
+  assert.equal(result.roundUpdate.scoreInfo.fearOfBreakingVase, null);
+  assert.equal(room.gameState.attackerScore, 0);
+});
+
+test('投鼠忌器按实体牌面统计两对，并将任意两张王视为“器”', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  const twoPairs = engine.getFearOfBreakingVaseProtectedCards({
+    cards: [
+      card('hearts', '9', 30), card('hearts', '9', 31),
+      card('clubs', 'A', 30), card('clubs', 'A', 31)
+    ]
+  });
+  const twoJokers = engine.getFearOfBreakingVaseProtectedCards({
+    cards: [
+      card('joker', Ranks.SMALL_JOKER, 30),
+      card('joker', Ranks.BIG_JOKER, 30)
+    ]
+  });
+  const onePair = engine.getFearOfBreakingVaseProtectedCards({
+    cards: [
+      card('diamonds', '7', 30),
+      card('diamonds', '7', 31),
+      card('spades', 'K', 30)
+    ]
+  });
+
+  assert.deepEqual(twoPairs, { pairCount: 2, jokerCount: 0, qualifies: true });
+  assert.deepEqual(twoJokers, { pairCount: 0, jokerCount: 2, qualifies: true });
+  assert.deepEqual(onePair, { pairCount: 1, jokerCount: 0, qualifies: false });
 });

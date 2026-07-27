@@ -101,7 +101,9 @@
   CHANGE_RICE_TO_MULBERRY: 'change_rice_to_mulberry',
   DESTROY_DYKE_FLOOD_FIELDS: 'destroy_dyke_flood_fields',
   RECORD_ON_FILE: 'record_on_file',
-  WEIGHING_THOUSAND_JIN: 'weighing_thousand_jin'
+  WEIGHING_THOUSAND_JIN: 'weighing_thousand_jin',
+  KING_OVER_WHITE: 'king_over_white',
+  FEAR_OF_BREAKING_VASE: 'fear_of_breaking_vase'
 });
 
 export const ActiveSkillIds = Object.freeze({
@@ -893,6 +895,18 @@ const RULE_DEFINITIONS = Object.freeze([
     name: '上称千斤',
     content: '每轮结束时，按“力争上游”的完整牌力顺序比较庄家与两名闲家的本轮出牌（完全相同时后出者更小）。若庄家的牌大于至少一名闲家，本轮每张分牌各减5分，最低减至0分；否则本轮每张分牌的分值加倍。',
     setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
+    id: RuleIds.KING_OVER_WHITE,
+    name: '王上加白',
+    content: '开局洗牌后，从两副牌的四张大小王中随机选择一张，永久变为白王（皇）；其余三张王不变。白王按全局最大王牌参与跟牌、牌型与大小比较。',
+    setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
+    id: RuleIds.FEAR_OF_BREAKING_VASE,
+    name: '投鼠忌器',
+    content: '每轮结束时，若赢家一方出现以下任一“误伤队友”情形，则该方失去10分：①首家最终最大，而其队友本轮打出了至少两对或至少两张王；②第二家是本轮唯一完成毙牌的玩家，且若不计第二家的出牌，其队友本可在其余三家中最大。闲家方失分时闲家总分−10；庄家方失分时闲家总分+10。',
+    setup: DEFAULT_RULE_SETUP
   })
 ]);
 
@@ -1226,6 +1240,14 @@ export function isRecordOnFileRule(rule) {
 
 export function isWeighingThousandJinRule(rule) {
   return ruleIncludesId(rule, RuleIds.WEIGHING_THOUSAND_JIN);
+}
+
+export function isKingOverWhiteRule(rule) {
+  return ruleIncludesId(rule, RuleIds.KING_OVER_WHITE);
+}
+
+export function isFearOfBreakingVaseRule(rule) {
+  return ruleIncludesId(rule, RuleIds.FEAR_OF_BREAKING_VASE);
 }
 
 export function getOddEvenRoundMultiplier(rule, roundNumber) {

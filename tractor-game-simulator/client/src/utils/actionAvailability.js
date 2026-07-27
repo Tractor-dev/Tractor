@@ -753,6 +753,14 @@ export function validatePlaySelection({
   divineWeaponCardId = null,
   divineWeaponSourceCardId = null
 }) {
+  if (gameState?.timeReversal?.decisionState) {
+    return {
+      valid: false,
+      message: '本轮正在等待时间倒流决定',
+      pattern: null
+    };
+  }
+
   if (selectedCardIds.length === 0) {
     return { valid: false, message: '请选择要出的牌', pattern: null };
   }

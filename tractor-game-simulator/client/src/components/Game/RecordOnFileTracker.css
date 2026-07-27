@@ -135,7 +135,7 @@
 
 .record-on-file-jokers {
   display: grid;
-  grid-template-rows: 14px 1fr 1fr;
+  grid-template-rows: 14px repeat(3, 1fr);
   gap: 4px;
   padding-left: 7px;
   border-left: 1px solid rgba(255, 220, 105, 0.22);

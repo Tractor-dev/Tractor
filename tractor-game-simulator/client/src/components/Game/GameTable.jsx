@@ -14,6 +14,7 @@ import {
   getThreePowersCardPoints
 } from '../../utils/scoringUtils';
 import {
+  formatLevel,
   getDestroyDykeDisplayState,
   getDisplayedDefenseAsOffense,
   getRecordOnFileTrackerView,
@@ -1000,11 +1001,11 @@ export default function GameTable({
         }}>
           <div style={{ textAlign: 'center', flex: 1 }}>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.myTeamLabel}等级</Text>
-            <Text strong style={{ color: '#52c41a', fontSize: '18px' }}>{teamLabels.myTeamLevel}</Text>
+            <Text strong style={{ color: '#52c41a', fontSize: '18px' }}>{formatLevel(teamLabels.myTeamLevel)}</Text>
           </div>
           <div style={{ textAlign: 'center', flex: 1 }}>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', display: 'block' }}>{teamLabels.opponentTeamLabel}等级</Text>
-            <Text strong style={{ color: '#ff4d4f', fontSize: '18px' }}>{teamLabels.opponentTeamLevel}</Text>
+            <Text strong style={{ color: '#ff4d4f', fontSize: '18px' }}>{formatLevel(teamLabels.opponentTeamLevel)}</Text>
           </div>
         </div>
 
@@ -1427,7 +1428,7 @@ export default function GameTable({
                       <div style={{ textAlign: 'center' }}>
                         <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>庄家队伍</Text>
                         <Text style={{ color: 'white', fontSize: '16px' }}>
-                          {upgradeResult.oldDealerLevel} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{upgradeResult.newDealerLevel}</Text>
+                          {formatLevel(upgradeResult.oldDealerLevel)} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{formatLevel(upgradeResult.newDealerLevel)}</Text>
                         </Text>
                         {upgradeResult.dealerLevelUp > 0 && (
                           <Text style={{ color: '#52c41a', fontSize: '14px', display: 'block' }}>
@@ -1438,7 +1439,7 @@ export default function GameTable({
                       <div style={{ textAlign: 'center' }}>
                         <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', display: 'block' }}>闲家队伍</Text>
                         <Text style={{ color: 'white', fontSize: '16px' }}>
-                          {upgradeResult.oldAttackerLevel} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{upgradeResult.newAttackerLevel}</Text>
+                          {formatLevel(upgradeResult.oldAttackerLevel)} → <Text strong style={{ color: '#ffd700', fontSize: '18px' }}>{formatLevel(upgradeResult.newAttackerLevel)}</Text>
                         </Text>
                         {upgradeResult.attackerLevelUp > 0 && (
                           <Text style={{ color: '#52c41a', fontSize: '14px', display: 'block' }}>
@@ -1453,7 +1454,7 @@ export default function GameTable({
                         {upgradeResult.dealerContinues ? '势如破竹 · 庄家连庄' : '下一局庄家'}
                       </Text>
                       <Text strong style={{ color: '#ffd700', fontSize: '16px' }}>
-                        {upgradeResult.nextDealerName} (等级 {upgradeResult.nextDealerLevel})
+                        {upgradeResult.nextDealerName} (等级 {formatLevel(upgradeResult.nextDealerLevel)})
                       </Text>
                     </div>
                   </div>

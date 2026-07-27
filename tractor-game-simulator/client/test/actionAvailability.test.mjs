@@ -30,6 +30,43 @@ import { isIronEvidenceSpecialCard } from '../src/utils/ironEvidenceUtils.js';
 
 const card = (id, suit, rank) => ({ id, suit, rank });
 
+test('时间倒流待决期间禁止提交出牌，待决结束后恢复正常校验', () => {
+  const handCards = [card('club-K', 'clubs', 'K')];
+  const baseState = {
+    currentRoundPlays: 0,
+    playersPlayedThisRound: [],
+    selectedRule: { id: 'time_reversal' },
+    timeReversal: {
+      reservations: [],
+      decisionState: null,
+      windowRound: null,
+      lockedRounds: []
+    }
+  };
+
+  for (const decisionState of ['holding', 'awaiting_response']) {
+    const result = validatePlaySelection({
+      selectedCardIds: ['club-K'],
+      handCards,
+      gameState: {
+        ...baseState,
+        timeReversal: {
+          ...baseState.timeReversal,
+          decisionState
+        }
+      }
+    });
+    assert.equal(result.valid, false);
+    assert.equal(result.message, '本轮正在等待时间倒流决定');
+  }
+
+  assert.equal(validatePlaySelection({
+    selectedCardIds: ['club-K'],
+    handCards,
+    gameState: baseState
+  }).valid, true);
+});
+
 test('改革开放再埋底完成后庄家与队友都能查看最终底牌', () => {
   const finalizedState = {
     phase: 'playing',

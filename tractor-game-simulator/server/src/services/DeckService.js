@@ -55,6 +55,29 @@ export class DeckService {
     });
   }
 
+  /**
+   * “王上加白”：从当前牌堆的四张普通王中随机选择一张，永久改为白王。
+   * 保留实体牌 ID，避免同一张牌在发牌、换牌和出牌记录中的身份发生变化。
+   */
+  static transformRandomJokerToWhite(deck, random = Math.random) {
+    const ordinaryJokers = deck.filter(card => (
+      card.suit === Suits.JOKER
+      && [Ranks.SMALL_JOKER, Ranks.BIG_JOKER].includes(card.rank)
+    ));
+    if (ordinaryJokers.length === 0) return deck;
+
+    const sample = Number(random());
+    const boundedSample = Number.isFinite(sample)
+      ? Math.min(0.999999999, Math.max(0, sample))
+      : 0;
+    const selectedJoker = ordinaryJokers[
+      Math.floor(boundedSample * ordinaryJokers.length)
+    ];
+    selectedJoker.rank = Ranks.WHITE_JOKER;
+    selectedJoker.value = selectedJoker.calculateValue();
+    return deck;
+  }
+
   static prepareUnarmedDeck(deck) {
     return deck
       .filter(card => card.suit !== Suits.JOKER)

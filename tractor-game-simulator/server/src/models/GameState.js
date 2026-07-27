@@ -560,7 +560,8 @@ export class GameState {
           const suit = card.originalSuit || card.suit;
           const rank = card.originalRank || card.rank;
           const isOrdinaryCard = ordinarySuits.has(suit) && ordinaryRanks.has(rank);
-          const isJoker = suit === 'joker' && ['small_joker', 'big_joker'].includes(rank);
+          const isJoker = suit === 'joker'
+            && ['small_joker', 'big_joker', 'white_joker'].includes(rank);
           if (!isOrdinaryCard && !isJoker) return;
           counts[suit][rank] = (counts[suit][rank] || 0) + 1;
           playedCardCount++;

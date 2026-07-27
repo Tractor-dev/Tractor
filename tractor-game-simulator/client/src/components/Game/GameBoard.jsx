@@ -28,10 +28,10 @@ import {
 } from '../../utils/actionAvailability';
 import { calculateCardPoints, getCardPoints, getMeticulousAccountingCardPoints } from '../../utils/scoringUtils';
 import {
+  formatLevel,
   getCanonicalOpenHandCards,
   getPendingPoliticalReviewDecision,
   getRuleSelectionAccess,
-  getThrowFailedCardsToRestore,
   getThrowFailedPreview,
   mergeTransferredHandCards,
   mergeLivePlayerCardCounts,
@@ -69,7 +69,8 @@ const INVITE_INTO_URN_SUITS = Object.freeze([
 ]);
 const INVITE_INTO_URN_JOKER_RANKS = Object.freeze([
   { value: 'small_joker', label: '小王' },
-  { value: 'big_joker', label: '大王' }
+  { value: 'big_joker', label: '大王' },
+  { value: 'white_joker', label: '白王（皇）' }
 ]);
 const CARD_SUIT_SYMBOLS = Object.freeze({
   hearts: '♥',
@@ -689,6 +690,9 @@ export default function GameBoard({ onLeaveRoom }) {
     && gameState?.timeReversal?.reservations?.some(
       reservation => reservation.playerId === currentPlayer?.id
     )
+  );
+  const hasTimeReversalDecisionPending = Boolean(
+    gameState?.timeReversal?.decisionState || timeReversalDecision
   );
   const isMagicTrickPrepared = Boolean(
     activeSkill?.effect === 'swap_two_plays_at_round_end'
@@ -2710,7 +2714,6 @@ export default function GameBoard({ onLeaveRoom }) {
         playedCardsRef.current = updated;
         setPlayedCards(updated);
         if (teammatePlayerId === currentPlayer?.id) {
-          cards.forEach(card => addCard(card));
           setJustPlayedCards(false);
           clearSelection();
         }
@@ -2950,9 +2953,13 @@ export default function GameBoard({ onLeaveRoom }) {
       if (lureTigerSilenced) {
         messageApi.info(`调虎离山：${playerName} 的本次出牌不计大小与分数`, 3);
       }
-      // 明手本人不会操作自己的牌，因此由服务端广播同步其私有手牌。
+      // 只在服务端确认出牌后更新本地手牌，避免拒绝时出现“牌先消失、后恢复”。
       if (playerId === currentPlayer?.id) {
+        setJustPlayedCards(true);
         removeCards(removedCardIds);
+      }
+      if (controllerPlayerId === currentPlayer?.id) {
+        setJustPlayedCards(true);
       }
       // 如果玩家在清桌延迟期间已经开始下一墩，直接切换到新墩，避免新旧牌混在一起。
       const startsNewRound = awaitingRoundClearRef.current;
@@ -3375,10 +3382,8 @@ export default function GameBoard({ onLeaveRoom }) {
       playerId,
       playerName,
       message: msg,
-      attemptedCards,
       attemptedCardObjects,
-      forcedCards,
-      isProxy = false
+      forcedCards
     }) => {
       messageApi.warning(`${playerName} ${msg}，实际出牌 ${forcedCards.length} 张`, 3);
 
@@ -3393,15 +3398,6 @@ export default function GameBoard({ onLeaveRoom }) {
         }));
       }
 
-      // 如果是自己甩牌失败，预览结束后再恢复未被强制出的牌。
-      const toRestore = getThrowFailedCardsToRestore({
-        playerId,
-        currentPlayerId: currentPlayer?.id,
-        openHandPlayerId: gameState?.openHand?.playerId,
-        isProxy,
-        attemptedCardObjects,
-        forcedCards
-      });
       const previewTimer = setTimeout(() => {
         setThrowFailedPreviews(previous => {
           if (previous[playerId]?.previewKey !== previewKey) return previous;
@@ -3409,7 +3405,6 @@ export default function GameBoard({ onLeaveRoom }) {
           delete next[playerId];
           return next;
         });
-        toRestore.forEach(cardData => addCard(cardData));
         throwFailedPreviewTimersRef.current.delete(previewKey);
       }, THROW_FAILED_PREVIEW_DURATION_MS);
       throwFailedPreviewTimersRef.current.set(previewKey, previewTimer);
@@ -3776,6 +3771,7 @@ export default function GameBoard({ onLeaveRoom }) {
             repeatedExhaustion = null,
             inviteIntoUrn = null,
             outwardHarmonyInnerDivision = null,
+            fearOfBreakingVase = null,
             ironEvidence = null,
             destroyDyke = null,
             weighingThousandJin = null,
@@ -3834,6 +3830,19 @@ export default function GameBoard({ onLeaveRoom }) {
               `失去${repeatedExhaustion.penalty}分；闲家总分${repeatedExhaustion.scoreDelta > 0 ? '+' : ''}` +
               `${repeatedExhaustion.scoreDelta}，当前${newScore}分`,
               5
+            );
+          }
+          if (fearOfBreakingVase?.triggered) {
+            const triggerText = fearOfBreakingVase.triggerType === 'leader_over_protected_teammate'
+              ? `${fearOfBreakingVase.winnerPlayerName}从首家守到最大，但队友` +
+                `${fearOfBreakingVase.vesselPlayerName}打出了至少两对或两张王`
+              : `${fearOfBreakingVase.winnerPlayerName}作为第二家独自毙牌，而队友` +
+                `${fearOfBreakingVase.vesselPlayerName}本是其余三家最大`;
+            messageApi.warning(
+              `投鼠忌器：${triggerText}；` +
+              `${fearOfBreakingVase.penalizedSide === 'attacker' ? '闲家方' : '庄家方'}` +
+              `失去${fearOfBreakingVase.penalty}分，闲家当前${newScore}分`,
+              6
             );
           }
           if (inviteIntoUrn?.triggeredCount > 0) {
@@ -4868,6 +4877,10 @@ export default function GameBoard({ onLeaveRoom }) {
   };
 
   const handlePlayCards = () => {
+    if (hasTimeReversalDecisionPending) {
+      messageApi.warning('本轮正在等待时间倒流决定');
+      return;
+    }
     if (
       ['compare_and_exchange', 'swap_two_plays_at_round_end'].includes(activeSkill?.effect)
       && isActiveSkillArmed
@@ -4916,9 +4929,6 @@ export default function GameBoard({ onLeaveRoom }) {
     }
     console.log('发送 PLAY_CARDS 事件:', { cardIds: cardsToPlay });
 
-    // 标记刚刚出过牌，防止自动选中
-    setJustPlayedCards(true);
-
     socket.emit(SOCKET_EVENTS.PLAY_CARDS, {
       roomId: currentRoom.id,
       cardIds: isAmbiguousPlay ? ambiguousFirstOptionCardIds : cardsToPlay,
@@ -4931,10 +4941,6 @@ export default function GameBoard({ onLeaveRoom }) {
       divineWeaponSourceCardId,
       ambiguousAlternativeCardIds: isAmbiguousPlay ? cardsToPlay : []
     });
-    // 立即从手牌中移除（乐观更新）
-    if (!isProxyTurn) {
-      removeCards(isAmbiguousPlay ? ambiguousFirstOptionCardIds : cardsToPlay);
-    }
     setArmedActiveSkillId(null);
     setAmbiguousFirstOptionCardIds([]);
     setExplicitCardTransformations({});
@@ -5905,7 +5911,8 @@ export default function GameBoard({ onLeaveRoom }) {
           !hasPoliticalReviewDecisionPending &&
           !hasAntinomySelectionPending &&
           !hasRiceToMulberrySelectionPending &&
-          !hasDestroyDykeDecisionPending);
+          !hasDestroyDykeDecisionPending &&
+          !hasTimeReversalDecisionPending);
 
         // 验证选中的牌是否合法
         const validateSelectedCards = validatePlaySelection({
@@ -5935,7 +5942,8 @@ export default function GameBoard({ onLeaveRoom }) {
           && !hasPoliticalReviewDecisionPending
           && !hasAntinomySelectionPending
           && !hasRiceToMulberrySelectionPending
-          && !hasDestroyDykeDecisionPending;
+          && !hasDestroyDykeDecisionPending
+          && !hasTimeReversalDecisionPending;
         const playActionLabel = isActiveSkillArmed
           && activeSkill?.effect === 'two_legal_plays_choose_at_round_end'
           ? (ambiguousFirstOptionCardIds.length > 0 ? '公开A/B' : '保存方案A')
@@ -5947,7 +5955,9 @@ export default function GameBoard({ onLeaveRoom }) {
           ['yield_turn_to_next_player', 'force_leader_replay', 'compare_and_exchange', 'swap_two_plays_at_round_end', 'declare_target_card', 'ignore_odd_led_side_suit', 'two_legal_plays_choose_at_round_end', 'silence_non_leader_for_round'].includes(activeSkill?.effect)
           && activeSkillAvailability.canActivate
         );
-        const playButtonTitle = hasPoliticalReviewDecisionPending
+        const playButtonTitle = hasTimeReversalDecisionPending
+                               ? '本轮正在等待时间倒流决定' :
+                               hasPoliticalReviewDecisionPending
                                ? '等待队友完成政治审查' :
                                hasAntinomySelectionPending
                                ? '等待二律背反选择同时公开' :
@@ -6309,7 +6319,7 @@ export default function GameBoard({ onLeaveRoom }) {
                 : (cardExchange ? handleDrawingCardClick : handlePlayingCardClick)}
               onRequestCardTransformation={handleRequestCardTransformation}
               onCancelCardTransformation={handleCancelExplicitTransformation}
-              onReorder={cardExchangeAnimation || hasSubmittedCardExchange || icebergSelection || isProxyTurn || isOpenHandSelf || explicitTransformationList.length > 0
+              onReorder={cardExchangeAnimation || hasSubmittedCardExchange || icebergSelection || isProxyTurn || isOpenHandSelf || hasTimeReversalDecisionPending || explicitTransformationList.length > 0
                 ? undefined
                 : reorderCards}
               disableMyHand={cardExchangeAnimation
@@ -6319,6 +6329,8 @@ export default function GameBoard({ onLeaveRoom }) {
                 : forbiddenMagicState?.decisionPlayerId
                   ? true
                 : gameState?.dreamKilling?.sleepingPlayerIds?.includes(currentPlayer?.id)
+                  ? true
+                : hasTimeReversalDecisionPending
                   ? true
                 : gameState?.equivalentReciprocity || (
                     ['compare_and_exchange', 'swap_two_plays_at_round_end'].includes(activeSkill?.effect)
@@ -6353,8 +6365,8 @@ export default function GameBoard({ onLeaveRoom }) {
               }}
               onPlayerTargetClick={handleEquivalentReciprocityTarget}
               openHandSelectedCards={selectedCards}
-              onOpenHandCardClick={isProxyTurn ? toggleCardSelection : undefined}
-              canControlOpenHand={isProxyTurn}
+              onOpenHandCardClick={isProxyTurn && !hasTimeReversalDecisionPending ? toggleCardSelection : undefined}
+              canControlOpenHand={isProxyTurn && !hasTimeReversalDecisionPending}
               currentTurnPlayerId={currentTurnPlayerId}
               currentWinningPlayerId={viewingLastRound
                 ? lastRoundWinnerPlayerId
@@ -7932,7 +7944,7 @@ export default function GameBoard({ onLeaveRoom }) {
         >
           {currentRoom.players.map(player => (
             <Select.Option key={player.id} value={player.id}>
-              {player.name} (当前: {player.level})
+              {player.name} (当前: {formatLevel(player.level)})
             </Select.Option>
           ))}
         </Select>

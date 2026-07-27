@@ -1,5 +1,20 @@
 ﻿import { ruleIncludesId } from './ruleCatalog.js';
 
+const LEVEL_RANK_LABELS = Object.freeze({
+  11: 'J',
+  12: 'Q',
+  13: 'K',
+  14: 'A'
+});
+
+/**
+ * 等级在协议和升级计算中使用 2–14；界面上按对应级牌显示 2–10、J、Q、K、A。
+ */
+export function formatLevel(level) {
+  const numericLevel = Number(level);
+  return LEVEL_RANK_LABELS[numericLevel] || String(level ?? '');
+}
+
 /**
  * WAITING 也可能是首局准备或两局之间的规则选择阶段；这两种情况都应留在牌桌。
  */
@@ -45,31 +60,6 @@ export function getPendingPoliticalReviewDecision(gameState, playerId) {
   const pending = gameState?.politicalReview?.pending;
   if (!playerId || pending?.reviewerPlayerId !== playerId) return null;
   return pending;
-}
-
-/**
- * 普通玩家发起甩牌时会先乐观移除整组牌，失败后需要加回未被强制打出的部分。
- * “算无遗策”代打没有移除明手本人的本地手牌，因此绝不能执行同一恢复动作。
- */
-export function getThrowFailedCardsToRestore({
-  playerId,
-  currentPlayerId,
-  openHandPlayerId = null,
-  isProxy = false,
-  attemptedCardObjects,
-  forcedCards
-}) {
-  if (
-    playerId !== currentPlayerId
-    || isProxy
-    || playerId === openHandPlayerId
-    || !Array.isArray(attemptedCardObjects)
-  ) {
-    return [];
-  }
-
-  const forcedIds = new Set((forcedCards || []).map(card => card.id));
-  return attemptedCardObjects.filter(card => !forcedIds.has(card.id));
 }
 
 export const THROW_FAILED_PREVIEW_DURATION_MS = 1000;
@@ -242,7 +232,8 @@ export function getRecordOnFileTrackerView(recordOnFile, displayRoundNumber) {
     })),
     jokers: [
       Number(counts.joker?.small_joker) || 0,
-      Number(counts.joker?.big_joker) || 0
+      Number(counts.joker?.big_joker) || 0,
+      Number(counts.joker?.white_joker) || 0
     ]
   };
 }
