@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Typography, Space, Empty } from 'antd';
 import { CheckCircleFilled, ReloadOutlined } from '@ant-design/icons';
+import { getRuleTableContent } from '../../utils/ruleDisplayContent';
 import './RuleSelector.css';
 
 const { Text, Title } = Typography;
@@ -107,7 +108,9 @@ export default function RuleSelector({
                       {selected && <CheckCircleFilled className="rule-option-check" />}
                       {rule.name}
                     </Title>
-                    <Text className="rule-option-description">{rule.content}</Text>
+                    <Text className="rule-option-description">
+                      {getRuleTableContent(rule)}
+                    </Text>
                   </span>
                 </Button>
                 {isDoubleHappiness && canRefresh && (

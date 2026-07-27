@@ -21,6 +21,13 @@ test('牌桌规则说明采用 rule-website DLC.json 的原始短文案', () => 
     }),
     '庄家与上家交换位置。'
   );
+  assert.equal(
+    getRuleTableContent({
+      name: '取长补短',
+      content: '包含郡王、亲王与完整牌力链的实现说明'
+    }),
+    '玩家编号为0，1，2，3，第x轮中，编号为x%4的玩家的牌大小级别+1，编号为(x+2)%4的玩家的牌大小级别-1。'
+  );
   assert.equal(Object.keys(ORIGINAL_RULE_CONTENT_BY_NAME).length, 115);
 });
 
