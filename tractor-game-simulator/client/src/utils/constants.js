@@ -41,6 +41,8 @@ export const SOCKET_EVENTS = {
   PLAY_CARDS: 'play_cards',
   PASS_TURN: 'pass_turn',
   UNDO_PLAY: 'undo_play',
+  REQUEST_SURRENDER: 'request_surrender',
+  RESPOND_SURRENDER: 'respond_surrender',
   UPDATE_SCORE: 'update_score',
   UPDATE_LEVEL: 'update_level',
   UPDATE_PLAYER_NAME: 'update_player_name',

@@ -21,6 +21,7 @@ import {
   getStriveUpstreamActionOrder
 } from '../../utils/gameViewUtils';
 import { ruleIncludesId } from '../../utils/ruleCatalog';
+import { getRuleTableContent } from '../../utils/ruleDisplayContent';
 import './GameTable.css';
 
 const { Text } = Typography;
@@ -31,6 +32,7 @@ const { Text } = Typography;
  * @param {Array} props.players - 所有玩家
  * @param {Object} props.currentPlayer - 当前玩家
  * @param {Function} props.onLeaveRoom - 主动退出房间的回调
+ * @param {Function} props.onRequestSurrender - 发起投降的回调
  * @param {Object} props.playedCards - 每个玩家出的牌 { [playerId]: { playerName, cards } }
  * @param {Object} props.throwFailedPreviews - 甩牌失败时短暂停留的完整尝试牌面
  * @param {Object} props.shownCards - 摸牌阶段展示的牌 { [playerId]: { playerName, cards } }
@@ -72,6 +74,9 @@ export default function GameTable({
   players,
   currentPlayer,
   onLeaveRoom,
+  onRequestSurrender,
+  canRequestSurrender = false,
+  hasRequestedSurrender = false,
   playedCards = {},
   throwFailedPreviews = {},
   shownCards = {},
@@ -2221,7 +2226,7 @@ export default function GameTable({
                         </div>
                       )}
                       <Text style={{ display: 'block', width: '100%', fontSize: '14px', color: '#ffffff', lineHeight: '1.5' }}>
-                        {selectedRule.content}
+                        {getRuleTableContent(selectedRule)}
                       </Text>
                     </div>
                   ) : (
@@ -2383,17 +2388,36 @@ export default function GameTable({
               </div>
 
               {/* 控制按钮区域 - 右侧 */}
-              {(renderControls || onLeaveRoom) && (
+              {(renderControls || onLeaveRoom || onRequestSurrender) && (
                 <div className="inline-controls">
                   {renderControls}
-                  {onLeaveRoom && (
-                    <Button
-                      className="leave-room-button"
-                      danger
-                      onClick={onLeaveRoom}
-                    >
-                      退出房间
-                    </Button>
+                  {(onLeaveRoom || onRequestSurrender) && (
+                    <div className="room-action-stack">
+                      {onRequestSurrender && (
+                        <Button
+                          className="surrender-button"
+                          danger
+                          disabled={!canRequestSurrender || hasRequestedSurrender}
+                          onClick={onRequestSurrender}
+                          title={hasRequestedSurrender
+                            ? '已申请，等待本墩结束'
+                            : !canRequestSurrender
+                              ? '当前不能发起投降'
+                              : '本墩结束后询问队友'}
+                        >
+                          {hasRequestedSurrender ? '已申请' : '投降'}
+                        </Button>
+                      )}
+                      {onLeaveRoom && (
+                        <Button
+                          className="leave-room-button"
+                          danger
+                          onClick={onLeaveRoom}
+                        >
+                          退出
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

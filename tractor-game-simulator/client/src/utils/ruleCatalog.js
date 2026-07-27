@@ -91,6 +91,7 @@ export const IMPLEMENTED_RULES = Object.freeze([
   { id: 'three_six_nine_grades', name: '三六九等' },
   { id: 'iron_evidence', name: '铁证如山' },
   { id: 'waiting_rabbit', name: '守株待兔' },
+  { id: 'burn_the_boats', name: '破釜沉舟' },
   { id: 'hidden_dragon_in_abyss', name: '潜龙在渊' },
   { id: 'administrative_review', name: '行政审查' },
   { id: 'political_review', name: '政治审查' },

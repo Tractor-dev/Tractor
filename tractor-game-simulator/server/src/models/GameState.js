@@ -80,6 +80,12 @@ export class GameState {
     this.currentRound = 0;
     this.roundStartPlayerIndex = null;
     this.playersPlayedThisRound = new Set();
+    // 投降申请可在一墩中的任意时刻提出，但只在完整墩结算后按庄家起顺序处理。
+    this.surrenderRequests = new Map();
+    this.surrenderDecisionQueue = [];
+    this.surrenderCurrentDecision = null;
+    this.surrenderLastResult = null;
+    this.surrenderFinishGameAfterReview = false;
     // 「力争上游」下，当前轮四家按上轮牌力由大到小的行动顺序。
     this.striveUpstreamPlayOrder = [];
     // “以守为攻”保存上一轮首家在当前轮获得的牌面加成。
@@ -341,6 +347,11 @@ export class GameState {
     this.currentRound = 0;
     this.roundStartPlayerIndex = null;
     this.playersPlayedThisRound.clear();
+    this.surrenderRequests.clear();
+    this.surrenderDecisionQueue = [];
+    this.surrenderCurrentDecision = null;
+    this.surrenderLastResult = null;
+    this.surrenderFinishGameAfterReview = false;
     this.striveUpstreamPlayOrder = [];
     this.defenseAsOffense = null;
     this.defenseAsOffenseLastRound = null;
@@ -623,6 +634,19 @@ export class GameState {
       currentRound: this.currentRound,
       roundStartPlayerIndex: this.roundStartPlayerIndex,
       playersPlayedThisRound: Array.from(this.playersPlayedThisRound),
+      surrender: {
+        requestedPlayerIds: Array.from(this.surrenderRequests.keys()),
+        requests: Array.from(this.surrenderRequests.values(), request => ({ ...request })),
+        currentDecision: this.surrenderCurrentDecision
+          ? { ...this.surrenderCurrentDecision }
+          : null,
+        queuedPlayerIds: this.surrenderDecisionQueue.map(
+          decision => decision.initiatorPlayerId
+        ),
+        lastResult: this.surrenderLastResult
+          ? { ...this.surrenderLastResult }
+          : null
+      },
       striveUpstreamPlayOrder: isStriveUpstreamRule(this.selectedRule)
         ? [...this.striveUpstreamPlayOrder]
         : [],

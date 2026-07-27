@@ -678,7 +678,7 @@ test('特殊开局规则具有正确的底牌数量与闲家初始分', () => {
     [RuleIds.FEAR_OF_BREAKING_VASE, '投鼠忌器', 8, 0]
   ];
 
-  assert.equal(getImplementedRules().length, 105);
+  assert.equal(getImplementedRules().length, 106);
   for (const [id, name, bottomCardsCount, attackerStartingScore] of expectedSetups) {
     assert.equal(getRuleById(id).name, name);
     assert.deepEqual(getRuleSetup({ id }), { bottomCardsCount, attackerStartingScore });

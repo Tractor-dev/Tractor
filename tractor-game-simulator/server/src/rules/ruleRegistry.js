@@ -91,6 +91,7 @@
   THREE_SIX_NINE_GRADES: 'three_six_nine_grades',
   IRON_EVIDENCE: 'iron_evidence',
   WAITING_RABBIT: 'waiting_rabbit',
+  BURN_THE_BOATS: 'burn_the_boats',
   HIDDEN_DRAGON_IN_ABYSS: 'hidden_dragon_in_abyss',
   ADMINISTRATIVE_REVIEW: 'administrative_review',
   POLITICAL_REVIEW: 'political_review',
@@ -824,6 +825,12 @@ const RULE_DEFINITIONS = Object.freeze([
     setup: DEFAULT_RULE_SETUP
   }),
   Object.freeze({
+    id: RuleIds.BURN_THE_BOATS,
+    name: '破釜沉舟',
+    content: '本局不能投降，不能重开。',
+    setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
     id: RuleIds.HIDDEN_DRAGON_IN_ABYSS,
     name: '潜龙在渊',
     content: '埋底完成后，每名玩家公开声明自己手牌中数量最多的一个点数（本局级牌除外）；若最多点数唯一则由系统自动声明，并列时由玩家自行选择。玩家的手牌数首次不大于12时，若其此前及本次均未打出过所声明的点数，则所属阵营获得10分。',
@@ -1196,6 +1203,10 @@ export function isIronEvidenceRule(rule) {
 
 export function isWaitingRabbitRule(rule) {
   return ruleIncludesId(rule, RuleIds.WAITING_RABBIT);
+}
+
+export function isBurnTheBoatsRule(rule) {
+  return ruleIncludesId(rule, RuleIds.BURN_THE_BOATS);
 }
 
 export function isHiddenDragonInAbyssRule(rule) {

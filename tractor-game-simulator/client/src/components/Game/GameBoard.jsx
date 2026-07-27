@@ -202,6 +202,7 @@ export default function GameBoard({ onLeaveRoom }) {
   const [lateMoverDecisionOpen, setLateMoverDecisionOpen] = useState(false);
   const [bushGateDecisionOpen, setBushGateDecisionOpen] = useState(false);
   const [timeReversalDecision, setTimeReversalDecision] = useState(null);
+  const [surrenderDecision, setSurrenderDecision] = useState(null);
   const [forbiddenMagicDecision, setForbiddenMagicDecision] = useState(null);
   const [lureTigerDecision, setLureTigerDecision] = useState(null);
   const [equivalentReciprocityTarget, setEquivalentReciprocityTarget] = useState(null);
@@ -269,6 +270,23 @@ export default function GameBoard({ onLeaveRoom }) {
   const socket = socketService.socket;
   const isHost = currentPlayer?.socketId === currentRoom?.hostId;
   const gameState = currentRoom?.gameState;
+  const surrenderState = gameState?.surrender || null;
+  const hasRequestedSurrender = Boolean(
+    surrenderState?.requestedPlayerIds?.includes(currentPlayer?.id)
+    || surrenderState?.currentDecision?.initiatorPlayerId === currentPlayer?.id
+    || surrenderState?.queuedPlayerIds?.includes(currentPlayer?.id)
+  );
+  const isSurrenderFeatureVisible = Boolean(
+    [GamePhases.DRAWING, GamePhases.BURYING, GamePhases.PLAYING].includes(gameState?.phase)
+    && !ruleIncludesId(gameState?.selectedRule, 'burn_the_boats')
+  );
+  const canRequestSurrender = Boolean(
+    currentRoom
+    && currentPlayer
+    && isSurrenderFeatureVisible
+    && !surrenderState?.currentDecision
+    && !(surrenderState?.queuedPlayerIds?.length > 0)
+  );
   const waitingRabbitState = gameState?.waitingRabbit || null;
   const mainstayAction = gameState?.mainstay?.currentAction || null;
   const ownMainstayAction = mainstayAction?.chooserPlayerId === currentPlayer?.id
@@ -296,6 +314,18 @@ export default function GameBoard({ onLeaveRoom }) {
     gameState?.trumpSuit,
     gameState?.trumpRank,
     myCards
+  ]);
+  useEffect(() => {
+    const pending = surrenderState?.currentDecision;
+    if (pending?.teammatePlayerId === currentPlayer?.id) {
+      setSurrenderDecision(pending);
+    } else if (!pending) {
+      setSurrenderDecision(null);
+    }
+  }, [
+    surrenderState?.currentDecision?.id,
+    surrenderState?.currentDecision?.teammatePlayerId,
+    currentPlayer?.id
   ]);
   // 刷新或断线重连时，从冻结中的公共状态恢复不可关闭的交互框。
   useEffect(() => {
@@ -1023,6 +1053,7 @@ export default function GameBoard({ onLeaveRoom }) {
       setWoodenOxSelectedCardId(null);
       setForbiddenMagicDecision(null);
       setLureTigerDecision(null);
+      setSurrenderDecision(null);
       setEquivalentReciprocityTarget(null);
       setEquivalentReciprocitySelection(null);
       setEquivalentReciprocityCardId(null);
@@ -1045,6 +1076,7 @@ export default function GameBoard({ onLeaveRoom }) {
     socket.on('game_restarted', () => {
       clearCardTransitionTimers();
       messageApi.success('游戏重新开始！');
+      setSurrenderDecision(null);
       setMyCards([]); // 清空手牌
       setLivePlayerCardCounts({});
       setShownCards({}); // 清空展示的牌
@@ -2498,6 +2530,43 @@ export default function GameBoard({ onLeaveRoom }) {
       messageApi.success('改稻为桑：两名闲家均已完成改造，现在可以开始出牌', 4);
     });
 
+    socket.on('surrender_requested', ({ initiatorPlayerId, initiatorPlayerName }) => {
+      messageApi.warning(
+        initiatorPlayerId === currentPlayer?.id
+          ? '已发起投降，本墩完整结束后将询问你的队友'
+          : `${initiatorPlayerName}发起了投降，本墩结束后处理`,
+        4
+      );
+    });
+
+    socket.on('surrender_decision_pending', ({ initiatorPlayerName, teammatePlayerName }) => {
+      messageApi.info(
+        `投降表决：正在询问${teammatePlayerName}是否同意${initiatorPlayerName}投降`,
+        4
+      );
+    });
+
+    socket.on('surrender_decision_required', decision => {
+      clearSelection();
+      setSurrenderDecision(decision);
+    });
+
+    socket.on('surrender_rejected', ({ initiatorPlayerName, teammatePlayerName }) => {
+      setSurrenderDecision(null);
+      messageApi.success(
+        `${teammatePlayerName}不同意${initiatorPlayerName}投降，牌局继续`,
+        4
+      );
+    });
+
+    socket.on('game_surrendered', ({ initiatorPlayerName, winningSide }) => {
+      setSurrenderDecision(null);
+      messageApi.warning(
+        `${initiatorPlayerName}一方投降，${winningSide === 'attacker' ? '闲家方' : '庄家方'}获胜`,
+        5
+      );
+    });
+
     socket.on('destroy_dyke_decision_pending', ({ dealerPlayerName, roundPoints }) => {
       clearSelection();
       messageApi.info(`毁堤淹田：闲家赢得${roundPoints}分，等待${dealerPlayerName}决定`, 4);
@@ -3112,6 +3181,7 @@ export default function GameBoard({ onLeaveRoom }) {
 
     // 展示底牌（修正事件名）
     socket.on('bottom_revealed', ({ bottomCards, bottomScoreResult, upgradeResult }) => {
+      setSurrenderDecision(null);
       messageApi.info(`底牌已展示: ${bottomCards.length} 张`);
       setRevealedBottomCards(bottomCards);
       if (bottomScoreResult) {
@@ -3119,7 +3189,9 @@ export default function GameBoard({ onLeaveRoom }) {
         setAttackerScore(bottomScoreResult.totalScore);
         setCollectedPointCards(bottomScoreResult.collectedPointCards || []);
         // 显示底牌得分结果
-        if (bottomScoreResult.focusFigure) {
+        if (bottomScoreResult.surrender) {
+          messageApi.warning(bottomScoreResult.resultText || '投降结算完成', 6);
+        } else if (bottomScoreResult.focusFigure) {
           const focusNames = bottomScoreResult.focusFigure.teams
             .map(team => `${team.side === 'dealer' ? '庄家方' : '闲家方'}：${team.focusPlayerName}`)
             .join('，');
@@ -4063,6 +4135,11 @@ export default function GameBoard({ onLeaveRoom }) {
       socket.off('rice_to_mulberry_hand_updated');
       socket.off('rice_to_mulberry_transformed');
       socket.off('rice_to_mulberry_completed');
+      socket.off('surrender_requested');
+      socket.off('surrender_decision_pending');
+      socket.off('surrender_decision_required');
+      socket.off('surrender_rejected');
+      socket.off('game_surrendered');
       socket.off('destroy_dyke_decision_pending');
       socket.off('destroy_dyke_decision_required');
       socket.off('destroy_dyke_activated');
@@ -5119,6 +5196,29 @@ export default function GameBoard({ onLeaveRoom }) {
     });
   };
 
+  const handleRequestSurrender = () => {
+    if (!canRequestSurrender || hasRequestedSurrender) return;
+    modalApi.confirm({
+      title: '发起投降？',
+      content: '申请会等本墩完整结束，再询问你的队友；只有队友同意后投降才会生效。',
+      okText: '确认发起',
+      cancelText: '继续游戏',
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: () => socket.emit(SOCKET_EVENTS.REQUEST_SURRENDER, {
+        roomId: currentRoom.id
+      })
+    });
+  };
+
+  const handleRespondSurrender = accept => {
+    if (!surrenderDecision) return;
+    socket.emit(SOCKET_EVENTS.RESPOND_SURRENDER, {
+      roomId: currentRoom.id,
+      accept
+    });
+  };
+
   // 处理规则选择
   const handleRuleSelected = (ruleOrRuleIds) => {
     // 发送规则选择事件到服务器
@@ -5903,6 +6003,11 @@ export default function GameBoard({ onLeaveRoom }) {
         const hasDestroyDykeDecisionPending = Boolean(
           gameState?.destroyDyke?.pending
         );
+        const hasSurrenderDecisionPending = Boolean(
+          gameState?.surrender?.currentDecision
+          || gameState?.surrender?.queuedPlayerIds?.length
+          || surrenderDecision
+        );
         const canUndo = Boolean(lastPlay &&
           (lastPlay.controllerPlayerId || lastPlay.playerId) === currentPlayer?.id &&
           !isOpenHandSelf &&
@@ -5912,6 +6017,7 @@ export default function GameBoard({ onLeaveRoom }) {
           !hasAntinomySelectionPending &&
           !hasRiceToMulberrySelectionPending &&
           !hasDestroyDykeDecisionPending &&
+          !hasSurrenderDecisionPending &&
           !hasTimeReversalDecisionPending);
 
         // 验证选中的牌是否合法
@@ -5943,6 +6049,7 @@ export default function GameBoard({ onLeaveRoom }) {
           && !hasAntinomySelectionPending
           && !hasRiceToMulberrySelectionPending
           && !hasDestroyDykeDecisionPending
+          && !hasSurrenderDecisionPending
           && !hasTimeReversalDecisionPending;
         const playActionLabel = isActiveSkillArmed
           && activeSkill?.effect === 'two_legal_plays_choose_at_round_end'
@@ -5955,7 +6062,9 @@ export default function GameBoard({ onLeaveRoom }) {
           ['yield_turn_to_next_player', 'force_leader_replay', 'compare_and_exchange', 'swap_two_plays_at_round_end', 'declare_target_card', 'ignore_odd_led_side_suit', 'two_legal_plays_choose_at_round_end', 'silence_non_leader_for_round'].includes(activeSkill?.effect)
           && activeSkillAvailability.canActivate
         );
-        const playButtonTitle = hasTimeReversalDecisionPending
+        const playButtonTitle = hasSurrenderDecisionPending
+                               ? '正在处理本轮投降表决' :
+                               hasTimeReversalDecisionPending
                                ? '本轮正在等待时间倒流决定' :
                                hasPoliticalReviewDecisionPending
                                ? '等待队友完成政治审查' :
@@ -6089,6 +6198,9 @@ export default function GameBoard({ onLeaveRoom }) {
                 players={tablePlayers}
                 currentPlayer={currentPlayer}
                 onLeaveRoom={handleConfirmLeaveRoom}
+                onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
+                canRequestSurrender={canRequestSurrender}
+                hasRequestedSurrender={hasRequestedSurrender}
                 playedCards={{}}
                 shownCards={{}}
                 myCards={[]}
@@ -6195,6 +6307,9 @@ export default function GameBoard({ onLeaveRoom }) {
               players={tablePlayers}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleConfirmLeaveRoom}
+              onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
+              canRequestSurrender={canRequestSurrender}
+              hasRequestedSurrender={hasRequestedSurrender}
               playedCards={{}}
               shownCards={shownCards}
               myCards={myCards}
@@ -6241,6 +6356,9 @@ export default function GameBoard({ onLeaveRoom }) {
               players={tablePlayers}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleConfirmLeaveRoom}
+              onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
+              canRequestSurrender={canRequestSurrender}
+              hasRequestedSurrender={hasRequestedSurrender}
               playedCards={{}}
               shownCards={{}}
               myCards={myCards}
@@ -6304,6 +6422,9 @@ export default function GameBoard({ onLeaveRoom }) {
               players={tablePlayers}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleConfirmLeaveRoom}
+              onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
+              canRequestSurrender={canRequestSurrender}
+              hasRequestedSurrender={hasRequestedSurrender}
               playedCards={displayedPlayedCards}
               throwFailedPreviews={viewingLastRound ? {} : throwFailedPreviews}
               shownCards={{}}
@@ -6425,6 +6546,9 @@ export default function GameBoard({ onLeaveRoom }) {
               players={tablePlayers}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleConfirmLeaveRoom}
+              onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
+              canRequestSurrender={canRequestSurrender}
+              hasRequestedSurrender={hasRequestedSurrender}
               playedCards={playedCards}
               shownCards={{}}
               myCards={myCards}
@@ -6472,6 +6596,9 @@ export default function GameBoard({ onLeaveRoom }) {
               players={tablePlayers}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleConfirmLeaveRoom}
+              onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
+              canRequestSurrender={canRequestSurrender}
+              hasRequestedSurrender={hasRequestedSurrender}
               playedCards={playedCards}
               shownCards={{}}
               myCards={myCards}
@@ -8602,6 +8729,41 @@ export default function GameBoard({ onLeaveRoom }) {
             确认改造
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        title="投降表决"
+        className="player-decision-modal surrender-decision-modal"
+        open={Boolean(surrenderDecision)}
+        closable={false}
+        maskClosable={false}
+        keyboard={false}
+        zIndex={2350}
+        footer={[
+          <Button key="reject" onClick={() => handleRespondSurrender(false)}>
+            不同意，继续打
+          </Button>,
+          <Button
+            key="accept"
+            danger
+            type="primary"
+            onClick={() => handleRespondSurrender(true)}
+          >
+            同意投降
+          </Button>
+        ]}
+      >
+        <p className="player-decision-primary-text">
+          你的队友 <strong>{surrenderDecision?.initiatorPlayerName || ''}</strong> 发起了投降，
+          是否同意？
+        </p>
+        <p className="player-decision-secondary-text">
+          {surrenderDecision?.surrenderingSide === 'dealer'
+            ? `同意后闲家按当前${surrenderDecision?.attackerScore || 0}分再加80分结算，闲家方直接获胜。`
+            : surrenderDecision?.completedRound <= 2
+              ? '这是前两墩投降：同意后庄家方直接获胜并升1级。'
+              : `同意后庄家方直接获胜，并按闲家当前实得${surrenderDecision?.attackerScore || 0}分结算。`}
+        </p>
       </Modal>
 
       <Modal

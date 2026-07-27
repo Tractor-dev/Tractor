@@ -498,17 +498,54 @@ function emitFinishedGame(io, room) {
   const hasExtraReveal = result?.mistyFogCards?.length || result?.lingeringDiscardCards?.length;
   io.to(room.id).emit('phase_changed', {
     phase: 'revealing',
-    message: hasExtraReveal
+    message: result?.surrender
+      ? `${result.surrender.initiatorPlayerName}一方投降，牌局结束`
+      : hasExtraReveal
       ? '所有玩家已出完牌，查看底牌与终局公开牌'
       : '所有玩家已出完牌，查看底牌'
   });
 }
 
+function emitSurrenderDecision(io, room, decision) {
+  if (!decision) return;
+  io.to(room.id).emit('surrender_decision_pending', decision);
+  const teammate = room.findPlayerById(decision.teammatePlayerId);
+  if (teammate?.socketId && !teammate.isBot) {
+    io.to(teammate.socketId).emit('surrender_decision_required', decision);
+  }
+}
+
+function beginSurrenderDecision(io, room, gameEngine, initialDecision = null) {
+  let decision = initialDecision || gameEngine.prepareSurrenderReview();
+  let lastResult = null;
+  while (decision) {
+    emitSurrenderDecision(io, room, decision);
+    const teammate = room.findPlayerById(decision.teammatePlayerId);
+    if (!teammate?.isBot) {
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+      return { pending: true, decision, gameFinished: false };
+    }
+
+    lastResult = gameEngine.respondSurrender(teammate.id, true);
+    io.to(room.id).emit('game_surrendered', lastResult.surrender);
+    if (lastResult.gameFinished) {
+      emitFinishedGame(io, room);
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+      return lastResult;
+    }
+    decision = lastResult.nextDecision;
+  }
+  return lastResult;
+}
+
 function continueAfterTimeReversalWindow(io, room, gameEngine, result) {
   io.to(room.id).emit('time_reversal_resolved', result);
   if (result.gameFinished) emitFinishedGame(io, room);
+  const surrenderResult = !result.gameFinished
+    ? beginSurrenderDecision(io, room, gameEngine, result.surrenderDecision)
+    : null;
   io.to(room.id).emit('room_updated', { room: room.toJSON() });
-  if (!result.gameFinished) {
+  if (!result.gameFinished && !surrenderResult?.pending && !surrenderResult?.gameFinished) {
     triggerBotPlay(io, room, gameEngine).catch(error => {
       logger.error('时间倒流窗口结束后触发Bot出牌失败:', error);
     });
@@ -525,6 +562,15 @@ async function triggerBotPlay(io, room, gameEngine) {
   // 检查游戏状态
   if (room.gameState.phase !== GamePhases.PLAYING) {
     logger.warn(`游戏阶段不是PLAYING，当前阶段: ${room.gameState.phase}，跳过bot出牌`);
+    return;
+  }
+  const surrenderResult = beginSurrenderDecision(io, room, gameEngine);
+  if (surrenderResult?.pending || surrenderResult?.gameFinished) {
+    logger.info('投降申请正在等待队友决定，暂不触发Bot出牌');
+    return;
+  }
+  if (gameEngine.hasPendingSurrenderDecision()) {
+    logger.info('投降申请正在按庄家起顺序处理，暂不触发Bot出牌');
     return;
   }
   if (gameEngine.hasPendingIcebergSelection()) {
@@ -809,6 +855,16 @@ async function triggerBotPlay(io, room, gameEngine) {
     // 广播回合状态更新
     if (result.roundUpdate) {
       io.to(room.id).emit('round_updated', result.roundUpdate);
+    }
+    const surrenderReviewResult = beginSurrenderDecision(
+      io,
+      room,
+      gameEngine,
+      result.surrenderDecision
+    );
+    if (surrenderReviewResult?.pending || surrenderReviewResult?.gameFinished) {
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+      return;
     }
     const automaticDestroyDykeResult = beginDestroyDykeDecision(
       io,
@@ -2187,6 +2243,58 @@ export function registerGameHandlers(io, socket, roomManager) {
     }
   });
 
+  socket.on('request_surrender', ({ roomId }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) throw new Error('房间不存在');
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) throw new Error('玩家不存在');
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) throw new Error('游戏未开始');
+
+      const request = gameEngine.requestSurrender(player.id);
+      io.to(room.id).emit('surrender_requested', request);
+      beginSurrenderDecision(io, room, gameEngine);
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('发起投降失败:', error);
+    }
+  });
+
+  socket.on('respond_surrender', ({ roomId, accept }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) throw new Error('房间不存在');
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) throw new Error('玩家不存在');
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) throw new Error('游戏未开始');
+
+      const result = gameEngine.respondSurrender(player.id, accept === true);
+      if (result.accepted) {
+        io.to(room.id).emit('game_surrendered', result.surrender);
+        emitFinishedGame(io, room);
+      } else {
+        io.to(room.id).emit('surrender_rejected', result.rejection);
+        if (result.gameFinished) {
+          emitFinishedGame(io, room);
+        } else if (result.nextDecision) {
+          beginSurrenderDecision(io, room, gameEngine, result.nextDecision);
+        }
+      }
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+      if (!result.gameFinished && !result.nextDecision) {
+        triggerBotPlay(io, room, gameEngine).catch(error => {
+          logger.error('投降表决结束后触发牌局继续失败:', error);
+        });
+      }
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('处理投降决定失败:', error);
+    }
+  });
+
   socket.on('play_cards', ({
     roomId,
     cardIds,
@@ -2290,6 +2398,16 @@ export function registerGameHandlers(io, socket, roomManager) {
       // 广播回合状态更新
       if (result.roundUpdate) {
         io.to(room.id).emit('round_updated', result.roundUpdate);
+      }
+      const surrenderReviewResult = beginSurrenderDecision(
+        io,
+        room,
+        gameEngine,
+        result.surrenderDecision
+      );
+      if (surrenderReviewResult?.pending || surrenderReviewResult?.gameFinished) {
+        io.to(room.id).emit('room_updated', { room: room.toJSON() });
+        return;
       }
       const automaticDestroyDykeResult = beginDestroyDykeDecision(
         io,

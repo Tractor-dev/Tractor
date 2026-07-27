@@ -82,6 +82,7 @@ import {
   isLureTigerFromMountainRule,
   isMutualVisibilityRule,
   isMinorDisturbanceRule,
+  isBurnTheBoatsRule,
   isNoOneSurvivesRule,
   isOneHorseLeadsRule,
   isLastStandRule,
@@ -570,6 +571,10 @@ export class GameEngine {
 
     if (gameState.destroyDykeDecision?.dealerPlayerId === player.id) {
       add('destroy_dyke_decision_required', gameState.destroyDykeDecision);
+    }
+
+    if (gameState.surrenderCurrentDecision?.teammatePlayerId === player.id) {
+      add('surrender_decision_required', this.getSurrenderPublicDecision());
     }
 
     const administrativeReview = gameState.administrativeReview;
@@ -1421,6 +1426,289 @@ export class GameEngine {
     const playerIndex = this.room.getPlayerIndex(playerId);
     if (playerIndex < 0 || this.room.players.length !== 4) return null;
     return this.room.findPlayerByIndex((playerIndex + 2) % 4);
+  }
+
+  requestSurrender(playerId) {
+    const { gameState } = this.room;
+    if (![GamePhases.DRAWING, GamePhases.BURYING, GamePhases.PLAYING].includes(gameState.phase)) {
+      throw new Error('当前牌局不能发起投降');
+    }
+    if (isBurnTheBoatsRule(gameState.selectedRule)) {
+      throw new Error('破釜沉舟规则禁止投降');
+    }
+    if (gameState.surrenderCurrentDecision || gameState.surrenderDecisionQueue.length > 0) {
+      throw new Error('本轮投降表决已经开始，请等待处理完成');
+    }
+    const player = this.room.findPlayerById(playerId);
+    if (!player) throw new Error('玩家不存在');
+    if (gameState.surrenderRequests.has(player.id)) {
+      throw new Error('你已经发起投降，请等待本轮结束');
+    }
+
+    const request = {
+      initiatorPlayerId: player.id,
+      initiatorPlayerName: player.name,
+      requestedRound: gameState.currentRound > 0 ? gameState.currentRound : null,
+      requestedAt: new Date().toISOString()
+    };
+    gameState.surrenderRequests.set(player.id, request);
+    logger.info(
+      `房间 ${this.room.id} 玩家 ${player.name} 发起投降，等待本轮完整结束后询问队友`
+    );
+    return { ...request };
+  }
+
+  hasPendingSurrenderDecision() {
+    const { gameState } = this.room;
+    return Boolean(
+      gameState.surrenderCurrentDecision
+      || gameState.surrenderDecisionQueue.length > 0
+    );
+  }
+
+  getSurrenderPublicDecision(decision = this.room.gameState.surrenderCurrentDecision) {
+    return decision ? { ...decision } : null;
+  }
+
+  isSurrenderReviewReady() {
+    const { gameState } = this.room;
+    if (
+      gameState.phase !== GamePhases.PLAYING
+      || gameState.surrenderRequests.size === 0
+      || gameState.currentRound <= 1
+      || gameState.currentRoundPlays.length > 0
+      || gameState.playersPlayedThisRound.size > 0
+      || !Number.isInteger(gameState.lastRoundWinnerIndex)
+    ) return false;
+
+    return !(
+      this.hasPendingTimeReversalDecision()
+      || this.hasPendingMutualSupportAction()
+      || this.hasPendingStrawBoatBorrowingArrowsDecision()
+      || this.hasPendingTeammateCheerDecision()
+      || this.hasPendingAfterglowDecision()
+      || this.hasPendingAmbiguousChoice()
+      || this.hasPendingDestroyDykeDecision()
+      || this.hasPendingWaitingRabbitDecision()
+      || this.hasPendingPoliticalReviewDecision()
+      || this.hasPendingForbiddenMagicDecision()
+      || this.hasPendingLureTigerDecision()
+      || this.hasPendingWoodenOxDecision()
+      || this.hasPendingEquivalentReciprocityChallenge()
+      || this.hasPendingIcebergSelection()
+      || this.hasPendingTenSidedAmbushSelection()
+      || this.hasPendingThreePowersSelection()
+      || this.hasPendingGentlemanPromiseSelection()
+      || this.hasPendingHiddenDragonSelection()
+      || this.hasPendingAntinomySelection()
+      || this.hasPendingRiceToMulberrySelection()
+      || this.hasPendingAdministrativeReviewSelection()
+      || this.hasPendingFocusFigureVote()
+      || this.hasPendingMainstayAction()
+      || this.hasPendingLastStandDecision()
+      || gameState.cardExchange?.stage === 'round'
+    );
+  }
+
+  prepareSurrenderReview({
+    completedRound = this.room.gameState.currentRound - 1,
+    finishGameAfterReview = false
+  } = {}) {
+    const { gameState } = this.room;
+    if (finishGameAfterReview && gameState.surrenderRequests.size > 0) {
+      gameState.surrenderFinishGameAfterReview = true;
+    }
+    if (this.hasPendingSurrenderDecision()) {
+      return this.getSurrenderPublicDecision();
+    }
+    if (!this.isSurrenderReviewReady()) return null;
+
+    const dealer = this.room.findPlayerById(gameState.buryingPlayerId);
+    const dealerIndex = this.room.getPlayerIndex(dealer?.id);
+    if (!dealer || dealerIndex < 0) return null;
+
+    const orderByPlayerId = new Map();
+    for (let offset = 0; offset < this.room.players.length; offset += 1) {
+      const orderedPlayer = this.room.findPlayerByIndex(
+        (dealerIndex + offset) % this.room.players.length
+      );
+      if (orderedPlayer) orderByPlayerId.set(orderedPlayer.id, offset);
+    }
+
+    const decisions = Array.from(gameState.surrenderRequests.values())
+      .sort((left, right) => (
+        (orderByPlayerId.get(left.initiatorPlayerId) ?? Number.MAX_SAFE_INTEGER)
+        - (orderByPlayerId.get(right.initiatorPlayerId) ?? Number.MAX_SAFE_INTEGER)
+      ))
+      .map(request => {
+        const initiator = this.room.findPlayerById(request.initiatorPlayerId);
+        const teammate = this.getFixedTeammate(request.initiatorPlayerId);
+        if (!initiator || !teammate) return null;
+        const initiatorTeamIndex = this.getPlayerTeamIndex(initiator.id);
+        const dealerTeamIndex = this.getPlayerTeamIndex(dealer.id);
+        return {
+          id: `surrender-${completedRound}-${initiator.id}`,
+          completedRound,
+          initiatorPlayerId: initiator.id,
+          initiatorPlayerName: initiator.name,
+          teammatePlayerId: teammate.id,
+          teammatePlayerName: teammate.name,
+          surrenderingSide: initiatorTeamIndex === dealerTeamIndex ? 'dealer' : 'attacker',
+          attackerScore: gameState.attackerScore
+        };
+      })
+      .filter(Boolean);
+
+    gameState.surrenderRequests.clear();
+    gameState.surrenderFinishGameAfterReview = Boolean(
+      gameState.surrenderFinishGameAfterReview || finishGameAfterReview
+    );
+    const decisionCount = decisions.length;
+    gameState.surrenderDecisionQueue = decisions;
+    gameState.surrenderCurrentDecision = gameState.surrenderDecisionQueue.shift() || null;
+    if (!gameState.surrenderCurrentDecision) return null;
+
+    logger.info(
+      `房间 ${this.room.id} 第${completedRound}轮结束，开始按庄家起顺序处理` +
+      `${decisionCount}个投降申请`
+    );
+    return this.getSurrenderPublicDecision();
+  }
+
+  getDealerVictoryLevelUp(attackerScore) {
+    if (attackerScore === 0) return 3;
+    if (attackerScore < 40) return 2;
+    return 1;
+  }
+
+  finishGameBySurrender(decision) {
+    const { gameState } = this.room;
+    const scoreBeforeSurrender = gameState.attackerScore;
+    let forcedUpgrade;
+
+    if (decision.surrenderingSide === 'dealer') {
+      gameState.attackerScore = scoreBeforeSurrender + 80;
+      forcedUpgrade = calculateLevelUpgrade(gameState.attackerScore);
+    } else {
+      forcedUpgrade = {
+        attackerWon: false,
+        dealerLevelUp: decision.completedRound <= 2
+          ? 1
+          : this.getDealerVictoryLevelUp(scoreBeforeSurrender),
+        attackerLevelUp: 0
+      };
+    }
+
+    const surrenderResult = {
+      accepted: true,
+      completedRound: decision.completedRound,
+      initiatorPlayerId: decision.initiatorPlayerId,
+      initiatorPlayerName: decision.initiatorPlayerName,
+      teammatePlayerId: decision.teammatePlayerId,
+      teammatePlayerName: decision.teammatePlayerName,
+      surrenderingSide: decision.surrenderingSide,
+      winningSide: decision.surrenderingSide === 'dealer' ? 'attacker' : 'dealer',
+      scoreBeforeSurrender,
+      scoreAdjustment: gameState.attackerScore - scoreBeforeSurrender,
+      finalAttackerScore: gameState.attackerScore,
+      earlyAttackerSurrender: decision.surrenderingSide === 'attacker'
+        && decision.completedRound <= 2
+    };
+
+    gameState.phase = GamePhases.REVEALING;
+    gameState.endTime = new Date();
+    gameState.surrenderCurrentDecision = null;
+    gameState.surrenderDecisionQueue = [];
+    gameState.surrenderRequests.clear();
+    gameState.surrenderFinishGameAfterReview = false;
+    gameState.surrenderLastResult = surrenderResult;
+    gameState.bottomScoreResult = {
+      resultText: decision.surrenderingSide === 'dealer'
+        ? `${decision.initiatorPlayerName}一方投降，闲家方获胜`
+        : `${decision.initiatorPlayerName}一方投降，庄家方获胜`,
+      collectedPointCards: gameState.collectedPointCards.map(
+        card => card.toJSON ? card.toJSON() : card
+      ),
+      bottomCards: gameState.bottomCards.map(card => card.toJSON()),
+      bottomPoints: 0,
+      bottomMultiplier: 0,
+      bottomScoreGained: 0,
+      totalScore: gameState.attackerScore,
+      currentGameTrumpSuit: gameState.trumpSuit,
+      currentGameTrumpRank: gameState.trumpRank,
+      surrender: surrenderResult
+    };
+    gameState.upgradeResult = this.calculateUpgrade(forcedUpgrade);
+    this.room.players.forEach(player => {
+      player.isReadyForNext = player.isBot;
+    });
+    gameState.nextRuleChooserIndex = gameState.lastRoundWinnerIndex;
+
+    logger.info(
+      `房间 ${this.room.id} 投降结算：${gameState.bottomScoreResult.resultText}，` +
+      `闲家结算分 ${gameState.attackerScore}`
+    );
+    return surrenderResult;
+  }
+
+  respondSurrender(playerId, accept) {
+    const { gameState } = this.room;
+    const decision = gameState.surrenderCurrentDecision;
+    if (!decision || decision.teammatePlayerId !== playerId) {
+      throw new Error('当前没有等待你的投降决定');
+    }
+    const responder = this.room.findPlayerById(playerId);
+    if (!responder) throw new Error('玩家不存在');
+
+    gameState.surrenderCurrentDecision = null;
+    if (accept) {
+      const surrender = this.finishGameBySurrender(decision);
+      return {
+        accepted: true,
+        gameFinished: true,
+        surrender,
+        decision,
+        nextDecision: null
+      };
+    }
+
+    const rejection = {
+      accepted: false,
+      completedRound: decision.completedRound,
+      initiatorPlayerId: decision.initiatorPlayerId,
+      initiatorPlayerName: decision.initiatorPlayerName,
+      teammatePlayerId: responder.id,
+      teammatePlayerName: responder.name
+    };
+    gameState.surrenderLastResult = rejection;
+    gameState.surrenderCurrentDecision = gameState.surrenderDecisionQueue.shift() || null;
+    if (gameState.surrenderCurrentDecision) {
+      return {
+        accepted: false,
+        gameFinished: false,
+        rejection,
+        decision,
+        nextDecision: this.getSurrenderPublicDecision()
+      };
+    }
+
+    const shouldFinishGame = gameState.surrenderFinishGameAfterReview
+      || this.room.players.every(player => this.getPlayableCardCount(player) === 0);
+    gameState.surrenderFinishGameAfterReview = false;
+    if (shouldFinishGame) this.finishGame();
+    if (!shouldFinishGame && isForbiddenMagicRule(gameState.selectedRule)) {
+      this.enqueueForbiddenMagicRoundDecisions();
+    }
+    if (!shouldFinishGame && isLureTigerFromMountainRule(gameState.selectedRule)) {
+      this.enqueueLureTigerRoundDecisions();
+    }
+    return {
+      accepted: false,
+      gameFinished: shouldFinishGame,
+      rejection,
+      decision,
+      nextDecision: null
+    };
   }
 
   /** “欢乐成双”：庄家锁定后、收底牌前，与其固定上家（索引-1）交换座位。 */
@@ -3672,14 +3960,22 @@ export class GameEngine {
     gameState.timeReversalDecisionState = null;
     gameState.timeReversalWindowRound = null;
     this.timeReversalRoundSnapshot = null;
-    const gameFinished = this.room.players.every(candidate => candidate.cards.length === 0);
+    const gameWouldFinish = this.room.players.every(candidate => candidate.cards.length === 0);
+    const surrenderDecision = this.prepareSurrenderReview({
+      completedRound: round,
+      finishGameAfterReview: gameWouldFinish
+    });
+    const gameFinished = gameWouldFinish
+      && !surrenderDecision
+      && gameState.surrenderRequests.size === 0;
     if (gameFinished) this.finishGame();
     return {
       accepted: false,
       resolved: true,
       reason,
       round,
-      gameFinished
+      gameFinished,
+      surrenderDecision
     };
   }
 
@@ -9950,6 +10246,12 @@ export class GameEngine {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
       throw new Error('当前不是出牌阶段');
     }
+    if (this.hasPendingSurrenderDecision()) {
+      const decision = this.room.gameState.surrenderCurrentDecision;
+      throw new Error(
+        `请等待${decision?.teammatePlayerName || '玩家'}完成投降表决`
+      );
+    }
     if (this.hasPendingMainstayAction()) {
       throw new Error('请先完成中流砥柱');
     }
@@ -10999,6 +11301,7 @@ export class GameEngine {
     let antinomyReselection = null;
     let antinomyReselectionPlayerIds = [];
     let destroyDykeRoundResult = null;
+    let surrenderDecision = null;
     if (this.room.gameState.playersPlayedThisRound.size === this.room.players.length) {
       logger.info(`[调试] 检测到轮次结束，当前轮: ${this.room.gameState.currentRound}`);
       // 魔术戏法只在四家都按各自真实手牌完成出牌后，交换两个座位的结算结果。
@@ -11572,8 +11875,25 @@ export class GameEngine {
     const abruptlyStopped = Boolean(abruptStop?.triggered);
     if (
       roundUpdate?.type === 'round_ended'
+      && !this.hasPendingTimeReversalDecision()
+    ) {
+      surrenderDecision = this.prepareSurrenderReview({
+        completedRound: roundUpdate.round,
+        finishGameAfterReview: allPlayersFinished || abruptlyStopped
+      });
+    } else if (
+      roundUpdate?.type === 'round_ended'
+      && (allPlayersFinished || abruptlyStopped)
+      && this.room.gameState.surrenderRequests.size > 0
+    ) {
+      // 时间倒流优先决定这一墩是否成立；若不回溯，稍后仍需在正常终局前处理投降。
+      this.room.gameState.surrenderFinishGameAfterReview = true;
+    }
+    if (
+      roundUpdate?.type === 'round_ended'
       && !allPlayersFinished
       && !abruptlyStopped
+      && !surrenderDecision
       && isForbiddenMagicRule(this.room.gameState.selectedRule)
     ) {
       this.enqueueForbiddenMagicRoundDecisions();
@@ -11582,6 +11902,7 @@ export class GameEngine {
       roundUpdate?.type === 'round_ended'
       && !allPlayersFinished
       && !abruptlyStopped
+      && !surrenderDecision
       && isLureTigerFromMountainRule(this.room.gameState.selectedRule)
     ) {
       this.enqueueLureTigerRoundDecisions();
@@ -11598,6 +11919,8 @@ export class GameEngine {
       && !strawBoatPending
       && !teammateCheerPending
       && !afterglowPending
+      && !surrenderDecision
+      && this.room.gameState.surrenderRequests.size === 0
     ) {
       this.finishGame();
       if (!tenSidedAmbushReveal && this.room.gameState.bottomScoreResult?.ambushRevealedFromBottom) {
@@ -11649,6 +11972,7 @@ export class GameEngine {
         plannedEconomyDraw,
         mutualSupportReturn,
         strawBoatDecision,
+        surrenderDecision: null,
         timeReversalPending: false,
         forbiddenMagicDecisionPending: false,
         lastStandRequest,
@@ -11710,6 +12034,7 @@ export class GameEngine {
       plannedEconomyDraw,
       mutualSupportReturn,
       strawBoatDecision,
+      surrenderDecision,
       timeReversalPending,
       forbiddenMagicDecisionPending: this.hasPendingForbiddenMagicDecision(),
       lastStandRequest,
@@ -12402,7 +12727,7 @@ export class GameEngine {
   /**
    * 计算升级
    */
-  calculateUpgrade() {
+  calculateUpgrade(forcedOutcome = null) {
     const attackerScore = this.room.gameState.attackerScore;
     const dealerIndex = this.room.getPlayerIndex(this.room.gameState.buryingPlayerId);
 
@@ -12412,7 +12737,8 @@ export class GameEngine {
     }
 
     // 计算升级数
-    const { attackerWon, dealerLevelUp, attackerLevelUp } = calculateLevelUpgrade(attackerScore);
+    const { attackerWon, dealerLevelUp, attackerLevelUp } = forcedOutcome
+      || calculateLevelUpgrade(attackerScore);
 
     const dealerPlayer = this.room.findPlayerByIndex(dealerIndex);
 
@@ -12560,6 +12886,9 @@ export class GameEngine {
    * 重新开始游戏（房主手动重启）
    */
   restartGame() {
+    if (isBurnTheBoatsRule(this.room.gameState.selectedRule)) {
+      throw new Error('破釜沉舟规则禁止重开');
+    }
     this.cleanup();
     this.room.resetForNewGame();
     this.startGame();

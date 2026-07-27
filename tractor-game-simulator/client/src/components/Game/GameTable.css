@@ -2429,12 +2429,40 @@
   flex: 0 0 auto;
 }
 
-.inline-controls .leave-room-button.ant-btn {
+.room-action-stack {
   flex: 0 0 auto;
   width: 100px;
+  height: 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.inline-controls .room-action-stack .ant-btn {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.inline-controls .surrender-button.ant-btn {
+  border-color: rgba(255, 206, 113, 0.62);
+  color: #fff2c9;
+  background: linear-gradient(180deg, rgba(137, 91, 37, 0.96), rgba(83, 52, 24, 0.96));
+}
+
+.inline-controls .leave-room-button.ant-btn {
   border-color: rgba(255, 154, 154, 0.62);
   color: #ffe7e7;
   background: linear-gradient(180deg, rgba(151, 56, 56, 0.96), rgba(93, 29, 33, 0.96));
+}
+
+.inline-controls .surrender-button.ant-btn:not(:disabled):hover,
+.inline-controls .surrender-button.ant-btn:not(:disabled):focus-visible {
+  border-color: #ffe0a3;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(166, 111, 43, 0.98), rgba(104, 63, 27, 0.98));
 }
 
 .inline-controls .leave-room-button.ant-btn:hover,
