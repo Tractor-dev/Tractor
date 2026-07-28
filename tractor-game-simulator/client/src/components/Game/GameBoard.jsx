@@ -224,6 +224,9 @@ export default function GameBoard({ onLeaveRoom }) {
   const [upgradeResult, setUpgradeResult] = useState(null); // 升级结果
   const [isReadyForNext, setIsReadyForNext] = useState(false); // 是否已准备下一局
   const [justPlayedCards, setJustPlayedCards] = useState(false); // 标记是否刚刚出过牌
+  // React state 与 Zustand 手牌更新可能落在不同批次。出牌后必须同步锁住自动选牌，
+  // 否则 removeCards 先触发重绘时，剩余的唯一对子/拖拉机会短暂被再次选中。
+  const suppressAutoSelectionRef = useRef(false);
   const [lastRoundPlayedCards, setLastRoundPlayedCards] = useState({}); // 上一轮的出牌信息
   const [livePlayerCardCounts, setLivePlayerCardCounts] = useState({}); // 发牌中的实时手牌数
   const [currentWinningPlayerId, setCurrentWinningPlayerId] = useState(null);
@@ -2806,6 +2809,7 @@ export default function GameBoard({ onLeaveRoom }) {
         playedCardsRef.current = updated;
         setPlayedCards(updated);
         if (teammatePlayerId === currentPlayer?.id) {
+          suppressAutoSelectionRef.current = false;
           setJustPlayedCards(false);
           clearSelection();
         }
@@ -3047,10 +3051,12 @@ export default function GameBoard({ onLeaveRoom }) {
       }
       // 只在服务端确认出牌后更新本地手牌，避免拒绝时出现“牌先消失、后恢复”。
       if (playerId === currentPlayer?.id) {
+        suppressAutoSelectionRef.current = true;
         setJustPlayedCards(true);
         removeCards(removedCardIds);
       }
       if (controllerPlayerId === currentPlayer?.id) {
+        suppressAutoSelectionRef.current = true;
         setJustPlayedCards(true);
       }
       // 如果玩家在清桌延迟期间已经开始下一墩，直接切换到新墩，避免新旧牌混在一起。
@@ -3727,8 +3733,6 @@ export default function GameBoard({ onLeaveRoom }) {
         if (currentPlayer) {
           messageApi.info(`现在轮到 ${currentPlayer.name} 出牌`);
         }
-        // 轮次变化时，重置出牌标记
-        setJustPlayedCards(false);
       } else if (roundUpdate.type === 'round_started') {
         heldCompletedRoundNumberRef.current = null;
         heldRoundCandleRef.current = null;
@@ -3736,8 +3740,6 @@ export default function GameBoard({ onLeaveRoom }) {
         messageApi.success(roundUpdate.message || `轮次 ${roundUpdate.round} 开始`);
         // 新一轮开始，清空出牌历史（因为是新的一轮，之前的牌不能再撤回）
         setPlayHistory([]);
-        // 重置出牌标记
-        setJustPlayedCards(false);
         // 取消查看上轮状态
         setViewingLastRound(false);
         // 清除定时器
@@ -4341,14 +4343,16 @@ export default function GameBoard({ onLeaveRoom }) {
     currentPlayer?.id
   ]);
 
-  // 切换出牌人时先清掉上一手选择，再计算新出牌人的自动选择。
+  // 只有权威房间快照确认出牌人或轮次发生变化后，才解除上一手的同步保护。
+  // round_updated 只是先到达的提示事件，不能提前解锁。
   useEffect(() => {
     clearSelection();
+    suppressAutoSelectionRef.current = false;
     setJustPlayedCards(false);
     setArmedActiveSkillId(null);
     setLateMoverDecisionOpen(false);
     setCulturalRevolutionSelection(null);
-  }, [gameState?.currentPlayerIndex, clearSelection]);
+  }, [gameState?.currentPlayerIndex, gameState?.currentRound, clearSelection]);
 
   // 自动选中必须出的牌
   useEffect(() => {
@@ -4362,7 +4366,7 @@ export default function GameBoard({ onLeaveRoom }) {
     if (!isMyTurn) return;
 
     // 如果刚刚出过牌，不要自动选中
-    if (justPlayedCards) return;
+    if (suppressAutoSelectionRef.current || justPlayedCards) return;
 
     // 检查当前玩家是否已经在本轮出过牌了
     const hasPlayedThisRound = playedCards[currentTurnOwner?.id] !== undefined;
@@ -5052,6 +5056,7 @@ export default function GameBoard({ onLeaveRoom }) {
 
     // 先于清空选择标记“已提交”，避免服务器确认前仍沿用旧行动权的快照，
     // 触发自动跟牌 effect 把剩余手牌瞬间重新选中。
+    suppressAutoSelectionRef.current = true;
     setJustPlayedCards(true);
     socket.emit(SOCKET_EVENTS.PLAY_CARDS, {
       roomId: currentRoom.id,
@@ -5065,9 +5070,10 @@ export default function GameBoard({ onLeaveRoom }) {
       divineWeaponSourceCardId,
       ambiguousAlternativeCardIds: isAmbiguousPlay ? cardsToPlay : []
     }, acknowledgement => {
-      // 出牌被服务端拒绝时恢复自动选牌能力；成功后的状态由
-      // cards_played / round_updated 继续接管。
+      // 出牌被服务端拒绝时恢复自动选牌能力；成功后要一直等到
+      // 权威房间快照确认行动权或轮次已经变化。
       if (acknowledgement?.ok === false) {
+        suppressAutoSelectionRef.current = false;
         setJustPlayedCards(false);
       }
     });

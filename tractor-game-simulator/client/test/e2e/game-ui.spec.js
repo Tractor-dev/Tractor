@@ -1090,6 +1090,153 @@ test('跟牌提交后等待服务器确认期间不会重新选中剩余手牌',
   }
 });
 
+test('拆开两对出牌后提前到达的回合事件不会瞬间选中剩余对子', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '记录在案');
+
+  try {
+    const fixturePageIndex = await finishDealerBury(pages);
+    const followerPage = pages[fixturePageIndex];
+    await followerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      const ownIndex = state.currentRoom.players.findIndex(
+        player => player.id === state.currentPlayer.id
+      );
+      const leaderIndex = (ownIndex + state.currentRoom.players.length - 1)
+        % state.currentRoom.players.length;
+      const cards = [
+        { id: 'split-pair-club-a-0', suit: 'clubs', rank: 'A', copyIndex: 80 },
+        { id: 'split-pair-club-a-1', suit: 'clubs', rank: 'A', copyIndex: 81 },
+        { id: 'split-pair-club-k-0', suit: 'clubs', rank: 'K', copyIndex: 82 },
+        { id: 'split-pair-club-k-1', suit: 'clubs', rank: 'K', copyIndex: 83 },
+        { id: 'split-pair-diamond-3', suit: 'diamonds', rank: '3', copyIndex: 84 }
+      ];
+      useGameStore.setState({
+        myCards: cards,
+        selectedCards: [],
+        trumpSuit: 'spades',
+        trumpRank: '2',
+        currentRoom: {
+          ...state.currentRoom,
+          players: state.currentRoom.players.map((player, index) => ({
+            ...player,
+            cardsCount: index === ownIndex ? cards.length : player.cardsCount
+          })),
+          gameState: {
+            ...state.currentRoom.gameState,
+            phase: 'playing',
+            trumpSuit: 'spades',
+            trumpRank: '2',
+            currentPlayerIndex: ownIndex,
+            currentRoundPlays: 1,
+            playersPlayedThisRound: [leaderIndex],
+            leadingPattern: {
+              type: 'pair',
+              suit: 'clubs',
+              length: 2,
+              cards: [
+                { id: 'leader-club-q-0', suit: 'clubs', rank: 'Q', copyIndex: 0 },
+                { id: 'leader-club-q-1', suit: 'clubs', rank: 'Q', copyIndex: 1 }
+              ]
+            }
+          }
+        }
+      });
+
+      const socketService = (await import('/src/services/socket.js')).default;
+      const socket = socketService.socket;
+      const originalEmit = socket.emit.bind(socket);
+      socket.emit = (event, ...args) => {
+        if (event === 'play_cards') {
+          window.__splitPairPlayAcknowledgement = args.find(
+            argument => typeof argument === 'function'
+          );
+          return socket;
+        }
+        return originalEmit(event, ...args);
+      };
+    });
+
+    const selectedCards = followerPage.locator('.my-hand .card.selected');
+    await expect(selectedCards).toHaveCount(0);
+    await followerPage
+      .locator('.my-hand .card[data-card-id="split-pair-club-k-0"]')
+      .dispatchEvent('click');
+    await followerPage
+      .locator('.my-hand .card[data-card-id="split-pair-club-k-1"]')
+      .dispatchEvent('click');
+    const playButton = followerPage.getByRole('button', { name: '出牌(2)' });
+    await expect(playButton).toBeEnabled();
+    await playButton.click();
+    await expect(selectedCards).toHaveCount(0);
+
+    // 服务端的实际顺序是回执、cards_played、round_updated、room_updated。
+    // 前三个消息连续到达时，Zustand 会先同步删牌；剩余唯一对子仍不得被抬起。
+    await followerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const socket = socketService.socket;
+      const state = useGameStore.getState();
+      const ownIndex = state.currentRoom.players.findIndex(
+        player => player.id === state.currentPlayer.id
+      );
+      const nextPlayerIndex = (ownIndex + 1) % state.currentRoom.players.length;
+      const playedCards = state.myCards.filter(card => (
+        card.id === 'split-pair-club-k-0' || card.id === 'split-pair-club-k-1'
+      ));
+
+      window.__splitPairPlayAcknowledgement?.({ ok: true, pending: false });
+      socket.listeners('cards_played').forEach(listener => listener({
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        cards: playedCards,
+        removedCardIds: playedCards.map(card => card.id),
+        cardsCount: playedCards.length,
+        currentWinningPlayerId: state.currentPlayer.id
+      }));
+      socket.listeners('round_updated').forEach(listener => listener({
+        type: 'turn_changed',
+        currentPlayerIndex: nextPlayerIndex
+      }));
+    });
+
+    await expect(followerPage.locator('.my-hand .card')).toHaveCount(3);
+    await followerPage.waitForTimeout(350);
+    await expect(selectedCards).toHaveCount(0);
+
+    // 若自己赢得本墩，下一轮的 currentPlayerIndex 可能不变；仍要以 currentRound
+    // 的权威快照解除保护，不能因此把玩家永久锁死。
+    await followerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      const ownIndex = state.currentRoom.players.findIndex(
+        player => player.id === state.currentPlayer.id
+      );
+      const room = {
+        ...state.currentRoom,
+        gameState: {
+          ...state.currentRoom.gameState,
+          currentRound: (state.currentRoom.gameState.currentRound || 1) + 1,
+          currentPlayerIndex: ownIndex,
+          currentRoundPlays: 0,
+          playersPlayedThisRound: [],
+          leadingPattern: null
+        }
+      };
+      socketService.socket.listeners('room_updated').forEach(listener => listener({ room }));
+    });
+    const nextRoundCard = followerPage.locator(
+      '.my-hand .card[data-card-id="split-pair-club-a-0"]'
+    );
+    await nextRoundCard.dispatchEvent('click');
+    await expect(nextRoundCard).toHaveClass(/selected/);
+  } finally {
+    await context.close();
+  }
+});
+
 test('冷却点数和花色会在所有玩家主视角中整轮灰显', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '冷却时间');
