@@ -156,6 +156,30 @@ test('烛态在轮末四家牌面清除前保持旧值，清桌后才切换到�
     getDisplayedCandleState({
       candleToDawn,
       currentRound: 2,
+      heldRoundCandle: { round: 1, isLit: true },
+      visiblePlayCount: 1,
+      playerCount: 4
+    }),
+    { round: 1, isLit: true, holdsCompletedRound: true }
+  );
+  assert.deepEqual(
+    getDisplayedCandleState({
+      candleToDawn: {
+        isLit: false,
+        lastTransition: null
+      },
+      currentRound: 2,
+      displayRoundNumber: 2,
+      heldRoundCandle: { round: 1, isLit: true },
+      visiblePlayCount: 0,
+      playerCount: 4
+    }),
+    { round: 1, isLit: true, holdsCompletedRound: true }
+  );
+  assert.deepEqual(
+    getDisplayedCandleState({
+      candleToDawn,
+      currentRound: 2,
       visiblePlayCount: 0,
       playerCount: 4
     }),

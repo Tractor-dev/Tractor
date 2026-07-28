@@ -909,7 +909,7 @@ test('鸟尽弓藏只禁用一号位的弓藏花色，跟牌和仅剩禁花时�
   }), ['d5', 'sQ'], '带分级牌和主花色牌都应按主花色禁用');
 });
 
-test('冷却时间与时间冷却整轮禁用自己的上轮点数或花色，并在无牌可出时解除', () => {
+test('冷却时间与时间冷却禁用上轮点数或花色，但不能覆盖本轮跟牌义务', () => {
   const players = [{ id: 'p0' }, { id: 'p1' }, { id: 'p2' }, { id: 'p3' }];
   const rankHand = [
     card('h7', 'hearts', '7'),
@@ -963,7 +963,7 @@ test('冷却时间与时间冷却整轮禁用自己的上轮点数或花色，�
     handCards: suitHand,
     players,
     currentPlayerId: 'p1'
-  }), ['dK']);
+  }), [], '首家要求方片时，冷却中的方片必须临时解禁');
   assert.equal(validatePlaySelection({
     selectedCardIds: ['c8'],
     handCards: suitHand,
@@ -971,7 +971,37 @@ test('冷却时间与时间冷却整轮禁用自己的上轮点数或花色，�
     trumpSuit: 'spades',
     trumpRank: '2',
     currentPlayerId: 'p1'
-  }).valid, true, '已冷却的首花色不再形成跟牌义务');
+  }).valid, false, '冷却不能让玩家绕过仍持有的首花色');
+  assert.equal(validatePlaySelection({
+    selectedCardIds: ['dK'],
+    handCards: suitHand,
+    gameState: suitState,
+    trumpSuit: 'spades',
+    trumpRank: '2',
+    currentPlayerId: 'p1'
+  }).valid, true, '必须允许打出本轮被要求跟出的冷却花色');
+  assert.deepEqual(
+    calculateMustPlayCards(
+      suitHand,
+      suitState.leadingPattern,
+      'spades',
+      '2',
+      suitState.selectedRule
+    ).map(value => value.id),
+    ['dK'],
+    '自动跟牌与冷却解禁必须得出同一张方片，不能再形成选中后禁用的死锁'
+  );
+
+  const otherLeadingSuitState = {
+    ...suitState,
+    leadingPattern: { type: 'single', suit: 'clubs', length: 1 }
+  };
+  assert.deepEqual(getRuleDisabledLeadCardIds({
+    gameState: otherLeadingSuitState,
+    handCards: suitHand,
+    players,
+    currentPlayerId: 'p1'
+  }), ['dK'], '冷却花色不是本轮首花色时仍应保持禁用');
 
   const onlyRestricted = [card('d7', 'diamonds', '7')];
   assert.deepEqual(getRuleDisabledLeadCardIds({

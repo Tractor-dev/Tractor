@@ -91,6 +91,7 @@ export function getDisplayedCandleState({
   candleToDawn,
   currentRound = 1,
   displayRoundNumber = null,
+  heldRoundCandle = null,
   visiblePlayCount = 0,
   playerCount = 4
 } = {}) {
@@ -99,6 +100,18 @@ export function getDisplayedCandleState({
     1,
     displayRoundNumber ?? normalizedCurrentRound
   );
+  const explicitlyHeldRound = Number(heldRoundCandle?.round);
+  if (
+    Number.isInteger(explicitlyHeldRound)
+    && explicitlyHeldRound > 0
+    && typeof heldRoundCandle?.isLit === 'boolean'
+  ) {
+    return {
+      round: explicitlyHeldRound,
+      isLit: heldRoundCandle.isLit,
+      holdsCompletedRound: true
+    };
+  }
   const transition = candleToDawn?.lastTransition || null;
   const completedRoundStillOnTable = Boolean(
     transition

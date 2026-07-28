@@ -692,6 +692,23 @@ export class GameState {
       endTime: this.endTime,
       trumpSuit: this.trumpSuit,
       trumpRank: this.trumpRank,
+      // 亮主牌是已经公开的牌局记录，不应随着实体牌离开手牌或客户端重连而消失。
+      currentTrumpDeclaration: this.currentTrumpDeclaration
+        ? {
+            ...this.currentTrumpDeclaration,
+            cards: (this.currentTrumpDeclaration.cards || []).map(
+              card => card.toJSON ? card.toJSON() : card
+            )
+          }
+        : null,
+      currentInferiorDeclaration: this.currentInferiorDeclaration
+        ? {
+            ...this.currentInferiorDeclaration,
+            cards: (this.currentInferiorDeclaration.cards || []).map(
+              card => card.toJSON ? card.toJSON() : card
+            )
+          }
+        : null,
       oneCountryTwoSystems: isOneCountryTwoSystemsRule(this.selectedRule)
         ? getOneCountryPublicState(this)
         : null,

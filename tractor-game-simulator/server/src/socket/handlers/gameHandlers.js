@@ -2307,7 +2307,7 @@ export function registerGameHandlers(io, socket, roomManager) {
     divineWeaponSourceCardId = null,
     ambiguousAlternativeCardIds = [],
     politicalReviewApprovalId = null
-  }) => {
+  }, acknowledge) => {
     try {
       const room = roomManager.getRoom(roomId);
       if (!room) {
@@ -2340,6 +2340,12 @@ export function registerGameHandlers(io, socket, roomManager) {
         }
       );
 
+      if (typeof acknowledge === 'function') {
+        acknowledge({
+          ok: true,
+          pending: Boolean(result.politicalReviewDeferred)
+        });
+      }
       if (result.politicalReviewDeferred) return;
 
       if (result.throwFailed) {
@@ -2502,6 +2508,9 @@ export function registerGameHandlers(io, socket, roomManager) {
       }
 
     } catch (error) {
+      if (typeof acknowledge === 'function') {
+        acknowledge({ ok: false, message: error.message });
+      }
       socket.emit('error', { message: error.message });
       logger.error('出牌失败:', error);
     }

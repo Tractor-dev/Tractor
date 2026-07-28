@@ -261,7 +261,20 @@ test('记录在案用共用点数轴压缩四种花色，并精确保留两副�
   assert.equal(view.suits.length, 4);
   assert.equal(view.suits.find(suit => suit.id === 'hearts').counts[8], 2);
   assert.equal(view.suits.find(suit => suit.id === 'spades').counts[11], 1);
-  assert.deepEqual(view.jokers, [1, 2, 1]);
+  assert.deepEqual(view.jokers, [1, 2]);
+  assert.equal(view.showWhiteJoker, false);
+
+  const kingOverWhiteView = getRecordOnFileTrackerView({
+    activeRound: 3,
+    lastActiveRound: null,
+    playedCardCount: 7,
+    counts: {
+      joker: { small_joker: 1, big_joker: 2, white_joker: 1 }
+    }
+  }, 3, { showWhiteJoker: true });
+  assert.deepEqual(kingOverWhiteView.jokers, [1, 2, 1]);
+  assert.equal(kingOverWhiteView.showWhiteJoker, true);
+
   assert.equal(getRecordOnFileTrackerView({
     activeRound: 3,
     lastActiveRound: null

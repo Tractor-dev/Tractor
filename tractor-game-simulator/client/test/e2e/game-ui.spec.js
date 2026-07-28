@@ -942,7 +942,10 @@ test('偷梁换柱把王转成方片 J 后移入 J 牌组且不会被系统自�
     });
 
     await firstPlayerPage.getByRole('button', { name: '偷梁换柱', exact: true }).click();
-    await firstPlayerPage.locator(`.my-hand .card[data-card-id="${sourceCardId}"]`).dispatchEvent('click');
+    await firstPlayerPage
+      .locator(`.my-hand .card[data-card-id="${sourceCardId}"]`)
+      .getByRole('button', { name: '转化此牌' })
+      .dispatchEvent('click');
 
     const dialog = firstPlayerPage.getByRole('dialog', { name: '偷梁换柱 · 选择目标牌面' });
     await expect(dialog).toBeVisible();
@@ -973,11 +976,115 @@ test('偷梁换柱把王转成方片 J 后移入 J 牌组且不会被系统自�
     expect(previewOrder.slice(firstJackIndex, lastJackIndex + 1).every(card => (
       card.rank === 'J' && card.suit === '♦'
     ))).toBe(true);
+    const ordinaryCard = firstPlayerPage.locator(
+      `.my-hand .card[data-card-id="${queenCardId}"]`
+    );
+    await ordinaryCard.dispatchEvent('click');
+    const ordinaryPlayButton = firstPlayerPage.locator('.play-controls button').filter({
+      hasText: /\(1\)$/
+    }).first();
+    await expect(ordinaryPlayButton).toBeEnabled();
+    await ordinaryCard.dispatchEvent('click');
     await transformedCard.dispatchEvent('click');
     await expect(transformedCard).toHaveClass(/selected/);
     await transformedCard.getByRole('button', { name: '取消转化' }).dispatchEvent('click');
     await expect(firstPlayerPage.locator('.my-hand .joker-substitution-card-badge')).toHaveCount(0);
     await expect(firstPlayerPage.locator('.my-hand .card.selected')).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
+test('跟牌提交后等待服务器确认期间不会重新选中剩余手牌', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '记录在案');
+
+  try {
+    const fixturePageIndex = await finishDealerBury(pages);
+    const followerPage = pages[fixturePageIndex];
+    await followerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      const ownIndex = state.currentRoom.players.findIndex(
+        player => player.id === state.currentPlayer.id
+      );
+      const leaderIndex = (ownIndex + state.currentRoom.players.length - 1)
+        % state.currentRoom.players.length;
+      const cards = [
+        { id: 'pending-follow-club', suit: 'clubs', rank: 'A', copyIndex: 80 },
+        { id: 'pending-follow-diamond-3', suit: 'diamonds', rank: '3', copyIndex: 81 },
+        { id: 'pending-follow-diamond-4', suit: 'diamonds', rank: '4', copyIndex: 82 }
+      ];
+      useGameStore.setState({
+        myCards: cards,
+        selectedCards: [],
+        trumpSuit: 'spades',
+        trumpRank: '2',
+        currentRoom: {
+          ...state.currentRoom,
+          players: state.currentRoom.players.map((player, index) => ({
+            ...player,
+            cardsCount: index === ownIndex ? cards.length : player.cardsCount
+          })),
+          gameState: {
+            ...state.currentRoom.gameState,
+            phase: 'playing',
+            trumpSuit: 'spades',
+            trumpRank: '2',
+            currentPlayerIndex: ownIndex,
+            currentRoundPlays: 1,
+            playersPlayedThisRound: [leaderIndex],
+            leadingPattern: {
+              type: 'pair',
+              suit: 'clubs',
+              length: 2,
+              cards: [
+                { id: 'leader-club-k-0', suit: 'clubs', rank: 'K', copyIndex: 0 },
+                { id: 'leader-club-k-1', suit: 'clubs', rank: 'K', copyIndex: 1 }
+              ]
+            }
+          }
+        }
+      });
+    });
+
+    const selectedCards = followerPage.locator('.my-hand .card.selected');
+    await expect(selectedCards).toHaveCount(1);
+    await expect(selectedCards).toHaveAttribute('data-card-id', 'pending-follow-club');
+    await followerPage
+      .locator('.my-hand .card[data-card-id="pending-follow-diamond-3"]')
+      .dispatchEvent('click');
+    const playButton = followerPage.getByRole('button', { name: '出牌(2)' });
+    await expect(playButton).toBeEnabled();
+
+    // 模拟网络延迟：吞掉本次出牌请求，让旧快照继续显示仍由自己行动。
+    // 清空选择若会重新触发自动跟牌，这里就会立刻再次抬起剩余同花色牌。
+    await followerPage.evaluate(async () => {
+      const socketService = (await import('/src/services/socket.js')).default;
+      const socket = socketService.socket;
+      const originalEmit = socket.emit.bind(socket);
+      socket.emit = (event, ...args) => {
+        if (event === 'play_cards') {
+          window.__pendingPlayAcknowledgement = args.find(
+            argument => typeof argument === 'function'
+          );
+          return socket;
+        }
+        return originalEmit(event, ...args);
+      };
+    });
+
+    await playButton.click();
+    await expect(selectedCards).toHaveCount(0);
+    await followerPage.waitForTimeout(350);
+    await expect(selectedCards).toHaveCount(0);
+
+    // 拒绝回执会解除等待状态，仍轮到自己时可重新得到必要的跟牌提示。
+    await followerPage.evaluate(() => {
+      window.__pendingPlayAcknowledgement?.({ ok: false, message: '测试拒绝' });
+    });
+    await expect(selectedCards).toHaveCount(1);
+    await expect(selectedCards).toHaveAttribute('data-card-id', 'pending-follow-club');
   } finally {
     await context.close();
   }
@@ -1146,6 +1253,162 @@ test('无独有偶规则框随当前轮次标记零分或双倍，轮末清桌�
     await expect(status).toHaveAttribute('data-parity', 'even');
     await expect(status).toContainText('偶数轮');
     await expect(status).toContainText('本轮双倍');
+  } finally {
+    await context.close();
+  }
+});
+
+test('烛尽天明在轮末事件分帧到达时也只在清桌后切换烛态', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '记录在案');
+
+  try {
+    await finishDealerBury(pages);
+    const playerPage = pages[0];
+    await playerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      useGameStore.setState({
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            phase: 'playing',
+            currentRound: 1,
+            selectedRule: {
+              id: 'candle_to_dawn',
+              name: '烛尽天明',
+              content: '轮末按第四手颜色决定下一轮烛态。'
+            },
+            candleToDawn: {
+              selectorPlayerId: null,
+              isSelectionPending: false,
+              isLit: true,
+              lastTransition: null
+            }
+          }
+        }
+      });
+    });
+
+    const status = playerPage.getByTestId('candle-to-dawn-status');
+    await expect(status).toHaveAttribute('data-round', '1');
+    await expect(status).toHaveAttribute('data-candle-state', 'lit');
+
+    const statesBeforeRoundEvent = await playerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const socket = socketService.socket;
+      const state = useGameStore.getState();
+      const statusElement = document.querySelector('[data-testid="candle-to-dawn-status"]');
+      window.__candleStateChanges = [];
+      const recordState = () => {
+        window.__candleStateChanges.push({
+          round: statusElement?.getAttribute('data-round'),
+          state: statusElement?.getAttribute('data-candle-state')
+        });
+      };
+      recordState();
+      const observer = new MutationObserver(recordState);
+      observer.observe(statusElement, {
+        attributes: true,
+        attributeFilter: ['data-round', 'data-candle-state']
+      });
+      window.__candleStateObserver = observer;
+
+      const cardsPlayedListeners = socket.listeners('cards_played');
+      state.currentRoom.players.forEach((player, index) => {
+        cardsPlayedListeners.forEach(listener => listener({
+          playerId: player.id,
+          playerName: player.name,
+          cards: [{
+            id: `candle-hold-${index}`,
+            suit: index === 3 ? 'clubs' : 'hearts',
+            rank: '5',
+            copyIndex: 70 + index
+          }],
+          cardsCount: 1,
+          remainingCount: 24,
+          currentWinningPlayerId: player.id
+        }));
+      });
+
+      // 故意让“已切到下一轮、但尚未附带 transition”的房间快照先到一帧。
+      // 第四手到达时冻结的权威旧烛态必须挡住这次提前更新。
+      const nextRoomWithoutTransition = {
+        ...state.currentRoom,
+        gameState: {
+          ...state.currentRoom.gameState,
+          phase: 'playing',
+          currentRound: 2,
+          selectedRule: {
+            id: 'candle_to_dawn',
+            name: '烛尽天明',
+            content: '轮末按第四手颜色决定下一轮烛态。'
+          },
+          candleToDawn: {
+            selectorPlayerId: null,
+            isSelectionPending: false,
+            isLit: false,
+            lastTransition: null
+          }
+        }
+      };
+      socket.listeners('room_updated').forEach(listener => listener({
+        room: nextRoomWithoutTransition
+      }));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return [...window.__candleStateChanges];
+    });
+    expect(statesBeforeRoundEvent.every(change => (
+      change.round === '1' && change.state === 'lit'
+    ))).toBe(true);
+
+    await playerPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const socket = socketService.socket;
+      const transition = {
+        round: 1,
+        previousLit: true,
+        nextLit: false,
+        changed: true,
+        triggerColor: 'black'
+      };
+      socket.listeners('round_updated').forEach(listener => listener({
+        type: 'round_ended',
+        round: 1,
+        candleTransition: transition
+      }));
+      const state = useGameStore.getState();
+      socket.listeners('room_updated').forEach(listener => listener({
+        room: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            currentRound: 2,
+            candleToDawn: {
+              ...state.currentRoom.gameState.candleToDawn,
+              isLit: false,
+              lastTransition: transition
+            }
+          }
+        }
+      }));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    await expect(status).toHaveAttribute('data-round', '1');
+    await expect(status).toHaveAttribute('data-candle-state', 'lit');
+
+    await expect(status).toHaveAttribute('data-round', '2', { timeout: 3_000 });
+    await expect(status).toHaveAttribute('data-candle-state', 'unlit');
+    const allObservedStates = await playerPage.evaluate(() => {
+      window.__candleStateObserver?.disconnect();
+      return window.__candleStateChanges;
+    });
+    expect(allObservedStates.findIndex(change => change.state === 'unlit')).toBe(
+      allObservedStates.length - 1
+    );
   } finally {
     await context.close();
   }

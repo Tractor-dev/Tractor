@@ -6726,7 +6726,7 @@ test('再衰三竭从连续第三次最大开始递增罚分，换人接牌的�
   assert.equal(room.gameState.attackerScore, 0);
 });
 
-test('冷却时间与时间冷却记录每名玩家上轮出牌，并把冷却牌排除出本轮合法手牌', () => {
+test('冷却时间与时间冷却记录上轮出牌，但遇到基本跟牌义务时解禁首花色', () => {
   const cases = [
     {
       rule: COOLDOWN_TIME_RULE,
@@ -6735,8 +6735,7 @@ test('冷却时间与时间冷却记录每名玩家上轮出牌，并把冷却�
       secondLead: card('clubs', '9', 201),
       restricted: card('clubs', '7', 202),
       alternative: card('spades', '8', 203),
-      expectedValue: '7',
-      error: /上轮打出的点数/
+      expectedValue: '7'
     },
     {
       rule: TIME_COOLING_RULE,
@@ -6745,8 +6744,7 @@ test('冷却时间与时间冷却记录每名玩家上轮出牌，并把冷却�
       secondLead: card('diamonds', '9', 211),
       restricted: card('diamonds', 'K', 212),
       alternative: card('clubs', '8', 213),
-      expectedValue: 'diamonds',
-      error: /上轮打出的花色/
+      expectedValue: 'diamonds'
     }
   ];
 
@@ -6794,12 +6792,12 @@ test('冷却时间与时间冷却记录每名玩家上轮出牌，并把冷却�
 
     engine.playCards(room.players[0].id, [testCase.secondLead.id]);
     assert.throws(
-      () => engine.playCards(room.players[1].id, [testCase.restricted.id]),
-      testCase.error
+      () => engine.playCards(room.players[1].id, [testCase.alternative.id]),
+      /必须|花色|跟牌/
     );
     assert.doesNotThrow(
-      () => engine.playCards(room.players[1].id, [testCase.alternative.id]),
-      '冷却牌不再形成普通跟牌义务'
+      () => engine.playCards(room.players[1].id, [testCase.restricted.id]),
+      '冷却不能凌驾于基本跟牌花色义务之上'
     );
   }
 });

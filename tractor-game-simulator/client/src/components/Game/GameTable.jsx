@@ -51,6 +51,7 @@ const { Text } = Typography;
  * @param {Array} props.revealedBottomCards - 揭示的底牌
  * @param {Object} props.selectedRule - 选中的规则 { name, content }
  * @param {Number} props.displayRoundNumber - 当前牌面对应的轮次；轮末停留时锁定为刚结束的轮次
+ * @param {Object} props.heldRoundCandle - 轮末停留期间冻结的本轮烛态
  * @param {Function} props.onSelectRule - 选择规则的回调
  * @param {ReactNode} props.renderControls - 渲染控制区域的函数或组件
  * @param {Boolean} props.isWaitingForReady - 是否在等待玩家准备阶段
@@ -101,6 +102,7 @@ export default function GameTable({
   selectedRule = null,
   ruleRuntimeStatus = null,
   displayRoundNumber = null,
+  heldRoundCandle = null,
   ownFocusFigurePlayerId = null,
   tenSidedAmbush = null,
   threePowers = null,
@@ -245,9 +247,11 @@ export default function GameTable({
     1,
     displayRoundNumber ?? ruleRuntimeStatus?.currentRound ?? 1
   );
+  const showRecordOnFileWhiteJoker = ruleIncludesId(selectedRule, 'king_over_white');
   const recordOnFileTrackerView = getRecordOnFileTrackerView(
     ruleRuntimeStatus?.recordOnFile,
-    currentRoundNumber
+    currentRoundNumber,
+    { showWhiteJoker: showRecordOnFileWhiteJoker }
   );
   const candleToDawn = ruleRuntimeStatus?.candleToDawn || null;
   const threeTigers = ruleRuntimeStatus?.threeTigers || null;
@@ -289,6 +293,7 @@ export default function GameTable({
     candleToDawn,
     currentRound: ruleRuntimeStatus?.currentRound,
     displayRoundNumber,
+    heldRoundCandle,
     visiblePlayCount: Object.keys(playedCards).length,
     playerCount: players.length
   });
@@ -1228,6 +1233,7 @@ export default function GameTable({
               <RecordOnFileTracker
                 recordOnFile={ruleRuntimeStatus?.recordOnFile}
                 displayRoundNumber={currentRoundNumber}
+                showWhiteJoker={showRecordOnFileWhiteJoker}
               />
             )}
             {/* 底牌展示（优先显示） */}

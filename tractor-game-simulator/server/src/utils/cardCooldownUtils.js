@@ -47,7 +47,8 @@ export function getCardCooldownDisabledCards({
   gameState,
   playerId,
   playerCards = [],
-  requiredCount = 1
+  requiredCount = 1,
+  isLeading = false
 } = {}) {
   const type = getCardCooldownType(gameState?.selectedRule);
   if (!type || !playerId || !Array.isArray(playerCards) || playerCards.length === 0) return [];
@@ -55,9 +56,17 @@ export function getCardCooldownDisabledCards({
   const restrictedSet = new Set(restrictedValues);
   if (restrictedSet.size === 0) return [];
 
-  const restrictedCards = playerCards.filter(card => (
+  let restrictedCards = playerCards.filter(card => (
     restrictedSet.has(getCardCooldownValue(card, type, gameState))
   ));
+  const leadingSuit = !isLeading ? gameState?.leadingPattern?.suit : null;
+  if (leadingSuit) {
+    // 基本跟牌义务优先于冷却：首家要求的有效花色不能因冷却而被伪装成“缺门”。
+    // 同花色内全部解禁，也能覆盖对子、拖拉机等结构性跟牌要求。
+    restrictedCards = restrictedCards.filter(card => (
+      getEffectiveSuit(card, gameState?.trumpSuit, gameState?.trumpRank) !== leadingSuit
+    ));
+  }
   const unrestrictedCount = playerCards.length - restrictedCards.length;
   const normalizedRequiredCount = Number.isInteger(requiredCount) && requiredCount > 0
     ? requiredCount

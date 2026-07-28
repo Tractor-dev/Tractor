@@ -92,6 +92,13 @@ test('GameEngine 在 WhoDesigned Bot 摸牌时写入并广播亮主', () => {
   assert.equal(room.gameState.trumpSuit, 'clubs');
   assert.equal(room.gameState.currentTrumpDeclaration.playerId, bot.id);
   assert.equal(room.gameState.currentTrumpDeclaration.count, 1);
+  const declaredCardId = room.gameState.currentTrumpDeclaration.cards[0].id;
+  bot.removeCards([declaredCardId]);
+  assert.equal(
+    room.gameState.toJSON().currentTrumpDeclaration.cards[0].id,
+    declaredCardId,
+    '亮主记录必须保留在公共快照中，不能依赖实体牌仍在玩家手中'
+  );
   assert.ok(events.some(entry => (
     entry.event === 'trump_declared'
     && entry.payload.playerId === bot.id

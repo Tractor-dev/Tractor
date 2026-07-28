@@ -235,6 +235,7 @@ export default function GameBoard({ onLeaveRoom }) {
   // Socket 轮末事件中同步写入；不等 React state 提交，避免 room_updated
   // 的下轮烛态在中央计分或右上状态中抢先闪现。
   const heldCompletedRoundNumberRef = useRef(null);
+  const heldRoundCandleRef = useRef(null);
   const playedCardsRef = useRef({});
   const pendingOwnConcealedCardsRef = useRef(new Map());
   const throwFailedPreviewTimersRef = useRef(new Map());
@@ -636,26 +637,31 @@ export default function GameBoard({ onLeaveRoom }) {
       : card)
     : forbiddenMagicPreviewCards;
   const explicitTransformationList = Object.values(explicitCardTransformations);
-  const jokerSubstitutions = explicitTransformationList
+  // 转化只是候选牌面：只有这次真正选中的牌才应参与校验和提交。
+  // 否则玩家先转换一张王、随后改出普通牌时，会被未选中的转化持续锁死，
+  // 只能靠刷新清掉本地状态。
+  const selectedTransformationList = explicitTransformationList
+    .filter(item => selectedCards.includes(item.cardId));
+  const jokerSubstitutions = selectedTransformationList
     .filter(item => item.kind === 'joker')
     .map(({ cardId, suit, rank }) => ({ cardId, suit, rank }));
-  const clusterAnalysisSubstitutions = explicitTransformationList
+  const clusterAnalysisSubstitutions = selectedTransformationList
     .filter(item => item.kind === 'cluster')
     .map(({ cardId, suit, fromRank, toRank }) => ({ cardId, suit, fromRank, toRank }));
-  const forbiddenMagicSubstitutions = explicitTransformationList
+  const forbiddenMagicSubstitutions = selectedTransformationList
     .filter(item => item.kind === 'forbidden_magic')
     .map(({ cardId, suit, rank }) => ({ cardId, suit, rank }));
-  const hasCommittedActiveSkillTransformation = Boolean(
+  const hasSelectedActiveSkillTransformation = Boolean(
     activeSkill && (
       (activeSkill.effect === 'joker_wildcards' && jokerSubstitutions.length > 0)
       || (activeSkill.effect === 'adjacent_rank_transform' && clusterAnalysisSubstitutions.length > 0)
     )
   );
-  // 关闭“编辑转化”只收起牌上的转化入口；已经完成的转化仍属于本次技能出牌，
-  // 直到玩家逐张还原或成功出牌，避免为了选择原生牌而丢失全部转化。
-  const effectiveActiveSkillId = isActiveSkillArmed || hasCommittedActiveSkillTransformation
-    ? activeSkill?.id || null
-    : null;
+  // 偷梁换柱/聚类分析只有在选中了已转化牌时才算发动技能；
+  // 编辑状态本身不能阻止玩家改为一次普通出牌。
+  const effectiveActiveSkillId = isExplicitTransformationSkill
+    ? (hasSelectedActiveSkillTransformation ? activeSkill?.id || null : null)
+    : (isActiveSkillArmed ? activeSkill?.id || null : null);
   const transformableCardIds = (isActiveSkillArmed || isForbiddenMagicActiveByMe)
     && isExplicitTransformationSkill
     ? activePlayCards
@@ -852,13 +858,26 @@ export default function GameBoard({ onLeaveRoom }) {
   }, [isOneCountryTwoSystemsRule, gameState?.oneCountryTwoSystems]);
 
   useEffect(() => {
-    const state = isThreeSixNineRule ? gameState?.threeSixNine || null : null;
-    setThreeSixNineState(state);
-    setCurrentInferiorDeclaration(state?.currentInferiorDeclaration || null);
-    if (state?.currentTrumpDeclaration) {
-      setCurrentTrumpDeclaration(state.currentTrumpDeclaration);
+    if (isThreeSixNineRule) {
+      const state = gameState?.threeSixNine || null;
+      setThreeSixNineState(state);
+      setCurrentTrumpDeclaration(
+        state?.currentTrumpDeclaration || gameState?.currentTrumpDeclaration || null
+      );
+      setCurrentInferiorDeclaration(
+        state?.currentInferiorDeclaration || gameState?.currentInferiorDeclaration || null
+      );
+      return;
     }
-  }, [isThreeSixNineRule, gameState?.threeSixNine]);
+    setThreeSixNineState(null);
+    setCurrentTrumpDeclaration(gameState?.currentTrumpDeclaration || null);
+    setCurrentInferiorDeclaration(null);
+  }, [
+    isThreeSixNineRule,
+    gameState?.currentTrumpDeclaration,
+    gameState?.currentInferiorDeclaration,
+    gameState?.threeSixNine
+  ]);
 
   useEffect(() => {
     if (Number.isFinite(gameState?.attackerScore)) {
@@ -952,6 +971,7 @@ export default function GameBoard({ onLeaveRoom }) {
       }
       awaitingRoundClearRef.current = false;
       heldCompletedRoundNumberRef.current = null;
+      heldRoundCandleRef.current = null;
       playedCardsRef.current = {};
       setPlayedCards({});
       setCurrentWinningPlayerId(null);
@@ -1001,6 +1021,7 @@ export default function GameBoard({ onLeaveRoom }) {
       setCurrentWinningPlayerId(null);
       setLastRoundWinnerPlayerId(null);
       heldCompletedRoundNumberRef.current = null;
+      heldRoundCandleRef.current = null;
       setHeldCompletedRoundNumber(null);
       setPublicBottomCards([]);
       setMyBottomCards([]);
@@ -1907,6 +1928,7 @@ export default function GameBoard({ onLeaveRoom }) {
       }
       awaitingRoundClearRef.current = false;
       heldCompletedRoundNumberRef.current = null;
+      heldRoundCandleRef.current = null;
       playedCardsRef.current = {};
       setPlayedCards({});
       setLastRoundPlayedCards({});
@@ -2713,6 +2735,7 @@ export default function GameBoard({ onLeaveRoom }) {
         }
         awaitingRoundClearRef.current = false;
         heldCompletedRoundNumberRef.current = null;
+        heldRoundCandleRef.current = null;
         setIsHoldingCompletedRound(false);
         setHeldCompletedRoundNumber(null);
       }
@@ -3039,6 +3062,7 @@ export default function GameBoard({ onLeaveRoom }) {
         }
         awaitingRoundClearRef.current = false;
         heldCompletedRoundNumberRef.current = null;
+        heldRoundCandleRef.current = null;
         setIsHoldingCompletedRound(false);
         setHeldCompletedRoundNumber(null);
       }
@@ -3053,6 +3077,18 @@ export default function GameBoard({ onLeaveRoom }) {
             [playerId]: playedCardView
           };
       playedCardsRef.current = updated;
+      if (
+        Object.keys(updated).length >= (currentRoom?.players?.length || 4)
+        && ruleIncludesId(gameState?.selectedRule, 'candle_to_dawn')
+        && typeof gameState?.candleToDawn?.isLit === 'boolean'
+      ) {
+        // 第四手一到便冻结本轮烛态；无需等待随后到达的 round_updated，
+        // 防止 room_updated 的下一轮状态抢先渲染一帧。
+        heldRoundCandleRef.current = {
+          round: Number(gameState?.currentRound) || 1,
+          isLit: gameState.candleToDawn.isLit
+        };
+      }
       setPlayedCards(updated);
       setCurrentWinningPlayerId(concealed ? (winningPlayerId || null) : (winningPlayerId ?? playerId));
       console.log('更新后的 playedCards:', Object.keys(updated));
@@ -3695,6 +3731,7 @@ export default function GameBoard({ onLeaveRoom }) {
         setJustPlayedCards(false);
       } else if (roundUpdate.type === 'round_started') {
         heldCompletedRoundNumberRef.current = null;
+        heldRoundCandleRef.current = null;
         setHeldCompletedRoundNumber(null);
         messageApi.success(roundUpdate.message || `轮次 ${roundUpdate.round} 开始`);
         // 新一轮开始，清空出牌历史（因为是新的一轮，之前的牌不能再撤回）
@@ -3711,6 +3748,12 @@ export default function GameBoard({ onLeaveRoom }) {
       } else if (roundUpdate.type === 'round_ended') {
         // 必须在读取下轮公开快照前同步锁住刚结算的轮次。
         heldCompletedRoundNumberRef.current = roundUpdate.round;
+        heldRoundCandleRef.current = typeof roundUpdate.candleTransition?.previousLit === 'boolean'
+          ? {
+              round: roundUpdate.round,
+              isLit: roundUpdate.candleTransition.previousLit
+            }
+          : heldRoundCandleRef.current;
         if (roundUpdate.threeTigers?.triggeredSuit && roundUpdate.threeTigers.plays?.length) {
           const updated = { ...playedCardsRef.current };
           roundUpdate.threeTigers.plays.forEach(play => {
@@ -3998,6 +4041,7 @@ export default function GameBoard({ onLeaveRoom }) {
           if (!awaitingRoundClearRef.current) return;
           awaitingRoundClearRef.current = false;
           heldCompletedRoundNumberRef.current = null;
+          heldRoundCandleRef.current = null;
           roundClearTimerRef.current = null;
           playedCardsRef.current = {};
           setPlayedCards({});
@@ -5006,6 +5050,9 @@ export default function GameBoard({ onLeaveRoom }) {
     }
     console.log('发送 PLAY_CARDS 事件:', { cardIds: cardsToPlay });
 
+    // 先于清空选择标记“已提交”，避免服务器确认前仍沿用旧行动权的快照，
+    // 触发自动跟牌 effect 把剩余手牌瞬间重新选中。
+    setJustPlayedCards(true);
     socket.emit(SOCKET_EVENTS.PLAY_CARDS, {
       roomId: currentRoom.id,
       cardIds: isAmbiguousPlay ? ambiguousFirstOptionCardIds : cardsToPlay,
@@ -5017,6 +5064,12 @@ export default function GameBoard({ onLeaveRoom }) {
       divineWeaponCardId: selectedDivineWeaponCardId,
       divineWeaponSourceCardId,
       ambiguousAlternativeCardIds: isAmbiguousPlay ? cardsToPlay : []
+    }, acknowledgement => {
+      // 出牌被服务端拒绝时恢复自动选牌能力；成功后的状态由
+      // cards_played / round_updated 继续接管。
+      if (acknowledgement?.ok === false) {
+        setJustPlayedCards(false);
+      }
     });
     setArmedActiveSkillId(null);
     setAmbiguousFirstOptionCardIds([]);
@@ -6501,6 +6554,7 @@ export default function GameBoard({ onLeaveRoom }) {
               displayRoundNumber={heldCompletedRoundNumberRef.current
                 ?? heldCompletedRoundNumber
                 ?? gameState?.currentRound}
+              heldRoundCandle={heldRoundCandleRef.current}
               ownFocusFigurePlayerId={focusFigurePrivate?.focusPlayerId || null}
               tenSidedAmbush={tenSidedAmbushView}
               threePowers={threePowersView}

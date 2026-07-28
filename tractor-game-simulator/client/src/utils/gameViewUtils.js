@@ -211,7 +211,11 @@ const RECORD_ON_FILE_SUITS = Object.freeze([
  * 只为牌桌当前展示的轮次生成记牌器；轮末停留时仍显示刚结束的生效轮，
  * 清桌切到下一轮后再严格按 activeRound 决定是否继续。
  */
-export function getRecordOnFileTrackerView(recordOnFile, displayRoundNumber) {
+export function getRecordOnFileTrackerView(
+  recordOnFile,
+  displayRoundNumber,
+  { showWhiteJoker = false } = {}
+) {
   const displayedRound = Number(displayRoundNumber);
   if (!recordOnFile || !Number.isInteger(displayedRound)) return null;
   if (
@@ -233,7 +237,8 @@ export function getRecordOnFileTrackerView(recordOnFile, displayRoundNumber) {
     jokers: [
       Number(counts.joker?.small_joker) || 0,
       Number(counts.joker?.big_joker) || 0,
-      Number(counts.joker?.white_joker) || 0
-    ]
+      ...(showWhiteJoker ? [Number(counts.joker?.white_joker) || 0] : [])
+    ],
+    showWhiteJoker
   };
 }

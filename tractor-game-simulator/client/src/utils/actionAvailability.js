@@ -184,14 +184,22 @@ export function getRuleDisabledCardIds({
     gameState.cardCooldown?.valuesByPlayerId?.[currentPlayerId] || []
   );
   if (restrictedValues.size === 0) return [];
-  const restrictedCards = handCards.filter(card => (
+  let restrictedCards = handCards.filter(card => (
     restrictedValues.has(
       expectedType === 'rank'
         ? card.rank
         : getEffectiveSuit(card, gameState?.trumpSuit, gameState?.trumpRank)
     )
   ));
-  const requiredCount = isLeadingPlayState(gameState)
+  const isLeading = isLeadingPlayState(gameState);
+  const leadingSuit = !isLeading ? gameState?.leadingPattern?.suit : null;
+  if (leadingSuit) {
+    // 跟牌花色优先：冷却不能把仍持有的首花色牌禁掉，否则自动跟牌与禁用状态会死锁。
+    restrictedCards = restrictedCards.filter(card => (
+      getEffectiveSuit(card, gameState?.trumpSuit, gameState?.trumpRank) !== leadingSuit
+    ));
+  }
+  const requiredCount = isLeading
     ? 1
     : (gameState?.leadingPattern?.length || 1);
   return handCards.length - restrictedCards.length >= requiredCount

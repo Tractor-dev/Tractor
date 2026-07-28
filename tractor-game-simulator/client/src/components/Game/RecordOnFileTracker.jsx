@@ -1,8 +1,16 @@
 import { getRecordOnFileTrackerView } from '../../utils/gameViewUtils';
 import './RecordOnFileTracker.css';
 
-export default function RecordOnFileTracker({ recordOnFile, displayRoundNumber }) {
-  const view = getRecordOnFileTrackerView(recordOnFile, displayRoundNumber);
+export default function RecordOnFileTracker({
+  recordOnFile,
+  displayRoundNumber,
+  showWhiteJoker = false
+}) {
+  const view = getRecordOnFileTrackerView(
+    recordOnFile,
+    displayRoundNumber,
+    { showWhiteJoker }
+  );
   if (!view) return null;
 
   const renderCount = (count, key, label) => (
@@ -56,7 +64,10 @@ export default function RecordOnFileTracker({ recordOnFile, displayRoundNumber }
           ])}
         </div>
 
-        <div className="record-on-file-jokers" aria-label="王牌已出牌统计">
+        <div
+          className={`record-on-file-jokers ${view.showWhiteJoker ? 'has-white-joker' : ''}`}
+          aria-label="王牌已出牌统计"
+        >
           <span className="record-on-file-jokers-title">王牌</span>
           <div className="record-joker-item">
             <span>小王</span>
@@ -66,10 +77,12 @@ export default function RecordOnFileTracker({ recordOnFile, displayRoundNumber }
             <span>大王</span>
             {renderCount(view.jokers[1], 'big-joker', '大王')}
           </div>
-          <div className="record-joker-item">
-            <span>白王</span>
-            {renderCount(view.jokers[2], 'white-joker', '白王')}
-          </div>
+          {view.showWhiteJoker && (
+            <div className="record-joker-item">
+              <span>白王</span>
+              {renderCount(view.jokers[2], 'white-joker', '白王')}
+            </div>
+          )}
         </div>
       </div>
     </aside>
