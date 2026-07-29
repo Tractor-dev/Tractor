@@ -183,6 +183,16 @@ export default function GameTable({
   };
 
   const positions = getPlayerPositions();
+  const renderTurnIndicator = isSelf => (
+    <span
+      className="turn-indicator"
+      role="status"
+      aria-label={isSelf ? '轮到你出牌' : '当前玩家正在出牌'}
+    >
+      <span className="turn-indicator-pip" aria-hidden="true" />
+      <span className="turn-indicator-label">{isSelf ? '轮到你' : '出牌中'}</span>
+    </span>
+  );
   const renderStriveUpstreamOrderBadge = player => {
     const actionOrder = getStriveUpstreamActionOrder(players, ruleRuntimeStatus, player?.id);
     if (!actionOrder) return null;
@@ -516,6 +526,7 @@ export default function GameTable({
           }
         } : undefined}
       >
+        {isCurrentTurn && renderTurnIndicator(false)}
         <div className="player-info">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <span className="player-avatar-wrap">
@@ -567,7 +578,6 @@ export default function GameTable({
               </span>
             )}
           </div>
-          {isCurrentTurn && <Text type="warning"> (出牌中)</Text>}
           <br />
           <Text type="secondary">手牌: {player.cardsCount || 0}</Text>
           {showFocusFigureProgress && (
@@ -2287,6 +2297,7 @@ export default function GameTable({
               }
             } : undefined}
           >
+            {positions.bottom.id === currentTurnPlayerId && renderTurnIndicator(true)}
             {/* 上半部分：玩家信息和控制按钮 */}
             <div className="bottom-player-header">
               <div className="player-info">

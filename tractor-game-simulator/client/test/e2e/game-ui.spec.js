@@ -161,6 +161,11 @@ async function finishDealerBury(pages, { initialHandCount = 25, bottomCardsCount
     name: `埋底(${bottomCardsCount}/${bottomCardsCount})`
   }).click();
   await expect(dealerPage.locator('.player-bottom.current-turn')).toBeVisible();
+  await Promise.all(pages.map(async (playerPage, pageIndex) => {
+    const indicator = playerPage.locator('.player-area.current-turn .turn-indicator');
+    await expect(indicator).toHaveCount(1);
+    await expect(indicator).toHaveText(pageIndex === dealerPageIndex ? '轮到你' : '出牌中');
+  }));
   return dealerPageIndex;
 }
 
