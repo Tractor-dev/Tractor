@@ -88,7 +88,7 @@ const formatPublicCard = card => {
   return `${CARD_SUIT_SYMBOLS[card.suit] || ''}${card.rank}`;
 };
 
-export default function GameBoard({ onLeaveRoom }) {
+export default function GameBoard({ onReturnToRoom }) {
   const {
     currentRoom,
     currentPlayer,
@@ -5243,18 +5243,6 @@ export default function GameBoard({ onLeaveRoom }) {
     setRenameModal(true);
   };
 
-  const handleConfirmLeaveRoom = () => {
-    modalApi.confirm({
-      title: '退出房间？',
-      content: '退出后会立即释放当前座位，且无法通过刷新恢复。若牌局正在进行，本局也会同时终止。',
-      okText: '确认退出',
-      cancelText: '继续游戏',
-      okButtonProps: { danger: true },
-      centered: true,
-      onOk: () => onLeaveRoom?.()
-    });
-  };
-
   const handleRequestSurrender = () => {
     if (!canRequestSurrender || hasRequestedSurrender) return;
     modalApi.confirm({
@@ -6256,7 +6244,7 @@ export default function GameBoard({ onLeaveRoom }) {
               <GameTable
                 players={tablePlayers}
                 currentPlayer={currentPlayer}
-                onLeaveRoom={handleConfirmLeaveRoom}
+                onReturnToRoom={onReturnToRoom}
                 onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
                 canRequestSurrender={canRequestSurrender}
                 hasRequestedSurrender={hasRequestedSurrender}
@@ -6365,7 +6353,7 @@ export default function GameBoard({ onLeaveRoom }) {
               currentInferiorDeclaration={currentInferiorDeclaration}
               players={tablePlayers}
               currentPlayer={currentPlayer}
-              onLeaveRoom={handleConfirmLeaveRoom}
+              onReturnToRoom={onReturnToRoom}
               onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
               canRequestSurrender={canRequestSurrender}
               hasRequestedSurrender={hasRequestedSurrender}
@@ -6414,7 +6402,7 @@ export default function GameBoard({ onLeaveRoom }) {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
-              onLeaveRoom={handleConfirmLeaveRoom}
+              onReturnToRoom={onReturnToRoom}
               onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
               canRequestSurrender={canRequestSurrender}
               hasRequestedSurrender={hasRequestedSurrender}
@@ -6480,7 +6468,7 @@ export default function GameBoard({ onLeaveRoom }) {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
-              onLeaveRoom={handleConfirmLeaveRoom}
+              onReturnToRoom={onReturnToRoom}
               onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
               canRequestSurrender={canRequestSurrender}
               hasRequestedSurrender={hasRequestedSurrender}
@@ -6605,7 +6593,7 @@ export default function GameBoard({ onLeaveRoom }) {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
-              onLeaveRoom={handleConfirmLeaveRoom}
+              onReturnToRoom={onReturnToRoom}
               onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
               canRequestSurrender={canRequestSurrender}
               hasRequestedSurrender={hasRequestedSurrender}
@@ -6655,7 +6643,7 @@ export default function GameBoard({ onLeaveRoom }) {
             <GameTable
               players={tablePlayers}
               currentPlayer={currentPlayer}
-              onLeaveRoom={handleConfirmLeaveRoom}
+              onReturnToRoom={onReturnToRoom}
               onRequestSurrender={isSurrenderFeatureVisible ? handleRequestSurrender : undefined}
               canRequestSurrender={canRequestSurrender}
               hasRequestedSurrender={hasRequestedSurrender}

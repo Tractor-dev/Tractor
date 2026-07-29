@@ -169,6 +169,48 @@ async function finishDealerBury(pages, { initialHandCount = 25, bottomCardsCount
   return dealerPageIndex;
 }
 
+test('返回房间会保留座位，并可选择重返牌局或确认退出', async ({ browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const roomName = '世事无常测试房';
+  const { context, pages } = await openTestModeGame(browser, '世事无常');
+  const hostPage = pages[0];
+
+  try {
+    await hostPage.getByRole('button', { name: '返回房间', exact: true }).click();
+
+    await expect(hostPage.getByRole('heading', { name: `房间: ${roomName}` })).toBeVisible();
+    await expect(hostPage.getByRole('region', { name: '牌局进行中' })).toBeVisible();
+    await expect(hostPage.getByText('玩家数: 4 / 4')).toBeVisible();
+    await expect(hostPage.getByRole('button', { name: '重返牌局' })).toBeVisible();
+    await expect(hostPage.getByRole('button', { name: '退出房间' })).toBeVisible();
+    await expect(hostPage.getByRole('button', { name: '添加Bot' })).toHaveCount(0);
+    await hostPage.screenshot({
+      path: testInfo.outputPath('active-game-room-overview.png'),
+      fullPage: true
+    });
+
+    await hostPage.getByRole('button', { name: '重返牌局' }).click();
+    await expect(hostPage.locator('.game-table')).toBeVisible();
+    await expect(hostPage.getByRole('button', { name: '返回房间', exact: true })).toBeVisible();
+
+    await hostPage.getByRole('button', { name: '返回房间', exact: true }).click();
+    await hostPage.getByRole('button', { name: '退出房间' }).click();
+    const leaveDialog = hostPage.getByRole('dialog', { name: '确定退出房间？' });
+    await expect(leaveDialog).toContainText('这会立即释放你的座位，并终止当前牌局');
+    await leaveDialog.getByRole('button', { name: '保留座位' }).click();
+    await expect(hostPage.getByRole('button', { name: '重返牌局' })).toBeVisible();
+
+    await hostPage.getByRole('button', { name: '退出房间' }).click();
+    await hostPage
+      .getByRole('dialog', { name: '确定退出房间？' })
+      .getByRole('button', { name: '确认退出' })
+      .click();
+    await expect(hostPage.getByRole('heading', { name: '欢迎来到拖拉机纸牌游戏' })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
 test('路线摇摆和昼夜轮转状态独占一行', async ({ browser }, testInfo) => {
   test.setTimeout(180_000);
 

@@ -31,7 +31,7 @@ const { Text } = Typography;
  * @param {Object} props
  * @param {Array} props.players - 所有玩家
  * @param {Object} props.currentPlayer - 当前玩家
- * @param {Function} props.onLeaveRoom - 主动退出房间的回调
+ * @param {Function} props.onReturnToRoom - 返回组房界面的回调，不退出房间
  * @param {Function} props.onRequestSurrender - 发起投降的回调
  * @param {Object} props.playedCards - 每个玩家出的牌 { [playerId]: { playerName, cards } }
  * @param {Object} props.throwFailedPreviews - 甩牌失败时短暂停留的完整尝试牌面
@@ -74,7 +74,7 @@ const { Text } = Typography;
 export default function GameTable({
   players,
   currentPlayer,
-  onLeaveRoom,
+  onReturnToRoom,
   onRequestSurrender,
   canRequestSurrender = false,
   hasRequestedSurrender = false,
@@ -2405,11 +2405,11 @@ export default function GameTable({
               </div>
 
               {/* 控制按钮区域 - 右侧 */}
-              {(renderControls || onLeaveRoom || onRequestSurrender) && (
+              {(renderControls || onReturnToRoom || onRequestSurrender) && (
                 <div className="inline-controls">
                   {renderControls}
-                  {(onLeaveRoom || onRequestSurrender) && (
-                    <div className="room-action-stack">
+                  {(onReturnToRoom || onRequestSurrender) && (
+                    <div className={`room-action-stack${onRequestSurrender ? ' has-surrender' : ''}`}>
                       {onRequestSurrender && (
                         <Button
                           className="surrender-button"
@@ -2425,13 +2425,13 @@ export default function GameTable({
                           {hasRequestedSurrender ? '已申请' : '投降'}
                         </Button>
                       )}
-                      {onLeaveRoom && (
+                      {onReturnToRoom && (
                         <Button
-                          className="leave-room-button"
-                          danger
-                          onClick={onLeaveRoom}
+                          className="return-room-button"
+                          onClick={onReturnToRoom}
+                          title="返回房间界面，座位会继续保留"
                         >
-                          退出
+                          返回房间
                         </Button>
                       )}
                     </div>

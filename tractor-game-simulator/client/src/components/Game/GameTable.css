@@ -2610,11 +2610,16 @@
 
 .room-action-stack {
   flex: 0 0 auto;
-  width: 100px;
+  width: 84px;
   height: 32px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 3px;
+}
+
+.room-action-stack.has-surrender {
+  width: 142px;
+  display: grid;
+  grid-template-columns: minmax(48px, 0.72fr) minmax(80px, 1.28fr);
 }
 
 .inline-controls .room-action-stack .ant-btn {
@@ -2631,10 +2636,10 @@
   background: linear-gradient(180deg, rgba(137, 91, 37, 0.96), rgba(83, 52, 24, 0.96));
 }
 
-.inline-controls .leave-room-button.ant-btn {
-  border-color: rgba(255, 154, 154, 0.62);
-  color: #ffe7e7;
-  background: linear-gradient(180deg, rgba(151, 56, 56, 0.96), rgba(93, 29, 33, 0.96));
+.inline-controls .return-room-button.ant-btn {
+  border-color: rgba(142, 210, 255, 0.58);
+  color: #e9f7ff;
+  background: linear-gradient(180deg, rgba(49, 116, 139, 0.96), rgba(27, 73, 91, 0.96));
 }
 
 .inline-controls .surrender-button.ant-btn:not(:disabled):hover,
@@ -2644,11 +2649,11 @@
   background: linear-gradient(180deg, rgba(166, 111, 43, 0.98), rgba(104, 63, 27, 0.98));
 }
 
-.inline-controls .leave-room-button.ant-btn:hover,
-.inline-controls .leave-room-button.ant-btn:focus-visible {
-  border-color: #ffb0b0;
+.inline-controls .return-room-button.ant-btn:hover,
+.inline-controls .return-room-button.ant-btn:focus-visible {
+  border-color: #b9e7ff;
   color: #fff;
-  background: linear-gradient(180deg, rgba(180, 68, 68, 0.98), rgba(116, 34, 39, 0.98));
+  background: linear-gradient(180deg, rgba(61, 140, 166, 0.98), rgba(31, 88, 108, 0.98));
 }
 
 .inline-controls .ant-btn,

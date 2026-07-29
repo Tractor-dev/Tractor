@@ -2,3 +2,169 @@
 .app-container {
   min-height: 100vh;
 }
+
+.room-overview-layout {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(37, 118, 92, 0.11), transparent 38%),
+    #f3f6f5;
+}
+
+.room-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  background: #001f1a;
+}
+
+.room-overview-header .ant-typography {
+  overflow: hidden;
+  margin: 16px 0;
+  color: white;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-overview-content {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.room-overview-card {
+  padding: clamp(24px, 4vw, 46px);
+  border: 1px solid rgba(20, 82, 63, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 48px rgba(16, 65, 52, 0.09);
+}
+
+.room-overview-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.room-overview-title-row .ant-typography {
+  margin: 0 0 6px;
+}
+
+.room-id,
+.room-player-count {
+  color: #5d6c67;
+  font-size: 15px;
+}
+
+.room-player-count {
+  margin: 26px 0 18px;
+}
+
+.room-resume-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+  padding: 18px 20px;
+  border: 1px solid rgba(40, 167, 114, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(231, 250, 240, 0.96), rgba(244, 252, 248, 0.96));
+}
+
+.room-resume-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.room-resume-copy strong {
+  color: #155f42;
+  font-size: 17px;
+}
+
+.room-resume-copy span {
+  color: #557066;
+  line-height: 1.6;
+}
+
+.room-resume-panel .ant-btn {
+  min-width: 128px;
+  flex: 0 0 auto;
+}
+
+.room-section {
+  margin-bottom: 26px;
+}
+
+.room-section > .ant-typography {
+  margin-bottom: 12px;
+}
+
+.room-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 8px;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: #f5f7f6;
+}
+
+.room-player-row.is-self {
+  border-color: rgba(40, 167, 114, 0.25);
+  background: #f0faf5;
+}
+
+.room-player-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-player-progress {
+  flex: 0 0 auto;
+  color: #66736f;
+}
+
+.room-overview-actions {
+  padding-top: 4px;
+}
+
+@media (max-width: 680px) {
+  .room-overview-header {
+    padding: 0 14px;
+  }
+
+  .room-overview-header .ant-typography {
+    font-size: 17px;
+  }
+
+  .room-overview-content {
+    width: min(100% - 20px, 1180px);
+    padding-top: 12px;
+  }
+
+  .room-resume-panel,
+  .room-player-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .room-resume-panel .ant-btn {
+    width: 100%;
+  }
+
+  .room-player-progress {
+    padding-left: 20px;
+  }
+}

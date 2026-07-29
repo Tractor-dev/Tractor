@@ -40,6 +40,7 @@ function clearRoomSession() {
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
   const { isConnected, setIsConnected, currentRoom, setCurrentRoom, currentPlayer, setCurrentPlayer, setMyCards, roomList, setRoomList } = useGameStore();
+  const [showRoomOverview, setShowRoomOverview] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -78,6 +79,7 @@ function App() {
       messageApi.success('房间创建成功！');
       setCurrentRoom(room);
       setCurrentPlayer(player);
+      setShowRoomOverview(false);
       saveRoomSession(room, player, resumeToken);
       setShowCreateModal(false);
     });
@@ -106,6 +108,7 @@ function App() {
       messageApi.success('加入房间成功！');
       setCurrentRoom(room);
       setCurrentPlayer(player);
+      setShowRoomOverview(false);
       saveRoomSession(room, player, resumeToken);
       setShowJoinModal(false);
     });
@@ -114,6 +117,7 @@ function App() {
       setCurrentRoom(room);
       setCurrentPlayer(player);
       setMyCards(player.cards || []);
+      setShowRoomOverview(false);
       saveRoomSession(room, player, resumeToken);
       messageApi.success('已恢复原房间和座位');
     });
@@ -218,11 +222,27 @@ function App() {
     socket.emit(SOCKET_EVENTS.LEAVE_ROOM, {
       roomId: currentRoom.id
     });
+    setShowRoomOverview(false);
     setCurrentRoom(null);
     setCurrentPlayer(null);
     setMyCards([]);
     clearRoomSession();
     messageApi.info('已离开房间');
+  };
+
+  const handleConfirmLeaveRoom = () => {
+    const gameInProgress = shouldShowGameBoard(currentRoom?.gameState);
+    Modal.confirm({
+      title: '确定退出房间？',
+      content: gameInProgress
+        ? '这会立即释放你的座位，并终止当前牌局。若只是暂时离开牌桌，请取消后选择“重返牌局”。'
+        : '退出后会立即释放当前座位，且无法再通过刷新恢复。',
+      okText: '确认退出',
+      cancelText: gameInProgress ? '保留座位' : '取消',
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: handleLeaveRoom
+    });
   };
 
   const handleAddBot = () => {
@@ -277,46 +297,68 @@ function App() {
 
   // 如果在房间内，显示房间界面或游戏界面
   if (currentRoom) {
+    const gameInProgress = shouldShowGameBoard(currentRoom.gameState);
+
     // 规则选择属于两局之间的牌桌流程，不能因为阶段暂时回到 WAITING 就卸载牌桌。
-    if (shouldShowGameBoard(currentRoom.gameState)) {
-      return <GameBoard onLeaveRoom={handleLeaveRoom} />;
+    if (gameInProgress && !showRoomOverview) {
+      return <GameBoard onReturnToRoom={() => setShowRoomOverview(true)} />;
     }
 
-    // 否则显示房间等待界面
+    // 游戏开始前显示组房界面；牌局中也可以主动回到这里，但座位和连接保持不变。
     return (
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout className="room-overview-layout">
         {contextHolder}
-        <Header style={{ background: '#001529', padding: '0 24px' }}>
-          <Title level={3} style={{ color: 'white', margin: '16px 0' }}>
+        <Header className="room-overview-header">
+          <Title level={3}>
             拖拉机纸牌游戏模拟器 - {currentRoom.name}
           </Title>
+          {gameInProgress && <Tag color="green">牌局进行中</Tag>}
         </Header>
-        <Content style={{ padding: '24px' }}>
-          <div style={{
-            background: 'white',
-            padding: '48px',
-            borderRadius: '8px'
-          }}>
-            <Title level={2}>房间: {currentRoom.name}</Title>
-            <p style={{ fontSize: '16px', marginBottom: '24px' }}>
-              房间ID: {currentRoom.id}
-            </p>
-            <p style={{ fontSize: '16px', marginBottom: '24px' }}>
+        <Content className="room-overview-content">
+          <div className="room-overview-card">
+            <div className="room-overview-title-row">
+              <div>
+                <Title level={2}>房间: {currentRoom.name}</Title>
+                <p className="room-id">房间ID: {currentRoom.id}</p>
+              </div>
+            </div>
+
+            {gameInProgress && (
+              <section className="room-resume-panel" aria-label="牌局进行中">
+                <div className="room-resume-copy">
+                  <strong>你的座位仍在房间中</strong>
+                  <span>返回房间不会断线或退出，牌局仍会继续；轮到你操作时请及时重返牌桌。</span>
+                </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => setShowRoomOverview(false)}
+                >
+                  重返牌局
+                </Button>
+              </section>
+            )}
+
+            <p className="room-player-count">
               玩家数: {currentRoom.playerCount} / {currentRoom.maxPlayers}
             </p>
-            <div style={{ marginBottom: '24px' }}>
+            <div className="room-section">
               <Title level={4}>玩家列表:</Title>
               {currentRoom.players.map((player, index) => (
-                <div key={player.id} style={{ padding: '8px', background: '#f5f5f5', marginBottom: '8px', borderRadius: '4px' }}>
-                  {index + 1}. {player.isBot && '🤖 '}{player.name}
-                  {player.socketId === currentRoom.hostId && ' (房主)'}
-                  {player.id === currentPlayer?.id && ' (你)'}
-                  {player.isBot && ' (Bot)'}
-                  {' - '} 分数: {player.score} - 等级: {formatLevel(player.level)}
+                <div key={player.id} className={`room-player-row${player.id === currentPlayer?.id ? ' is-self' : ''}`}>
+                  <span className="room-player-name">
+                    {index + 1}. {player.isBot && '🤖 '}{player.name}
+                    {player.socketId === currentRoom.hostId && <Tag color="gold">房主</Tag>}
+                    {player.id === currentPlayer?.id && <Tag color="green">你</Tag>}
+                    {player.isBot && <Tag>Bot</Tag>}
+                  </span>
+                  <span className="room-player-progress">
+                    分数 {player.score} · 等级 {formatLevel(player.level)}
+                  </span>
                 </div>
               ))}
             </div>
-            <div style={{ marginBottom: '24px' }}>
+            <div className="room-section">
               <Title level={4}>房间配置:</Title>
               <p>默认底牌: 8 张（特殊规则可能调整）</p>
               <p>发牌间隔: {currentRoom.config.dealInterval} 毫秒</p>
@@ -326,8 +368,8 @@ function App() {
             </div>
 
             {/* Bot管理区域 - 仅房主可见 */}
-            {currentPlayer?.socketId === currentRoom.hostId && currentRoom.players.some(p => p.isBot) && (
-              <div style={{ marginBottom: '24px' }}>
+            {!gameInProgress && currentPlayer?.socketId === currentRoom.hostId && currentRoom.players.some(p => p.isBot) && (
+              <div className="room-section">
                 <Divider>房间内的Bot</Divider>
                 <Space wrap>
                   {currentRoom.players.filter(p => p.isBot).map(bot => (
@@ -345,8 +387,8 @@ function App() {
               </div>
             )}
 
-            <Space>
-              {currentPlayer?.socketId === currentRoom.hostId && (
+            <Space className="room-overview-actions" wrap>
+              {!gameInProgress && currentPlayer?.socketId === currentRoom.hostId && (
                 <>
                   <Button
                     type="primary"
@@ -374,8 +416,8 @@ function App() {
                   </Button>
                 </>
               )}
-              <Button type="default" onClick={handleLeaveRoom}>
-                离开房间
+              <Button danger size="large" onClick={handleConfirmLeaveRoom}>
+                退出房间
               </Button>
             </Space>
           </div>
