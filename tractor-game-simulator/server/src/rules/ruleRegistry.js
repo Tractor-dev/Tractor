@@ -523,7 +523,7 @@ const RULE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: RuleIds.DIVINE_WEAPON,
     name: '神兵天降',
-    content: '每轮亮出从另一副无王牌堆中抽取的2张神兵牌。每名玩家每局限一次，可将一张与所选神兵牌花色或点数相同的手牌当作该牌打出；本轮有人发动后其他人不能再发动，轮末神兵牌作废并换新。',
+    content: '每轮亮出从另一副无王牌堆中抽取的2张神兵牌。每名玩家每局限一次，可将一张与所选神兵牌花色或点数相同的手牌当作该牌打出；本轮有人发动后其他人不能再发动，轮末神兵牌作废并换新；本轮无人发动则原神兵牌保留到下一轮。',
     setup: DEFAULT_RULE_SETUP,
     activeSkill: Object.freeze({
       id: ActiveSkillIds.DIVINE_WEAPON,
@@ -568,7 +568,7 @@ const RULE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: RuleIds.FORBIDDEN_MAGIC,
     name: '禁术秘法',
-    content: '每名玩家每局限一次，可在出牌阶段随时预备，并在轮首依次确认是否发动；确认后本局永久生效且不能撤销。发动者原有的全部主牌不再视为主牌，并可将其改作任意花色的原点数牌；王可改作任意普通点数，但有主局不能改作主花色。',
+    content: '每名玩家每局限一次，可在出牌阶段随时预备，并在轮首依次确认是否发动；确认后本局永久生效且不能撤销。此后原主牌不能直接打出，每张要出的原主牌都必须先明确转为一种副花色；非王保持原点数，王另选任意普通点数。有主局不能选择主花色，未打出的转化预设会保留。',
     setup: DEFAULT_RULE_SETUP,
     activeSkill: Object.freeze({
       id: ActiveSkillIds.FORBIDDEN_MAGIC,
@@ -791,7 +791,7 @@ const RULE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: RuleIds.MAINSTAY,
     name: '中流砥柱',
-    content: '摸牌结束后，若本局不是无主局，则从一号位开始依次处理每名玩家。轮到某玩家时，若其当前主牌数不大于5，可以将包括全部主牌在内的5张牌交给队友，再由队友返还5张牌；每名玩家均按轮到自己时的当前手牌独立判断，因此同队两人都可以发动。',
+    content: '庄家完成埋底后，若本局不是无主局，则从一号位开始依次处理每名玩家。轮到某玩家时，若其当前主牌数不大于5，可以将包括全部主牌在内的5张牌交给队友，再由队友返还5张牌；每名玩家均按轮到自己时的当前手牌独立判断，因此同队两人都可以发动。',
     setup: DEFAULT_RULE_SETUP
   }),
   Object.freeze({

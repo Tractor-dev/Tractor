@@ -8297,7 +8297,7 @@ test('聚类分析能以多张转化组成更大组件时会令对手甩牌失�
   assert.deepEqual(result.playedCards.map(currentCard => currentCard.rank), ['9', '9']);
 });
 
-test('禁术秘法把原主牌降为副牌，级牌恢复原点数且王不能变成主花色', () => {
+test('禁术秘法要求每张原主牌显式转为副花色，非王保持原点数', () => {
   assert.equal(FORBIDDEN_MAGIC_RULE.name, '禁术秘法');
   assert.equal(FORBIDDEN_MAGIC_RULE.activeSkill.timing, 'anytime_prepare_round_start_confirm');
   assert.equal(FORBIDDEN_MAGIC_RULE.activeSkill.usageLimit, 1);
@@ -8314,10 +8314,21 @@ test('禁术秘法把原主牌降为副牌，级牌恢复原点数且王不能�
     trumpRank: '6',
     activeRule: FORBIDDEN_MAGIC_RULE
   });
-  assert.equal(demotedAce.valid, true);
-  assert.equal(demotedAce.pattern.suit, 'hearts');
-  assert.equal(isTrumpCard(demotedAce.effectiveCards[0], 'hearts', '6'), false);
-  assert.equal(getCardStrength(demotedAce.effectiveCards[0], 'hearts', '6'), 14);
+  assert.equal(demotedAce.valid, false);
+  assert.match(demotedAce.message, /主牌不能直接打出/);
+
+  const transformedAce = resolveForbiddenMagicPlay({
+    selectedCards: [mainAce],
+    handCards: hand,
+    substitutions: [{ cardId: mainAce.id, suit: 'clubs', rank: 'A' }],
+    trumpSuit: 'hearts',
+    trumpRank: '6',
+    activeRule: FORBIDDEN_MAGIC_RULE
+  });
+  assert.equal(transformedAce.valid, true);
+  assert.equal(transformedAce.pattern.suit, 'clubs');
+  assert.equal(isTrumpCard(transformedAce.effectiveCards[0], 'hearts', '6'), false);
+  assert.equal(getCardStrength(transformedAce.effectiveCards[0], 'hearts', '6'), 14);
 
   const demotedLevel = resolveForbiddenMagicPlay({
     selectedCards: [offSuitLevel],
@@ -8326,9 +8337,31 @@ test('禁术秘法把原主牌降为副牌，级牌恢复原点数且王不能�
     trumpRank: '6',
     activeRule: FORBIDDEN_MAGIC_RULE
   });
-  assert.equal(demotedLevel.valid, true);
-  assert.equal(demotedLevel.pattern.suit, 'clubs');
-  assert.equal(getCardStrength(demotedLevel.effectiveCards[0], 'hearts', '6'), 6);
+  assert.equal(demotedLevel.valid, false);
+  assert.match(demotedLevel.message, /主牌不能直接打出/);
+
+  const transformedLevel = resolveForbiddenMagicPlay({
+    selectedCards: [offSuitLevel],
+    handCards: hand,
+    substitutions: [{ cardId: offSuitLevel.id, suit: 'clubs', rank: '6' }],
+    trumpSuit: 'hearts',
+    trumpRank: '6',
+    activeRule: FORBIDDEN_MAGIC_RULE
+  });
+  assert.equal(transformedLevel.valid, true);
+  assert.equal(transformedLevel.pattern.suit, 'clubs');
+  assert.equal(getCardStrength(transformedLevel.effectiveCards[0], 'hearts', '6'), 6);
+
+  const forbiddenMainSuit = resolveForbiddenMagicPlay({
+    selectedCards: [mainAce],
+    handCards: hand,
+    substitutions: [{ cardId: mainAce.id, suit: 'hearts', rank: 'A' }],
+    trumpSuit: 'hearts',
+    trumpRank: '6',
+    activeRule: FORBIDDEN_MAGIC_RULE
+  });
+  assert.equal(forbiddenMainSuit.valid, false);
+  assert.match(forbiddenMainSuit.message, /不能选择当前主花色/);
 
   const forbiddenJokerSuit = resolveForbiddenMagicPlay({
     selectedCards: [bigJoker],
@@ -8339,7 +8372,7 @@ test('禁术秘法把原主牌降为副牌，级牌恢复原点数且王不能�
     activeRule: FORBIDDEN_MAGIC_RULE
   });
   assert.equal(forbiddenJokerSuit.valid, false);
-  assert.match(forbiddenJokerSuit.message, /不能转化为当前主牌花色/);
+  assert.match(forbiddenJokerSuit.message, /不能选择当前主花色/);
 
   const legalJoker = resolveForbiddenMagicPlay({
     selectedCards: [bigJoker],

@@ -9,7 +9,6 @@ import {
 } from '../../utils/trumpUtils';
 import {
   calculateMustPlayCards,
-  demoteForbiddenMagicHand,
   getClusterAnalysisTargetRanks,
   isTrumpCard
 } from '../../utils/cardPatternUtils';
@@ -35,6 +34,7 @@ import {
   getThrowFailedPreview,
   mergeTransferredHandCards,
   mergeLivePlayerCardCounts,
+  retainUnplayedCardTransformations,
   THROW_FAILED_PREVIEW_DURATION_MS
 } from '../../utils/gameViewUtils';
 import { ruleIncludesId } from '../../utils/ruleCatalog';
@@ -622,9 +622,9 @@ export default function GameBoard({ onReturnToRoom }) {
   const selectedDivineWeaponCard = divineWeapon?.cards?.find(
     card => card.id === selectedDivineWeaponCardId
   ) || null;
-  const forbiddenMagicPreviewCards = isForbiddenMagicActiveByMe
-    ? demoteForbiddenMagicHand(myCards, trumpSuit, trumpRank)
-    : myCards;
+  // 禁术发动后，原主牌必须先由玩家明确转成一种副花色才能出。
+  // 未设置转化的牌保留原牌面，避免界面误导成“已经自动降为副牌”。
+  const forbiddenMagicPreviewCards = myCards;
   const divineWeaponPreviewCards = selectedDivineWeaponCard && divineWeaponSourceCardId
     ? forbiddenMagicPreviewCards.map(card => card.id === divineWeaponSourceCardId
       ? {
@@ -3059,6 +3059,17 @@ export default function GameBoard({ onReturnToRoom }) {
         suppressAutoSelectionRef.current = true;
         setJustPlayedCards(true);
       }
+      if (
+        playerId === currentPlayer?.id
+        || controllerPlayerId === currentPlayer?.id
+      ) {
+        setExplicitCardTransformations(previous =>
+          retainUnplayedCardTransformations(previous, {
+            removedCardIds,
+            consumedActiveSkillId: activeSkillId
+          })
+        );
+      }
       // 如果玩家在清桌延迟期间已经开始下一墩，直接切换到新墩，避免新旧牌混在一起。
       const startsNewRound = awaitingRoundClearRef.current;
       if (startsNewRound) {
@@ -5079,7 +5090,6 @@ export default function GameBoard({ onReturnToRoom }) {
     });
     setArmedActiveSkillId(null);
     setAmbiguousFirstOptionCardIds([]);
-    setExplicitCardTransformations({});
     setCardTransformationDialog(null);
     clearSelection();
   };
@@ -5385,12 +5395,11 @@ export default function GameBoard({ onReturnToRoom }) {
       || !targetRank
     ) return;
     if (
-      sourceCard.suit === 'joker'
-      && trumpSuit
+      trumpSuit
       && trumpSuit !== 'no_trump'
       && suit === trumpSuit
     ) {
-      messageApi.warning('王不能转化为当前主牌花色');
+      messageApi.warning('禁术秘法只能转化为副牌花色，不能选择当前主花色');
       return;
     }
     setExplicitCardTransformations(previous => ({
@@ -7005,14 +7014,13 @@ export default function GameBoard({ onReturnToRoom }) {
             {!cardTransformationDialog.selectedSuit ? <>
               <p className="player-decision-primary-text">
                 {cardTransformationDialog.isJoker
-                  ? '第一步：选择王要变成的副牌花色。当前主花色不可选。'
-                  : `选择这张 ${cardTransformationDialog.sourceRank} 要视为的花色；点数保持不变。`}
+                  ? '第一步：选择王要变成的副牌花色。'
+                  : `选择这张 ${cardTransformationDialog.sourceRank} 要变成的副牌花色；点数保持不变。`}
               </p>
               <div className="card-transformation-option-grid suit-options">
                 {TRANSFORMATION_SUITS
                   .filter(option => !(
-                    cardTransformationDialog.isJoker
-                    && trumpSuit
+                    trumpSuit
                     && trumpSuit !== 'no_trump'
                     && option.value === trumpSuit
                   ))
@@ -7036,7 +7044,7 @@ export default function GameBoard({ onReturnToRoom }) {
                   ))}
               </div>
               <p className="player-decision-secondary-text">
-                未主动改变花色的普通主牌会按牌面原花色、原点数作为副牌；级牌同样恢复原点数。
+                禁术生效后，原主牌不能直接打出；每张要出的原主牌都必须先转成一种副花色。未打出的转化预设会保留，可继续为后续出牌准备。
               </p>
             </> : <>
               <div className="card-transformation-step-heading">

@@ -13,9 +13,64 @@ import {
   getThrowFailedPreview,
   mergeLivePlayerCardCounts,
   mergeTransferredHandCards,
+  retainUnplayedCardTransformations,
   shouldShowGameBoard,
   THROW_FAILED_PREVIEW_DURATION_MS
 } from '../src/utils/gameViewUtils.js';
+
+test('显式转化只清理实际离手的牌，并保留未打出的后续预设', () => {
+  const transformations = {
+    played: { kind: 'forbidden_magic', cardId: 'played', suit: 'clubs', rank: 'A' },
+    prepared: { kind: 'forbidden_magic', cardId: 'prepared', suit: 'spades', rank: '6' },
+    cluster: { kind: 'cluster', cardId: 'cluster', suit: 'diamonds', fromRank: '8', toRank: '9' }
+  };
+
+  assert.deepEqual(
+    retainUnplayedCardTransformations(transformations, {
+      removedCardIds: ['played']
+    }),
+    {
+      prepared: transformations.prepared,
+      cluster: transformations.cluster
+    }
+  );
+});
+
+test('偷梁换柱未实际发动时保留预设，真正消耗后清掉剩余王的预设', () => {
+  const transformations = {
+    playedNormalCard: {
+      kind: 'forbidden_magic',
+      cardId: 'playedNormalCard',
+      suit: 'clubs',
+      rank: 'A'
+    },
+    firstJoker: { kind: 'joker', cardId: 'firstJoker', suit: 'hearts', rank: 'Q' },
+    secondJoker: { kind: 'joker', cardId: 'secondJoker', suit: 'spades', rank: 'K' },
+    cluster: { kind: 'cluster', cardId: 'cluster', suit: 'diamonds', fromRank: '8', toRank: '9' }
+  };
+
+  assert.deepEqual(
+    retainUnplayedCardTransformations(transformations, {
+      removedCardIds: ['playedNormalCard']
+    }),
+    {
+      firstJoker: transformations.firstJoker,
+      secondJoker: transformations.secondJoker,
+      cluster: transformations.cluster
+    }
+  );
+
+  assert.deepEqual(
+    retainUnplayedCardTransformations(transformations, {
+      removedCardIds: ['firstJoker'],
+      consumedActiveSkillId: 'stealing_beams'
+    }),
+    {
+      playedNormalCard: transformations.playedNormalCard,
+      cluster: transformations.cluster
+    }
+  );
+});
 
 test('等级显示使用对应牌面而不是 11 至 14 的内部编号', () => {
   assert.deepEqual(

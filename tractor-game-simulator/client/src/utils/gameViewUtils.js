@@ -177,6 +177,29 @@ export function mergeTransferredHandCards(currentCards, sentCardIds, receivedCar
   return [...retainedCards, ...incomingCards];
 }
 
+/**
+ * 显式转化是玩家为后续出牌做的本地预设，不能在每次提交出牌时整批清空。
+ * 只移除服务端确认已经离手的牌；一次性的“偷梁换柱”真正发动后，再清掉
+ * 剩余王的预设，因为本局已经不能继续使用该技能。
+ */
+export function retainUnplayedCardTransformations(
+  transformations,
+  { removedCardIds = [], consumedActiveSkillId = null } = {}
+) {
+  const current = transformations && typeof transformations === 'object'
+    ? transformations
+    : {};
+  const removedIds = new Set(Array.isArray(removedCardIds) ? removedCardIds : []);
+  const stealingBeamsConsumed = consumedActiveSkillId === 'stealing_beams';
+
+  return Object.fromEntries(
+    Object.entries(current).filter(([cardId, transformation]) => (
+      !removedIds.has(cardId)
+      && !(stealingBeamsConsumed && transformation?.kind === 'joker')
+    ))
+  );
+}
+
 /** 把服务端公布的座位索引队列转换为某名玩家的行动次序。 */
 export function getStriveUpstreamActionOrder(players, gameState, playerId) {
   if (!ruleIncludesId(gameState?.selectedRule, 'strive_upstream')) return null;

@@ -1672,8 +1672,9 @@ function createForbiddenMagicDemotedCard(card, targetSuit = card.suit, targetRan
 }
 
 /**
- * 禁术秘法确认发动后，发动者原本的所有主牌在本局余下时间都按牌面花色、原点数降为副牌。
- * 王没有普通牌面花色，只有在本次出牌中明确转化后才可打出。
+ * 禁术秘法确认发动后，原主牌只在完成显式转化后才能打出。
+ * 此函数仍用于枚举这些牌潜在的副牌身份；实际出牌由 resolveForbiddenMagicPlay
+ * 要求每张被选中的原主牌都提交明确转化。
  */
 export function demoteForbiddenMagicHand(cards, trumpSuit, trumpRank) {
   const list = Array.isArray(cards) ? cards : [];
@@ -1726,12 +1727,11 @@ export function resolveForbiddenMagicPlay({
       return { valid: false, message: '非王牌只能改变花色，不能改变原点数' };
     }
     if (
-      isJoker
-      && trumpSuit
+      trumpSuit
       && trumpSuit !== Suits.NO_TRUMP
       && substitution.suit === trumpSuit
     ) {
-      return { valid: false, message: '禁术秘法：王不能转化为当前主牌花色' };
+      return { valid: false, message: '禁术秘法只能转化为副牌花色，不能选择当前主花色' };
     }
 
     replacementById.set(
@@ -1747,13 +1747,15 @@ export function resolveForbiddenMagicPlay({
     });
   }
 
-  const selectedJokersWithoutTarget = cards.filter(card => (
+  const selectedTrumpsWithoutTarget = cards.filter(card => (
     originalTrumpIds.has(card.id)
-    && card.suit === Suits.JOKER
     && !replacementById.has(card.id)
   ));
-  if (selectedJokersWithoutTarget.length > 0) {
-    return { valid: false, message: '禁术秘法中的王必须先明确选择目标花色和点数' };
+  if (selectedTrumpsWithoutTarget.length > 0) {
+    return {
+      valid: false,
+      message: '禁术秘法生效后，主牌不能直接打出；请先为每张要出的主牌选择一种副花色'
+    };
   }
 
   const effectiveCards = demoteForbiddenMagicHand(cards, trumpSuit, trumpRank)

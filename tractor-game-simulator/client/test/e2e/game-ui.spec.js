@@ -446,7 +446,7 @@ test('一带一路未发动时可尝试普通甩牌，发动后切换为小甩�
   }
 });
 
-test('禁术秘法可由非一号位预备、轮首确认，并在永久生效后转化或还原原主牌', async ({ browser }, testInfo) => {
+test('禁术秘法可由非一号位预备、轮首确认，发动后原主牌须先转成副牌', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '禁术秘法');
 
@@ -472,10 +472,12 @@ test('禁术秘法可由非一号位预备、轮首确认，并在永久生效�
     await expect(skillButton).toHaveClass(/is-armed/);
     await expect(skillButton).toBeDisabled();
 
-    const demotedCards = declarerPage.locator('.my-hand .card.forbidden-magic-demoted');
-    await expect(demotedCards.first()).toBeVisible();
-    await expect(demotedCards.first().locator('.forbidden-magic-card-badge')).toHaveText('禁');
-    const transformButton = demotedCards.first().getByRole('button', { name: '转化此牌' });
+    await expect(declarerPage.locator('.my-hand .card.forbidden-magic-demoted')).toHaveCount(0);
+    const transformableCards = declarerPage.locator(
+      '.my-hand .card:has(button[aria-label="转化此牌"])'
+    );
+    await expect(transformableCards.first()).toBeVisible();
+    const transformButton = transformableCards.first().getByRole('button', { name: '转化此牌' });
     // 手牌采用扇形叠放，按钮可能被相邻牌的透明区域覆盖；派发点击验证实际处理器。
     await transformButton.dispatchEvent('click');
 
@@ -485,7 +487,7 @@ test('禁术秘法可由非一号位预备、轮首确认，并在永久生效�
     await expect(transformDialog).toBeVisible();
     await transformDialog.locator('.transformation-suit-option').first().click();
     if (await transformDialog.isVisible().catch(() => false)) {
-      await transformDialog.locator('.transformation-rank-option').first().dispatchEvent('click');
+      await transformDialog.locator('.transformation-rank-option').first().click({ force: true });
     }
 
     const transformedCard = declarerPage.locator('.my-hand .card.forbidden-magic-transformed');
@@ -496,7 +498,7 @@ test('禁术秘法可由非一号位预备、轮首确认，并在永久生效�
     });
     await transformedCard.getByRole('button', { name: '取消转化，还原原牌' }).dispatchEvent('click');
     await expect(declarerPage.locator('.my-hand .card.forbidden-magic-transformed')).toHaveCount(0);
-    await expect(demotedCards.first().getByRole('button', { name: '转化此牌' })).toBeVisible();
+    await expect(transformableCards.first().getByRole('button', { name: '转化此牌' })).toBeVisible();
 
     await playLegalSingle(pages[firstPlayerIndex]);
     const lateSkillButton = pages[latePlayerIndex].getByRole('button', {

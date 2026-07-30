@@ -2139,7 +2139,7 @@ test('禁术秘法可随时预备、轮首确认并在发动后永久生效', ()
   assert.match(duringRound.reason, /第2轮开始时/);
 });
 
-test('禁术秘法前端按副牌验证级牌，并禁止王转化为当前主花色', () => {
+test('禁术秘法前端要求每张原主牌显式转为副花色后再验证', () => {
   const mainAce = card('main-a', 'hearts', 'A');
   const levelSix = card('level-6', 'clubs', '6');
   const joker = card('joker', 'joker', 'big_joker');
@@ -2166,9 +2166,21 @@ test('禁术秘法前端按副牌验证级牌，并禁止王转化为当前主�
     trumpSuit: 'hearts',
     trumpRank: '6'
   });
-  assert.equal(aceResult.valid, true);
-  assert.equal(aceResult.pattern.suit, 'hearts');
-  assert.equal(aceResult.pattern.strength, 14);
+  assert.equal(aceResult.valid, false);
+  assert.match(aceResult.message, /主牌不能直接打出/);
+
+  const transformedAceResult = validatePlaySelection({
+    selectedCardIds: [mainAce.id],
+    handCards,
+    gameState,
+    currentPlayerId: 'p1',
+    trumpSuit: 'hearts',
+    trumpRank: '6',
+    forbiddenMagicSubstitutions: [{ cardId: mainAce.id, suit: 'clubs', rank: 'A' }]
+  });
+  assert.equal(transformedAceResult.valid, true);
+  assert.equal(transformedAceResult.pattern.suit, 'clubs');
+  assert.equal(transformedAceResult.pattern.strength, 14);
 
   const levelResult = validatePlaySelection({
     selectedCardIds: [levelSix.id],
@@ -2178,9 +2190,33 @@ test('禁术秘法前端按副牌验证级牌，并禁止王转化为当前主�
     trumpSuit: 'hearts',
     trumpRank: '6'
   });
-  assert.equal(levelResult.valid, true);
-  assert.equal(levelResult.pattern.suit, 'clubs');
-  assert.equal(levelResult.pattern.strength, 6);
+  assert.equal(levelResult.valid, false);
+  assert.match(levelResult.message, /主牌不能直接打出/);
+
+  const transformedLevelResult = validatePlaySelection({
+    selectedCardIds: [levelSix.id],
+    handCards,
+    gameState,
+    currentPlayerId: 'p1',
+    trumpSuit: 'hearts',
+    trumpRank: '6',
+    forbiddenMagicSubstitutions: [{ cardId: levelSix.id, suit: 'clubs', rank: '6' }]
+  });
+  assert.equal(transformedLevelResult.valid, true);
+  assert.equal(transformedLevelResult.pattern.suit, 'clubs');
+  assert.equal(transformedLevelResult.pattern.strength, 6);
+
+  const invalidMainSuit = validatePlaySelection({
+    selectedCardIds: [mainAce.id],
+    handCards,
+    gameState,
+    currentPlayerId: 'p1',
+    trumpSuit: 'hearts',
+    trumpRank: '6',
+    forbiddenMagicSubstitutions: [{ cardId: mainAce.id, suit: 'hearts', rank: 'A' }]
+  });
+  assert.equal(invalidMainSuit.valid, false);
+  assert.match(invalidMainSuit.message, /不能选择当前主花色/);
 
   const invalidJoker = validatePlaySelection({
     selectedCardIds: [joker.id],
@@ -2192,7 +2228,7 @@ test('禁术秘法前端按副牌验证级牌，并禁止王转化为当前主�
     forbiddenMagicSubstitutions: [{ cardId: joker.id, suit: 'hearts', rank: 'Q' }]
   });
   assert.equal(invalidJoker.valid, false);
-  assert.match(invalidJoker.message, /不能转化为当前主牌花色/);
+  assert.match(invalidJoker.message, /不能选择当前主花色/);
 
   const legalJoker = validatePlaySelection({
     selectedCardIds: [joker.id],
