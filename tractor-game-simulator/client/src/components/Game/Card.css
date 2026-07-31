@@ -138,6 +138,70 @@
 .county-prince-joker .joker-text { color: #7542aa; text-shadow: 0 1px #f9f0ff; }
 .prince-joker .joker-text { color: #236b9e; text-shadow: 0 1px #edfaff; }
 
+/*
+ * 落桌转化牌的实体原牌签。放在叠牌时仍会露出的左侧窄条内，
+ * 当前大牌面继续表示实际参与跟牌与比较的牌面。
+ */
+.original-face-badge {
+  position: absolute;
+  z-index: 18;
+  top: 43px;
+  left: 4px;
+  box-sizing: border-box;
+  max-width: 31px;
+  min-height: 17px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 3px 2px 2px;
+  overflow: hidden;
+  border: 1px solid rgba(241, 210, 113, 0.82);
+  border-left-width: 2px;
+  border-radius: 3px 6px 6px 3px;
+  color: #f8f7ef;
+  background: rgba(7, 42, 34, 0.91);
+  box-shadow: 0 2px 5px rgba(0, 24, 17, 0.3);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.05;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.original-face-badge > span {
+  color: #e7c55f;
+  font-size: 6px;
+  font-weight: 900;
+}
+
+.original-face-badge > strong {
+  overflow: hidden;
+  text-overflow: clip;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.original-face-badge.is-red > strong { color: #ff8989; }
+.original-face-badge.is-black > strong { color: #f5f7f4; }
+.original-face-badge.is-purple > strong { color: #d5a9ff; }
+.original-face-badge.is-blue > strong { color: #9dd7ff; }
+.original-face-badge.is-gold > strong { color: #ffe27a; }
+
+.card.small .original-face-badge {
+  top: 28px;
+  left: 2px;
+  max-width: 25px;
+  min-height: 12px;
+  gap: 0;
+  padding: 1px 2px 1px 1px;
+  border-left-width: 1px;
+  font-size: 6px;
+}
+
+.card.small .original-face-badge > span { font-size: 5px; }
+.card.small .original-face-badge > strong { font-size: 6px; }
+.card.micro .original-face-badge { display: none; }
+
 .trump-badge { position: absolute; left: 5px; bottom: 5px; z-index: 10; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid #f6d65d; border-radius: 50%; background: linear-gradient(145deg, #ffdf62, #c68b18); box-shadow: 0 2px 5px rgba(91, 54, 0, 0.34); }
 .trump-star { color: #fff8c9; font-size: 13px; line-height: 1; text-shadow: 0 1px 2px #774000; animation: twinkle 2.2s ease-in-out infinite; }
 .card.small .trump-badge { left: 3px; bottom: 3px; width: 15px; height: 15px; }

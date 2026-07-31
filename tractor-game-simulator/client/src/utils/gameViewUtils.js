@@ -178,6 +178,67 @@ export function mergeTransferredHandCards(currentCards, sentCardIds, receivedCar
 }
 
 /**
+ * 将服务端房间快照中的未结算本墩恢复成 GameTable 使用的映射。
+ * 实时 cards_played 事件负责动画，快照负责刷新、断线重连和“返回房间”后的兜底。
+ */
+export function getCurrentRoundPlayedCards(gameState, players = []) {
+  if (!Array.isArray(gameState?.currentRoundTable)) return {};
+  const playerNames = new Map(
+    (Array.isArray(players) ? players : []).map(player => [player.id, player.name])
+  );
+
+  return Object.fromEntries(
+    gameState.currentRoundTable
+      .filter(play => play?.playerId)
+      .map(play => {
+        const cards = Array.isArray(play.cards) ? play.cards : [];
+        const visualCards = play.ironEvidenceMode
+          ? cards.map(card => ({ ...card, ironEvidenceMode: play.ironEvidenceMode }))
+          : cards;
+        return [play.playerId, {
+          playerName: play.playerName || playerNames.get(play.playerId) || '',
+          cards: visualCards,
+          cardsCount: Number.isInteger(play.cardsCount) ? play.cardsCount : cards.length,
+          concealed: Boolean(play.concealed),
+          ownConcealedCards: false,
+          treatedAsSmall: Boolean(play.treatedAsSmall),
+          activeSkillId: play.activeSkillId || null,
+          activeSkillName: play.activeSkillName || null,
+          jokerSubstitutions: play.jokerSubstitutions || [],
+          clusterAnalysisSubstitutions: play.clusterAnalysisSubstitutions || [],
+          forbiddenMagicSubstitutions: play.forbiddenMagicSubstitutions || [],
+          enduringInheritance: play.enduringInheritance || null,
+          dreamKilling: play.dreamKilling || null,
+          oldHorseAbsolute: Boolean(play.oldHorseAbsolute),
+          lureTigerSilenced: Boolean(play.lureTigerSilenced),
+          ironEvidenceMode: play.ironEvidenceMode || null,
+          ambiguousOptions: play.ambiguousOptions || null
+        }];
+      })
+  );
+}
+
+/** 恢复当前墩的最小出牌历史，使重返牌桌后仍能正确判断撤回资格。 */
+export function getCurrentRoundPlayHistory(gameState) {
+  if (!Array.isArray(gameState?.currentRoundTable)) return [];
+  return gameState.currentRoundTable
+    .filter(play => play?.playerId)
+    .map(play => ({
+      playerId: play.playerId,
+      playerName: play.playerName || '',
+      controllerPlayerId: play.controllerPlayerId || play.playerId,
+      controllerPlayerName: play.controllerPlayerName || play.playerName || '',
+      isProxy: Boolean(play.isProxy),
+      treatedAsSmall: Boolean(play.treatedAsSmall),
+      lureTigerSilenced: Boolean(play.lureTigerSilenced),
+      activeSkillId: play.activeSkillId || null,
+      activeSkillName: play.activeSkillName || null,
+      enduringInheritance: play.enduringInheritance || null,
+      timestamp: play.timestamp || null
+    }));
+}
+
+/**
  * 显式转化是玩家为后续出牌做的本地预设，不能在每次提交出牌时整批清空。
  * 只移除服务端确认已经离手的牌；一次性的“偷梁换柱”真正发动后，再清掉
  * 剩余王的预设，因为本局已经不能继续使用该技能。

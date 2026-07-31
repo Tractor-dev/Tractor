@@ -1764,7 +1764,12 @@
 .declaration-card-pair {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
+  gap: 0;
+}
+
+/* 一对亮牌轻叠 6px：保留成组感，同时完整露出前牌的点数与中央花色。 */
+.declaration-card-pair > .card + .card {
+  margin-left: -6px;
 }
 
 .declaration-card-slot .card.small {
@@ -3961,7 +3966,8 @@
     height: 40px;
   }
 
-  .declaration-card-pair { gap: 2px; }
+  .declaration-card-pair { gap: 0; }
+  .declaration-card-pair > .card + .card { margin-left: -5px; }
   .declaration-card-slot .card.small .suit-symbol { font-size: 19px; }
   .declaration-sidecar .declaration-card-slot.is-trump { left: 6px; }
   .declaration-sidecar .declaration-card-slot.is-inferior { right: 6px; }

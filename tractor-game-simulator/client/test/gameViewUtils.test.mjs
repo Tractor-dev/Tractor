@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {
   formatLevel,
   getCanonicalOpenHandCards,
+  getCurrentRoundPlayedCards,
+  getCurrentRoundPlayHistory,
   getDestroyDykeDisplayState,
   getDisplayedDefenseAsOffense,
   getPendingPoliticalReviewDecision,
@@ -17,6 +19,55 @@ import {
   shouldShowGameBoard,
   THROW_FAILED_PREVIEW_DURATION_MS
 } from '../src/utils/gameViewUtils.js';
+
+test('房间快照可重建本墩桌面和撤回历史，暗置牌只恢复牌背张数', () => {
+  const gameState = {
+    currentRoundTable: [{
+      playerId: 'visible-player',
+      playerName: '明牌玩家',
+      controllerPlayerId: 'visible-player',
+      cards: [{ id: 'clubs-K-0', suit: 'clubs', rank: 'K' }],
+      cardsCount: 1,
+      ironEvidenceMode: 'big'
+    }, {
+      playerId: 'hidden-player',
+      controllerPlayerId: 'controller-player',
+      controllerPlayerName: '代打玩家',
+      isProxy: true,
+      cards: [],
+      cardsCount: 2,
+      concealed: true
+    }]
+  };
+
+  const restored = getCurrentRoundPlayedCards(gameState, [
+    { id: 'hidden-player', name: '暗牌玩家' }
+  ]);
+  assert.deepEqual(restored['visible-player'].cards, [{
+    id: 'clubs-K-0',
+    suit: 'clubs',
+    rank: 'K',
+    ironEvidenceMode: 'big'
+  }]);
+  assert.equal(restored['hidden-player'].playerName, '暗牌玩家');
+  assert.equal(restored['hidden-player'].cardsCount, 2);
+  assert.deepEqual(restored['hidden-player'].cards, []);
+  assert.equal(restored['hidden-player'].concealed, true);
+
+  assert.deepEqual(getCurrentRoundPlayHistory(gameState).map(play => ({
+    playerId: play.playerId,
+    controllerPlayerId: play.controllerPlayerId,
+    isProxy: play.isProxy
+  })), [{
+    playerId: 'visible-player',
+    controllerPlayerId: 'visible-player',
+    isProxy: false
+  }, {
+    playerId: 'hidden-player',
+    controllerPlayerId: 'controller-player',
+    isProxy: true
+  }]);
+});
 
 test('显式转化只清理实际离手的牌，并保留未打出的后续预设', () => {
   const transformations = {

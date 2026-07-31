@@ -95,6 +95,39 @@ test('断线后保留座位，并可用私密令牌恢复同一玩家、手牌�
     cardIds: politicalReviewPending.cards.map(card => card.id),
     playOptions: {}
   };
+  room.gameState.phase = 'playing';
+  room.gameState.currentRound = 3;
+  room.gameState.currentRoundPlays = [{
+    playerIndex: 0,
+    playerId: player.id,
+    cards: [{ toJSON: () => ({ id: 'clubs-K-0', suit: 'clubs', rank: 'K' }) }],
+    concealed: false,
+    treatedAsSmall: false
+  }, {
+    playerIndex: 1,
+    playerId: 'teammate-player',
+    cards: [
+      { toJSON: () => ({ id: 'hearts-9-0', suit: 'hearts', rank: '9' }) },
+      { toJSON: () => ({ id: 'hearts-9-1', suit: 'hearts', rank: '9' }) }
+    ],
+    concealed: true,
+    treatedAsSmall: true
+  }];
+  room.gameState.playHistory = [{
+    round: 3,
+    playerId: player.id,
+    playerName: player.name,
+    controllerPlayerId: player.id,
+    controllerPlayerName: player.name,
+    isProxy: false
+  }, {
+    round: 3,
+    playerId: 'teammate-player',
+    playerName: '队友',
+    controllerPlayerId: 'controller-player',
+    controllerPlayerName: '代打玩家',
+    isProxy: true
+  }];
 
   assert.ok(created.resumeToken);
   assert.equal(created.room.players[0].resumeToken, undefined, '令牌不得出现在公开房间数据中');
@@ -121,6 +154,17 @@ test('断线后保留座位，并可用私密令牌恢复同一玩家、手牌�
     politicalReviewPending,
     '恢复房间时必须携带尚未处理的政治审查，供审查者重建询问框'
   );
+  assert.equal(resumed.room.gameState.currentRoundPlays, 2);
+  assert.deepEqual(resumed.room.gameState.currentRoundTable[0].cards, [
+    { id: 'clubs-K-0', suit: 'clubs', rank: 'K' }
+  ]);
+  assert.equal(resumed.room.gameState.currentRoundTable[1].cardsCount, 2);
+  assert.deepEqual(
+    resumed.room.gameState.currentRoundTable[1].cards,
+    [],
+    '暗置牌在重连快照中只能公开张数，不能泄露牌面'
+  );
+  assert.equal(resumed.room.gameState.currentRoundTable[1].controllerPlayerId, 'controller-player');
   assert.equal(player.socketId, replacementSocket.id);
   assert.equal(player.isOnline, true);
   assert.equal(room.hostId, replacementSocket.id);

@@ -4,10 +4,19 @@
 }
 
 .room-overview-layout {
+  /* #root 的牌桌模式固定为一屏高；房间页内容可能超过一屏，必须让根节点
+     跟随内容增长，否则滚动到底部会露出 body 的深色牌桌底色。 */
+  flex: 0 0 auto;
   min-height: 100vh;
   background:
     radial-gradient(circle at 50% 0%, rgba(37, 118, 92, 0.11), transparent 38%),
     #f3f6f5;
+}
+
+#root:has(> .room-overview-layout) {
+  height: auto;
+  min-height: 100vh;
+  background: #f3f6f5;
 }
 
 .room-overview-header {

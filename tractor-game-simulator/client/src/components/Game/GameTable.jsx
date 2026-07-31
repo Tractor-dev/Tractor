@@ -27,6 +27,20 @@ import './GameTable.css';
 
 const { Text } = Typography;
 
+const ORIGINAL_JOKER_LABELS = Object.freeze({
+  small_joker: '小王',
+  big_joker: '大王',
+  county_prince_joker: '郡王',
+  prince_joker: '亲王',
+  white_joker: '白王'
+});
+
+const getJokerSubstitutionSourceLabel = (played, substitution) => {
+  const transformedCard = (played?.cards || []).find(card => card.id === substitution.cardId);
+  const originalRank = substitution.fromRank || transformedCard?.originalRank;
+  return ORIGINAL_JOKER_LABELS[originalRank] || '王';
+};
+
 /**
  * 游戏桌面组件 - 4人位置布局
  * @param {Object} props
@@ -765,6 +779,7 @@ export default function GameTable({
                   cards={sortCards(option.cards || [], getPlayerTrumpSuit(player), trumpRank)}
                   disabled
                   small
+                  showOriginalFace
                   anticipateNextCard={false}
                   trumpSuit={getPlayerTrumpSuit(player)}
                   trumpRank={trumpRank}
@@ -779,6 +794,7 @@ export default function GameTable({
           <Hand
             cards={sortCards(played.cards, getPlayerTrumpSuit(player), trumpRank)}
             disabled
+            showOriginalFace
             anticipateNextCard={false}
             showWinningBadge={isWinningPlay}
             trumpSuit={getPlayerTrumpSuit(player)}
@@ -815,7 +831,7 @@ export default function GameTable({
           <span className="joker-substitution-badge">
             {played.jokerSubstitutions.map(substitution => {
               const suit = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' }[substitution.suit] || '';
-              return `王→${substitution.rank}${suit}`;
+              return `${getJokerSubstitutionSourceLabel(played, substitution)}→${substitution.rank}${suit}`;
             }).join(' · ')}
           </span>
         )}

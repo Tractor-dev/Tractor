@@ -184,6 +184,21 @@ test('返回房间会保留座位，并可选择重返牌局或确认退出', as
     await expect(hostPage.getByRole('button', { name: '重返牌局' })).toBeVisible();
     await expect(hostPage.getByRole('button', { name: '退出房间' })).toBeVisible();
     await expect(hostPage.getByRole('button', { name: '添加Bot' })).toHaveCount(0);
+    const roomPageMetrics = await hostPage.evaluate(() => {
+      const root = document.querySelector('#root');
+      const layout = document.querySelector('.room-overview-layout');
+      const card = document.querySelector('.room-overview-card');
+      return {
+        documentHeight: document.documentElement.scrollHeight,
+        rootHeight: root?.getBoundingClientRect().height || 0,
+        layoutBottom: layout?.getBoundingClientRect().bottom || 0,
+        cardBottom: card?.getBoundingClientRect().bottom || 0,
+        rootBackground: getComputedStyle(root).backgroundColor
+      };
+    });
+    expect(roomPageMetrics.rootHeight).toBeGreaterThanOrEqual(roomPageMetrics.documentHeight - 1);
+    expect(roomPageMetrics.layoutBottom).toBeGreaterThanOrEqual(roomPageMetrics.cardBottom);
+    expect(roomPageMetrics.rootBackground).toBe('rgb(243, 246, 245)');
     await hostPage.screenshot({
       path: testInfo.outputPath('active-game-room-overview.png'),
       fullPage: true
@@ -206,6 +221,43 @@ test('返回房间会保留座位，并可选择重返牌局或确认退出', as
       .getByRole('button', { name: '确认退出' })
       .click();
     await expect(hostPage.getByRole('heading', { name: '欢迎来到拖拉机纸牌游戏' })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test('轮到自己时返回房间再重返会恢复本墩牌面并可继续跟牌', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const { context, pages } = await openTestModeGame(browser, '世事无常');
+
+  try {
+    const leaderIndex = await finishDealerBury(pages);
+    const followerIndex = (leaderIndex + 1) % pages.length;
+    const leaderPage = pages[leaderIndex];
+    const followerPage = pages[followerIndex];
+
+    await playLegalSingle(leaderPage);
+    await expect(followerPage.locator('.player-bottom.current-turn')).toBeVisible();
+    await expect(followerPage.locator('.played-cards-area.has-cards')).toHaveCount(1);
+
+    await followerPage.getByRole('button', { name: '返回房间', exact: true }).click();
+    await expect(followerPage.getByRole('button', { name: '重返牌局' })).toBeVisible();
+    await followerPage.getByRole('button', { name: '重返牌局' }).click();
+
+    await expect(followerPage.locator('.player-bottom.current-turn')).toBeVisible();
+    await expect(followerPage.locator('.played-cards-area.has-cards')).toHaveCount(1);
+    await expect(followerPage.locator('.my-hand .card:not(.disabled)').first()).toHaveCSS(
+      'cursor',
+      'pointer'
+    );
+
+    const playButton = followerPage.getByRole('button', { name: /^出牌\(\d+\)$/ });
+    if (!(await playButton.isEnabled())) {
+      await selectLegalCard(followerPage.locator('.my-hand .card'), playButton);
+    }
+    await expect(playButton).toBeEnabled();
+    await playButton.click();
+    await expect(followerPage.locator('.played-cards-area.has-cards')).toHaveCount(2);
   } finally {
     await context.close();
   }
@@ -970,7 +1022,7 @@ test('戛然而止结算展示庄家最后全部四张手牌且不溢出', async
   }
 });
 
-test('偷梁换柱把王转成方片 J 后移入 J 牌组且不会被系统自动选中', async ({ browser }) => {
+test('偷梁换柱把王转成方片 J 后移入 J 牌组，并在落桌后标明实体原牌', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '偷梁换柱');
 
@@ -1039,6 +1091,48 @@ test('偷梁换柱把王转成方片 J 后移入 J 牌组且不会被系统自�
     await transformedCard.getByRole('button', { name: '取消转化' }).dispatchEvent('click');
     await expect(firstPlayerPage.locator('.my-hand .joker-substitution-card-badge')).toHaveCount(0);
     await expect(firstPlayerPage.locator('.my-hand .card.selected')).toHaveCount(0);
+
+    await firstPlayerPage.evaluate(async () => {
+      const socketService = (await import('/src/services/socket.js')).default;
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      const player = state.currentRoom.players[0];
+      const transformedTableCard = {
+        id: 'played-big-joker-as-diamond-j',
+        suit: 'diamonds',
+        rank: 'J',
+        originalSuit: 'joker',
+        originalRank: 'big_joker',
+        isJokerSubstitution: true,
+        copyIndex: 0
+      };
+      socketService.socket.listeners('cards_played').forEach(listener => listener({
+        playerId: player.id,
+        playerName: player.name,
+        cards: [transformedTableCard],
+        removedCardIds: [transformedTableCard.id],
+        currentWinningPlayerId: player.id,
+        jokerSubstitutions: [{
+          cardId: transformedTableCard.id,
+          suit: 'diamonds',
+          rank: 'J'
+        }]
+      }));
+    });
+
+    const tableCard = firstPlayerPage.locator(
+      '.played-cards-area .card[data-card-id="played-big-joker-as-diamond-j"]'
+    );
+    await expect(tableCard).toBeVisible();
+    await expect(tableCard.locator('.original-face-badge')).toHaveText('原大王');
+    await expect(tableCard.locator('.original-face-badge')).toHaveAttribute(
+      'aria-label',
+      '实体原牌：大王，当前牌面：♦J'
+    );
+    await expect(firstPlayerPage.locator('.joker-substitution-badge')).toContainText('大王→J♦');
+    await firstPlayerPage.locator('.game-table').screenshot({
+      path: testInfo.outputPath('transformed-card-original-face.png')
+    });
   } finally {
     await context.close();
   }
@@ -3637,7 +3731,9 @@ test('亮主牌标位于玩家框内且三六九等同时清楚显示主劣', as
     ));
     cardPairs.forEach(cards => {
       expect(cards).toHaveLength(2);
-      expect(cards[1].left - cards[0].right).toBeGreaterThanOrEqual(2);
+      const overlap = cards[0].right - cards[1].left;
+      expect(overlap).toBeGreaterThanOrEqual(4);
+      expect(overlap).toBeLessThanOrEqual(8);
     });
 
     const [spadeColor, clubColor] = await Promise.all([

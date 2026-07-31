@@ -605,6 +605,44 @@ export class GameState {
     const isLostInFogScoringHidden = isLostInFogRule(this.selectedRule)
       && ![GamePhases.REVEALING, GamePhases.FINISHED].includes(this.phase);
     const recordOnFile = this.getRecordOnFilePublicState();
+    // cards_played 是一次性消息，玩家刷新或暂时返回房间页后无法重放。
+    // 因此把尚未结算的本墩牌作为公开快照一并下发，供客户端重建牌桌。
+    // 暗置牌在揭晓前只公开张数，绝不能借重连快照泄露牌面。
+    const currentRoundHistory = this.playHistory.filter(
+      entry => entry.round === this.currentRound
+    );
+    const currentRoundTable = this.currentRoundPlays.map((play, index) => {
+      const historyEntry = currentRoundHistory[index]
+        || currentRoundHistory.find(entry => entry.playerId === play.playerId)
+        || null;
+      const serializeCard = card => card?.toJSON ? card.toJSON() : card;
+      const visibleCards = play.concealed ? [] : (play.cards || []).map(serializeCard);
+
+      return {
+        playerIndex: play.playerIndex,
+        playerId: play.playerId,
+        playerName: historyEntry?.playerName || null,
+        controllerPlayerId: historyEntry?.controllerPlayerId || play.playerId,
+        controllerPlayerName: historyEntry?.controllerPlayerName || historyEntry?.playerName || null,
+        isProxy: Boolean(historyEntry?.isProxy),
+        cards: visibleCards,
+        cardsCount: (play.cards || []).length,
+        concealed: Boolean(play.concealed),
+        treatedAsSmall: Boolean(play.treatedAsSmall),
+        activeSkillId: play.activeSkillId || null,
+        activeSkillName: play.activeSkillName || null,
+        jokerSubstitutions: play.jokerSubstitutions || [],
+        clusterAnalysisSubstitutions: play.clusterAnalysisSubstitutions || [],
+        forbiddenMagicSubstitutions: play.forbiddenMagicSubstitutions || [],
+        enduringInheritance: play.enduringInheritance || null,
+        dreamKilling: play.dreamKilling || null,
+        oldHorseAbsolute: Boolean(play.oldHorseAbsolute),
+        lureTigerSilenced: Boolean(play.lureTigerSilenced),
+        ironEvidenceMode: play.ironEvidenceMode || null,
+        ambiguousOptions: play.concealed ? null : (play.ambiguousOptions || null),
+        timestamp: historyEntry?.timestamp || null
+      };
+    });
     return {
       phase: this.phase,
       playMode: this.playMode,
@@ -1197,6 +1235,7 @@ export class GameState {
         } : null
       } : null,
       currentRoundPlays: this.currentRoundPlays.length,
+      currentRoundTable,
       leadingPattern: this.leadingPattern,
       // 暗置牌揭牌前，连当前赢牌座位也属于秘密信息。
       // 否则即使客户端只画牌背，仍可从房间快照反推出暗牌大小。

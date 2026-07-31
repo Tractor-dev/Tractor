@@ -61,6 +61,20 @@ const JOKER_META = {
 
 const getRankLabel = rank => JOKER_META[rank]?.label || (rank === 'M' ? 'M（Minus）' : rank);
 
+const getOriginalFaceLabel = (suit, rank) => {
+  if (!rank) return '';
+  if (JOKER_META[rank]) return JOKER_META[rank].label;
+  return `${SUIT_SYMBOLS[suit] || ''}${RANK_DISPLAY[rank] || rank}`;
+};
+
+const getOriginalFaceTone = (suit, rank) => {
+  if (rank === 'big_joker' || suit === 'hearts' || suit === 'diamonds') return 'is-red';
+  if (rank === 'county_prince_joker') return 'is-purple';
+  if (rank === 'prince_joker') return 'is-blue';
+  if (rank === 'white_joker') return 'is-gold';
+  return 'is-black';
+};
+
 export default function Card({
   card,
   selected = false,
@@ -74,6 +88,7 @@ export default function Card({
   faceDown = false,
   small = false,
   micro = false,
+  showOriginalFace = false,
   draggable = false,
   onDragStart,
   onDragEnd,
@@ -111,6 +126,19 @@ export default function Card({
     && !isAfterglowBoosted
     && card.originalSuit === 'spades'
     && card.suit === 'hearts';
+  const originalSuit = card.originalSuit || card.suit;
+  const originalRank = card.originalRank || null;
+  const hasChangedFace = Boolean(
+    originalRank
+    && (
+      String(originalSuit) !== String(card.suit)
+      || String(originalRank) !== String(card.rank)
+    )
+  );
+  const originalFaceLabel = hasChangedFace
+    ? getOriginalFaceLabel(originalSuit, originalRank)
+    : '';
+  const currentFaceLabel = getOriginalFaceLabel(card.suit, card.rank);
 
   const displayRank = useMemo(() => {
     return RANK_DISPLAY[card.rank] || card.rank;
@@ -141,7 +169,9 @@ export default function Card({
       style={{
         color: color,
         borderColor: selected ? '#1890ff' : '#d9d9d9',
-        cursor: disabled ? 'not-allowed' : 'grab'
+        // 系统 grab 是一只面积很大的张掌，叠在紧凑牌面上会遮挡点数；
+        // 普通 pointer 同样明确表示可点/可拖，同时视觉尺寸更克制。
+        cursor: disabled ? 'not-allowed' : 'pointer'
       }}
     >
       {faceDown ? (
@@ -174,6 +204,19 @@ export default function Card({
         <div className="card-rank">{cornerRank}</div>
         {!isJoker && <div className="card-suit">{suitSymbol}</div>}
       </div>
+
+      {showOriginalFace && hasChangedFace && (
+        <div
+          className={`original-face-badge ${getOriginalFaceTone(originalSuit, originalRank)}`}
+          data-original-suit={originalSuit}
+          data-original-rank={originalRank}
+          aria-label={`实体原牌：${originalFaceLabel}，当前牌面：${currentFaceLabel}`}
+          title={`实体原牌 ${originalFaceLabel}，本次按 ${currentFaceLabel} 参与牌型与大小`}
+        >
+          <span>原</span>
+          <strong>{originalFaceLabel}</strong>
+        </div>
+      )}
 
       {/* 主牌星标 */}
       {isTrump && (

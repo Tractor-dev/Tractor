@@ -21,6 +21,7 @@ export default function Hand({
   disabled = false,
   faceDown = false,
   small = false,
+  showOriginalFace = false,
   anticipateNextCard = false,
   showWinningBadge = false,
   onReorder,
@@ -332,6 +333,7 @@ export default function Hand({
               virtualized={isVirtualized}
               faceDown={faceDown}
               small={small}
+              showOriginalFace={showOriginalFace}
               draggable={!disabled && !isRuleDisabled && !isVirtualized && !!onReorder}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}

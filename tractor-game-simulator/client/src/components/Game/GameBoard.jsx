@@ -29,6 +29,8 @@ import { calculateCardPoints, getCardPoints, getMeticulousAccountingCardPoints }
 import {
   formatLevel,
   getCanonicalOpenHandCards,
+  getCurrentRoundPlayedCards,
+  getCurrentRoundPlayHistory,
   getPendingPoliticalReviewDecision,
   getRuleSelectionAccess,
   getThrowFailedPreview,
@@ -116,9 +118,13 @@ export default function GameBoard({ onReturnToRoom }) {
   const [adjustValue, setAdjustValue] = useState(0);
   const [viewBottomModal, setViewBottomModal] = useState(false);
   const [shownCards, setShownCards] = useState({}); // { [playerId]: { playerName, cards } }
-  const [playedCards, setPlayedCards] = useState({}); // { [playerId]: { playerName, cards } }
+  const [playedCards, setPlayedCards] = useState(() => (
+    getCurrentRoundPlayedCards(currentRoom?.gameState, currentRoom?.players)
+  )); // { [playerId]: { playerName, cards } }
   const [throwFailedPreviews, setThrowFailedPreviews] = useState({});
-  const [playHistory, setPlayHistory] = useState([]); // 出牌历史记录 [{ playerId, playerName, timestamp }, ...]
+  const [playHistory, setPlayHistory] = useState(() => (
+    getCurrentRoundPlayHistory(currentRoom?.gameState)
+  )); // 出牌历史记录 [{ playerId, playerName, timestamp }, ...]
   const [revealedBottomCards, setRevealedBottomCards] = useState([]); // 终局展示的底牌
   const [publicBottomCards, setPublicBottomCards] = useState([]); // “昭然若揭”发牌开始即公开的底牌
   const [myBottomCards, setMyBottomCards] = useState([]); // 查看底牌弹窗中的牌
@@ -240,7 +246,7 @@ export default function GameBoard({ onReturnToRoom }) {
   // 的下轮烛态在中央计分或右上状态中抢先闪现。
   const heldCompletedRoundNumberRef = useRef(null);
   const heldRoundCandleRef = useRef(null);
-  const playedCardsRef = useRef({});
+  const playedCardsRef = useRef(playedCards);
   const pendingOwnConcealedCardsRef = useRef(new Map());
   const throwFailedPreviewTimersRef = useRef(new Map());
   const roundClearTimerRef = useRef(null);
@@ -481,6 +487,37 @@ export default function GameBoard({ onReturnToRoom }) {
   const phase = isHoldingCompletedRound && roomPhase === GamePhases.REVEALING
     ? GamePhases.PLAYING
     : roomPhase;
+
+  // 若瞬时断线期间漏掉 cards_played，一次 room_resumed / room_updated 也应能
+  // 补齐本墩桌面。正常实时事件已经画出的暗牌本人视图要保留，避免被公共牌背覆盖。
+  useEffect(() => {
+    if (
+      phase !== GamePhases.PLAYING
+      || !Array.isArray(gameState?.currentRoundTable)
+      || gameState.currentRoundTable.length === 0
+    ) {
+      return;
+    }
+
+    const restored = getCurrentRoundPlayedCards(gameState, currentRoom?.players);
+    setPlayedCards(previous => {
+      const merged = { ...restored };
+      Object.entries(previous).forEach(([playerId, localPlay]) => {
+        if (merged[playerId]?.concealed && localPlay?.ownConcealedCards) {
+          merged[playerId] = localPlay;
+        }
+      });
+      playedCardsRef.current = merged;
+      return merged;
+    });
+    setPlayHistory(getCurrentRoundPlayHistory(gameState));
+  }, [
+    phase,
+    gameState?.currentRound,
+    gameState?.currentRoundTable,
+    currentRoom?.players
+  ]);
+
   const {
     canView: canViewRuleSelection,
     canChoose: isRuleChooser
