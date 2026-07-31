@@ -3,6 +3,7 @@ import Hand from './Hand';
 import Card from './Card';
 import OpenHandPanel from './OpenHandPanel';
 import RecordOnFileTracker from './RecordOnFileTracker';
+import SurrenderShowdown from './SurrenderShowdown';
 import { sortCards } from '../../utils/cardUtils';
 import {
   calculateCardPoints,
@@ -209,6 +210,8 @@ export default function GameTable({
   const isSettlementView = Boolean(
     revealedBottomCards?.length && (bottomScoreResult || upgradeResult)
   );
+  const surrenderRevealedHands = bottomScoreResult?.surrender?.revealedHands || [];
+  const hasSurrenderShowdown = surrenderRevealedHands.length > 0;
   const isPublicBottomVisible = Boolean(
     ruleIncludesId(selectedRule, 'openly_revealed')
     && publicBottomCards?.length
@@ -258,10 +261,14 @@ export default function GameTable({
     displayRoundNumber ?? ruleRuntimeStatus?.currentRound ?? 1
   );
   const showRecordOnFileWhiteJoker = ruleIncludesId(selectedRule, 'king_over_white');
+  const showRecordOnFileRoyalJokers = ruleIncludesId(selectedRule, 'eight_kings_council');
   const recordOnFileTrackerView = getRecordOnFileTrackerView(
     ruleRuntimeStatus?.recordOnFile,
     currentRoundNumber,
-    { showWhiteJoker: showRecordOnFileWhiteJoker }
+    {
+      showWhiteJoker: showRecordOnFileWhiteJoker,
+      showRoyalJokers: showRecordOnFileRoyalJokers
+    }
   );
   const candleToDawn = ruleRuntimeStatus?.candleToDawn || null;
   const threeTigers = ruleRuntimeStatus?.threeTigers || null;
@@ -442,6 +449,35 @@ export default function GameTable({
       ? currentInferiorDeclaration
       : null
   );
+  const renderDeclarationCardSlot = ({
+    cards,
+    declarationRole,
+    player,
+    playerTrumpSuit
+  }) => {
+    if (!cards?.length) return null;
+    const isInferior = declarationRole === 'inferior';
+    return (
+      <div
+        className={`declaration-card-slot ${isInferior ? 'is-inferior' : 'is-trump'}`}
+        aria-label={`${player?.name || '玩家'}亮${isInferior ? '劣' : '主'}${cards.length === 2 ? '一对' : '单张'}`}
+        title={isInferior ? '三六九等：当前亮劣' : '当前亮主'}
+      >
+        <div className="declaration-card-pair">
+          {cards.map(card => (
+            <Card
+              key={card.id}
+              card={card}
+              disabled
+              small
+              trumpSuit={playerTrumpSuit}
+              trumpRank={trumpRank}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const oneCountryTrumpRows = (() => {
     if (!oneCountryTwoSystems) return [];
@@ -478,6 +514,8 @@ export default function GameTable({
     const playerTrumpSuit = getPlayerTrumpSuit(player);
     const hasDeclaredTrump = playerTrumpDeclaration?.playerId === player.id;
     const playerInferiorDeclaration = getPlayerInferiorDeclaration(player);
+    const hasInferiorDeclaration = Boolean(playerInferiorDeclaration?.cards?.length);
+    const hasAnyDeclaration = hasDeclaredTrump || hasInferiorDeclaration;
     const isOpenHand = hasRevealedHand(player);
     const isSecondaryBuryingPlayer = player.id === secondaryBuryingPlayerId;
     const isKnownFocusFigure = knownFocusPlayerIds.has(player.id);
@@ -511,7 +549,7 @@ export default function GameTable({
 
     return (
       <div
-        className={`player-area player-${position} ${isCurrentTurn ? 'current-turn' : ''} ${isSelectableTarget ? 'skill-targetable' : ''} ${isSelectedTarget ? 'skill-target-selected' : ''}`}
+        className={`player-area player-${position} ${hasAnyDeclaration ? 'has-declaration' : ''} ${isCurrentTurn ? 'current-turn' : ''} ${isSelectableTarget ? 'skill-targetable' : ''} ${isSelectedTarget ? 'skill-target-selected' : ''}`}
         data-player-id={player.id}
         onClick={isSelectableTarget ? () => onPlayerTargetClick?.(player) : undefined}
         role={isSelectableTarget ? 'button' : undefined}
@@ -578,8 +616,6 @@ export default function GameTable({
               </span>
             )}
           </div>
-          <br />
-          <Text type="secondary">手牌: {player.cardsCount || 0}</Text>
           {showFocusFigureProgress && (
             <div className="focus-figure-captured-points" data-focus-captured-player-id={player.id}>
               被闲家收走 {focusCapturedPoints} 分
@@ -587,29 +623,32 @@ export default function GameTable({
           )}
         </div>
 
+        <span
+          className={`player-hand-count player-hand-count-${position}`}
+          aria-label={`手牌 ${player.cardsCount || 0} 张`}
+          title={`手牌：${player.cardsCount || 0} 张`}
+        >
+          {player.cardsCount || 0}张
+        </span>
+
         <div className="player-cards-area">
-          {/* 亮主区域 - 其他玩家的亮主在这里居中显示 */}
-          <div className={`declared-trump-zone ${position === 'top' ? 'declaration-sidecar' : ''}`}>
-            {hasDeclaredTrump && playerTrumpDeclaration.cards && playerTrumpDeclaration.cards.length > 0 && (
-              <Hand
-                cards={playerTrumpDeclaration.cards}
-                disabled
-                small={position === 'top'}
-                trumpSuit={playerTrumpSuit}
-                trumpRank={trumpRank}
-              />
-            )}
-            {playerInferiorDeclaration?.cards?.length > 0 && (
-              <div className="inferior-declaration-zone" title="三六九等：当前亮劣">
-                <Hand
-                  cards={playerInferiorDeclaration.cards}
-                  disabled
-                  small={position === 'top'}
-                  trumpSuit={playerTrumpSuit}
-                  trumpRank={trumpRank}
-                />
-              </div>
-            )}
+          {/* 亮主占玩家框左下角，亮劣占右下角，都不参与框体尺寸计算。 */}
+          <div
+            className={`declared-trump-zone declaration-sidecar declaration-sidecar-${position} ${hasDeclaredTrump && hasInferiorDeclaration ? 'has-dual-declaration' : ''}`}
+            aria-live="polite"
+          >
+            {hasDeclaredTrump && renderDeclarationCardSlot({
+              cards: playerTrumpDeclaration.cards,
+              declarationRole: 'trump',
+              player,
+              playerTrumpSuit
+            })}
+            {renderDeclarationCardSlot({
+              cards: playerInferiorDeclaration?.cards,
+              declarationRole: 'inferior',
+              player,
+              playerTrumpSuit
+            })}
           </div>
 
           {shown && shown.cards && shown.cards.length > 0 && (
@@ -884,8 +923,21 @@ export default function GameTable({
     );
   };
 
+  const bottomTrumpDeclaration = positions.bottom
+    ? getPlayerTrumpDeclaration(positions.bottom)
+    : null;
+  const bottomInferiorDeclaration = positions.bottom
+    ? getPlayerInferiorDeclaration(positions.bottom)
+    : null;
+  const bottomHasTrumpDeclaration = Boolean(
+    positions.bottom
+    && bottomTrumpDeclaration?.playerId === positions.bottom.id
+    && bottomTrumpDeclaration?.cards?.length
+  );
+  const bottomHasInferiorDeclaration = Boolean(bottomInferiorDeclaration?.cards?.length);
+
   return (
-    <div className={`game-table ${isSettlementView ? 'settlement-view' : ''}`}>
+    <div className={`game-table ${isSettlementView ? 'settlement-view' : ''} ${hasSurrenderShowdown ? 'has-surrender-showdown' : ''}`}>
       {cardExchange && (
         <div className="card-exchange-status" role="status" aria-live="polite">
           <span className="card-exchange-status-title">{cardExchange.ruleName}</span>
@@ -1238,12 +1290,13 @@ export default function GameTable({
               </div>
             </div>
           )}
-          <div className={`center-content ${isSettlementView ? 'settlement-panel' : ''} ${!revealedBottomCards?.length ? 'table-tools' : ''}`}>
+          <div className={`center-content ${isSettlementView ? 'settlement-panel' : ''} ${hasSurrenderShowdown ? 'has-surrender-showdown' : ''} ${!revealedBottomCards?.length ? 'table-tools' : ''}`}>
             {recordOnFileTrackerView && !revealedBottomCards?.length && (
               <RecordOnFileTracker
                 recordOnFile={ruleRuntimeStatus?.recordOnFile}
                 displayRoundNumber={currentRoundNumber}
                 showWhiteJoker={showRecordOnFileWhiteJoker}
+                showRoyalJokers={showRecordOnFileRoyalJokers}
               />
             )}
             {/* 底牌展示（优先显示） */}
@@ -1374,6 +1427,15 @@ export default function GameTable({
                       </Text>
                     </div>
                   </div>
+                )}
+
+                {hasSurrenderShowdown && (
+                  <SurrenderShowdown
+                    hands={surrenderRevealedHands}
+                    currentPlayerId={currentPlayer?.id}
+                    trumpSuit={bottomScoreResult?.currentGameTrumpSuit || trumpSuit}
+                    trumpRank={bottomScoreResult?.currentGameTrumpRank || trumpRank}
+                  />
                 )}
 
                 {/* 迷雾牌在逐墩分和底牌分之后才公开并补分。 */}
@@ -2275,8 +2337,6 @@ export default function GameTable({
       {positions.bottom && (
         <div className="position-bottom">
           {renderSecondBattlefieldStagedArea(positions.bottom, 'bottom')}
-          {/* 我的出牌区域 - 在玩家框上方居中 */}
-          {renderPlayedCardsArea(positions.bottom, 'bottom')}
 
           <div
             className={`player-area player-bottom current-player ${positions.bottom.id === currentTurnPlayerId ? 'current-turn' : ''} ${playerTargeting?.active && playerTargeting?.allowSelf && (playerTargeting?.requireCards === false || positions.bottom.cardsCount > 0) ? 'skill-targetable' : ''} ${playerTargeting?.selectedPlayerIds?.includes(positions.bottom.id) ? 'skill-target-selected' : ''}`}
@@ -2298,6 +2358,8 @@ export default function GameTable({
             } : undefined}
           >
             {positions.bottom.id === currentTurnPlayerId && renderTurnIndicator(true)}
+            {/* 我的出牌区域锚定在玩家框上方，不参与挤压手牌框高度。 */}
+            {renderPlayedCardsArea(positions.bottom, 'bottom')}
             {/* 上半部分：玩家信息和控制按钮 */}
             <div className="bottom-player-header">
               <div className="player-info">
@@ -2463,27 +2525,15 @@ export default function GameTable({
                 </div>
               )}
 
-              {/* 亮主区域 - 只在有亮主时显示 */}
-              {getPlayerTrumpDeclaration(positions.bottom)?.playerId === positions.bottom.id && (
-                <div className={`bottom-trump-zone ${getPlayerTrumpDeclaration(positions.bottom)?.cards?.length > 1 ? 'has-multiple-cards' : ''}`}>
-                  {getPlayerTrumpDeclaration(positions.bottom)?.cards?.length > 0 && (
-                    <Hand
-                      cards={getPlayerTrumpDeclaration(positions.bottom).cards}
-                      disabled
-                      trumpSuit={getPlayerTrumpSuit(positions.bottom)}
-                      trumpRank={trumpRank}
-                    />
-                  )}
-                </div>
-              )}
-              {getPlayerInferiorDeclaration(positions.bottom)?.cards?.length > 0 && (
-                <div className="bottom-trump-zone inferior-declaration-zone">
-                  <Hand
-                    cards={getPlayerInferiorDeclaration(positions.bottom).cards}
-                    disabled
-                    trumpSuit={getPlayerTrumpSuit(positions.bottom)}
-                    trumpRank={trumpRank}
-                  />
+              {/* 自己的亮主在手牌左下角，亮劣在右下角。 */}
+              {bottomHasTrumpDeclaration && (
+                <div className="bottom-declaration-dock is-trump">
+                  {renderDeclarationCardSlot({
+                    cards: bottomTrumpDeclaration.cards,
+                    declarationRole: 'trump',
+                    player: positions.bottom,
+                    playerTrumpSuit: getPlayerTrumpSuit(positions.bottom)
+                  })}
                 </div>
               )}
               {/* 手牌区域 */}
@@ -2516,6 +2566,16 @@ export default function GameTable({
                   trumpRank={trumpRank}
                 />
               </div>
+              {bottomHasInferiorDeclaration && (
+                <div className="bottom-declaration-dock is-inferior">
+                  {renderDeclarationCardSlot({
+                    cards: bottomInferiorDeclaration.cards,
+                    declarationRole: 'inferior',
+                    player: positions.bottom,
+                    playerTrumpSuit: getPlayerTrumpSuit(positions.bottom)
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

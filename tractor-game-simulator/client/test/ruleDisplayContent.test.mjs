@@ -30,8 +30,8 @@ test('牌桌规则说明采用准确且适合局中阅读的文案', () => {
     }),
     '以庄家为0号位逆时针编号。第x轮，x%4号位全部牌升一级，(x+2)%4号位降一级；副牌不跨入主牌，升降可越过牌序端点，实体分值不变。'
   );
-  assert.equal(Object.keys(TABLE_RULE_CONTENT_BY_NAME).length, 115);
-  assert.equal(Object.keys(ORIGINAL_RULE_CONTENT_BY_NAME).length, 115);
+  assert.equal(Object.keys(TABLE_RULE_CONTENT_BY_NAME).length, 117);
+  assert.equal(Object.keys(ORIGINAL_RULE_CONTENT_BY_NAME).length, 117);
 });
 
 test('所有已实现规则都有牌桌文案，已知失真条件不再沿用历史短版', () => {
@@ -59,6 +59,8 @@ test('所有已实现规则都有牌桌文案，已知失真条件不再沿用�
   assert.match(TABLE_RULE_CONTENT_BY_NAME['欢乐成双'], /固定队友上庄/);
   assert.match(TABLE_RULE_CONTENT_BY_NAME['铁证如山'], /第二张大王只影响下一轮/);
   assert.match(TABLE_RULE_CONTENT_BY_NAME['记录在案'], /重新独立显示一轮/);
+  assert.match(TABLE_RULE_CONTENT_BY_NAME['记录在案'], /初始牌堆确实含有/);
+  assert.match(TABLE_RULE_CONTENT_BY_NAME['九子夺嫡'], /白王/);
 });
 
 test('双喜临门分别显示两条子规则的短文案', () => {

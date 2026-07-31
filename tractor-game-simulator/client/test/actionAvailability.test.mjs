@@ -25,7 +25,10 @@ import {
   getThreePowersCardPoints
 } from '../src/utils/scoringUtils.js';
 import { sortCards } from '../src/utils/cardUtils.js';
-import { detectThreeSixNineDeclarations } from '../src/utils/trumpUtils.js';
+import {
+  detectAvailableDeclarations,
+  detectThreeSixNineDeclarations
+} from '../src/utils/trumpUtils.js';
 import { isIronEvidenceSpecialCard } from '../src/utils/ironEvidenceUtils.js';
 
 const card = (id, suit, rank) => ({ id, suit, rank });
@@ -307,6 +310,31 @@ test('三六九等前端按共享花色锁定主劣按钮，并保留原声明�
     && option.declarationRole === 'inferior'
     && option.canDeclare
   )), false);
+});
+
+test('八王议政前端识别对郡王和对亲王的无主声明强度', () => {
+  const declarations = detectAvailableDeclarations([
+    card('county-0', 'joker', 'county_prince_joker'),
+    card('county-1', 'joker', 'county_prince_joker'),
+    card('prince-0', 'joker', 'prince_joker'),
+    card('prince-1', 'joker', 'prince_joker')
+  ], '2', {
+    playerId: 'other-player',
+    suit: 'joker',
+    declarationType: 'pair_big_joker',
+    strength: 4
+  }, 'current-player');
+
+  const countyDeclaration = declarations.find(
+    value => value.declarationType === 'pair_county_prince_joker'
+  );
+  const princeDeclaration = declarations.find(
+    value => value.declarationType === 'pair_prince_joker'
+  );
+  assert.equal(countyDeclaration.canDeclare, true);
+  assert.equal(countyDeclaration.strength, 5);
+  assert.equal(princeDeclaration.canDeclare, true);
+  assert.equal(princeDeclaration.strength, 6);
 });
 
 test('三六九等前端把劣花色排在普通副牌之后，并显示正确级牌层级', () => {

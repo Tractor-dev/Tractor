@@ -7,7 +7,9 @@ export const DeclarationTypes = {
   SINGLE_RANK: 'single_rank',      // 单张级牌
   PAIR_RANK: 'pair_rank',          // 一对级牌
   PAIR_SMALL_JOKER: 'pair_small_joker',  // 一对小王
-  PAIR_BIG_JOKER: 'pair_big_joker'      // 一对大王
+  PAIR_BIG_JOKER: 'pair_big_joker',      // 一对大王
+  PAIR_COUNTY_PRINCE_JOKER: 'pair_county_prince_joker', // 一对郡王
+  PAIR_PRINCE_JOKER: 'pair_prince_joker' // 一对亲王
 };
 
 /**
@@ -17,7 +19,9 @@ export const DeclarationStrength = {
   [DeclarationTypes.SINGLE_RANK]: 1,
   [DeclarationTypes.PAIR_RANK]: 2,
   [DeclarationTypes.PAIR_SMALL_JOKER]: 3,
-  [DeclarationTypes.PAIR_BIG_JOKER]: 4
+  [DeclarationTypes.PAIR_BIG_JOKER]: 4,
+  [DeclarationTypes.PAIR_COUNTY_PRINCE_JOKER]: 5,
+  [DeclarationTypes.PAIR_PRINCE_JOKER]: 6
 };
 
 /**
@@ -65,8 +69,58 @@ export function validateDeclaration(cards, suit, count, trumpRank, currentTrump 
       // 统计大王和小王的数量
       const smallJokers = cards.filter(c => c.suit === Suits.JOKER && c.rank === Ranks.SMALL_JOKER);
       const bigJokers = cards.filter(c => c.suit === Suits.JOKER && c.rank === Ranks.BIG_JOKER);
+      const countyPrinceJokers = cards.filter(
+        c => c.suit === Suits.JOKER && c.rank === Ranks.COUNTY_PRINCE_JOKER
+      );
+      const princeJokers = cards.filter(
+        c => c.suit === Suits.JOKER && c.rank === Ranks.PRINCE_JOKER
+      );
 
-      if (bigJokers.length >= 2) {
+      if (princeJokers.length >= 2) {
+        matchingCards = princeJokers.slice(0, 2);
+        const declarationType = DeclarationTypes.PAIR_PRINCE_JOKER;
+        const strength = DeclarationStrength[declarationType];
+
+        if (currentTrump && strength <= currentTrump.strength) {
+          return {
+            valid: false,
+            message: '无法反主：需要更强的牌',
+            declarationType: null,
+            strength: 0
+          };
+        }
+
+        return {
+          valid: true,
+          message: '亮一对亲王成功',
+          declarationType,
+          strength,
+          jokerType: 'prince',
+          cards: matchingCards
+        };
+      } else if (countyPrinceJokers.length >= 2) {
+        matchingCards = countyPrinceJokers.slice(0, 2);
+        const declarationType = DeclarationTypes.PAIR_COUNTY_PRINCE_JOKER;
+        const strength = DeclarationStrength[declarationType];
+
+        if (currentTrump && strength <= currentTrump.strength) {
+          return {
+            valid: false,
+            message: '无法反主：需要更强的牌',
+            declarationType: null,
+            strength: 0
+          };
+        }
+
+        return {
+          valid: true,
+          message: '亮一对郡王成功',
+          declarationType,
+          strength,
+          jokerType: 'county_prince',
+          cards: matchingCards
+        };
+      } else if (bigJokers.length >= 2) {
         // 有一对大王
         matchingCards = bigJokers.slice(0, 2);
         const declarationType = DeclarationTypes.PAIR_BIG_JOKER;

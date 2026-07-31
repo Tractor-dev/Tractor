@@ -154,6 +154,8 @@ const RECORD_ON_FILE_RULE = getRuleById(RuleIds.RECORD_ON_FILE);
 const WEIGHING_THOUSAND_JIN_RULE = getRuleById(RuleIds.WEIGHING_THOUSAND_JIN);
 const KING_OVER_WHITE_RULE = getRuleById(RuleIds.KING_OVER_WHITE);
 const FEAR_OF_BREAKING_VASE_RULE = getRuleById(RuleIds.FEAR_OF_BREAKING_VASE);
+const EIGHT_KINGS_COUNCIL_RULE = getRuleById(RuleIds.EIGHT_KINGS_COUNCIL);
+const NINE_PRINCES_SUCCESSION_RULE = getRuleById(RuleIds.NINE_PRINCES_SUCCESSION);
 
 function createRoom(config = {}) {
   const room = new Room('规则测试房', 'socket-0', { dealInterval: 10, ...config });
@@ -675,10 +677,12 @@ test('特殊开局规则具有正确的底牌数量与闲家初始分', () => {
     [RuleIds.RECORD_ON_FILE, '记录在案', 8, 0],
     [RuleIds.WEIGHING_THOUSAND_JIN, '上称千斤', 8, 0],
     [RuleIds.KING_OVER_WHITE, '王上加白', 8, 0],
-    [RuleIds.FEAR_OF_BREAKING_VASE, '投鼠忌器', 8, 0]
+    [RuleIds.FEAR_OF_BREAKING_VASE, '投鼠忌器', 8, 0],
+    [RuleIds.EIGHT_KINGS_COUNCIL, '八王议政', 8, 0],
+    [RuleIds.NINE_PRINCES_SUCCESSION, '九子夺嫡', 8, 0]
   ];
 
-  assert.equal(getImplementedRules().length, 106);
+  assert.equal(getImplementedRules().length, 108);
   for (const [id, name, bottomCardsCount, attackerStartingScore] of expectedSetups) {
     assert.equal(getRuleById(id).name, name);
     assert.deepEqual(getRuleSetup({ id }), { bottomCardsCount, attackerStartingScore });
@@ -737,6 +741,385 @@ test('王上加白在洗牌后随机将且仅将一张普通王变为全局最�
     DeckService.createDeck().filter(value => value.rank === Ranks.WHITE_JOKER).length,
     0
   );
+});
+
+test('八王议政加入两张郡王和两张亲王，正常配置下四家各摸26张', () => {
+  assert.equal(EIGHT_KINGS_COUNCIL_RULE.name, '八王议政');
+  assert.deepEqual(getRuleSetup(EIGHT_KINGS_COUNCIL_RULE), {
+    bottomCardsCount: 8,
+    attackerStartingScore: 0
+  });
+
+  const room = createRoom();
+  const io = createIo();
+  const manager = new DrawingPhaseManager(room, io);
+  const originalShuffle = DeckService.shuffle;
+  room.gameState.selectedRule = EIGHT_KINGS_COUNCIL_RULE;
+
+  try {
+    DeckService.shuffle = deck => [...deck];
+    manager.start();
+    manager.stop();
+  } finally {
+    DeckService.shuffle = originalShuffle;
+  }
+
+  const fullDeck = [
+    ...room.gameState.bottomCards,
+    ...room.gameState.deck
+  ];
+  assert.equal(fullDeck.length, 112);
+  assert.equal(room.gameState.bottomCards.length, 8);
+  assert.equal(room.gameState.deck.length, 104);
+  assert.equal(
+    fullDeck.filter(value => value.rank === Ranks.COUNTY_PRINCE_JOKER).length,
+    2
+  );
+  assert.equal(
+    fullDeck.filter(value => value.rank === Ranks.PRINCE_JOKER).length,
+    2
+  );
+  assert.equal(
+    new Set(fullDeck.map(value => value.id)).size,
+    112,
+    '新增王必须拥有唯一实体牌 ID'
+  );
+
+  while (room.gameState.drawingIndex < room.gameState.deck.length) {
+    manager.dealOneCard();
+  }
+  assert.deepEqual(room.players.map(player => player.cards.length), [26, 26, 26, 26]);
+  assert.ok(
+    getCardStrength(
+      card('joker', Ranks.PRINCE_JOKER),
+      'hearts',
+      '2',
+      EIGHT_KINGS_COUNCIL_RULE
+    ) > getCardStrength(
+      card('joker', Ranks.COUNTY_PRINCE_JOKER),
+      'hearts',
+      '2',
+      EIGHT_KINGS_COUNCIL_RULE
+    )
+  );
+});
+
+test('九子夺嫡只由赢家收下的对方分牌触发，并私下永久晋升一张手牌', () => {
+  const room = createRoom();
+  const io = createIo();
+  const engine = new GameEngine(room, io);
+  const winner = room.players[1];
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = NINE_PRINCES_SUCCESSION_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  winner.cards = [card('hearts', '4', 880)];
+
+  assert.equal(
+    engine.prepareNinePrincesDecisionAtRoundEnd({
+      winner,
+      completedRound: 1,
+      roundPlays: [{
+        playerId: room.players[3].id,
+        originalCards: [card('clubs', 'K', 879)]
+      }]
+    }),
+    null,
+    '只收下队友打出的分牌不能触发'
+  );
+
+  const pending = engine.prepareNinePrincesDecisionAtRoundEnd({
+    winner,
+    completedRound: 1,
+    roundPlays: [
+      {
+        playerId: room.players[0].id,
+        originalCards: [card('clubs', 'K', 881)]
+      },
+      {
+        playerId: winner.id,
+        originalCards: [card('hearts', 'A', 882)]
+      }
+    ]
+  });
+
+  assert.equal(pending.playerId, winner.id);
+  assert.equal(room.gameState.toJSON().ninePrinces.pending.playerId, winner.id);
+  assert.equal(
+    Object.hasOwn(room.gameState.toJSON().ninePrinces.pending, 'eligibleCardIds'),
+    false,
+    '公共快照不得泄露候选手牌'
+  );
+  const reconnectRequest = engine.getPrivateGameStateSyncEvents(winner.id)
+    .find(event => event.event === 'nine_princes_selection_required');
+  assert.equal(reconnectRequest.payload.candidates.length, 1);
+  assert.equal(reconnectRequest.payload.candidates[0].card.id, winner.cards[0].id);
+  assert.throws(
+    () => engine.assertNinePrincesDecisionComplete(),
+    /九子夺嫡/
+  );
+
+  engine.beginNinePrincesDecision();
+  assert.equal(
+    io.events.filter(event => event.event === 'nine_princes_selection_required').length,
+    1
+  );
+  const result = engine.respondNinePrincesDecision(winner.id, winner.cards[0].id);
+  assert.equal(result.promoted, true);
+  assert.equal(result.becameWhite, false);
+  assert.equal(winner.cards[0].rank, '5');
+  assert.equal(winner.cards[0].ninePrincesScoringRank, '4');
+  assert.equal(winner.cards[0].isNinePrincesPromoted, true);
+  assert.equal(winner.cards[0].ninePrincesPromotionCount, 1);
+  assert.equal(getCardPoints(winner.cards[0]), 0, '晋升只改牌面，不改变实体分值');
+  assert.equal(room.gameState.ninePrincesDecision, null);
+  assert.equal(room.gameState.ninePrincesResolved, false);
+
+  room.gameState.selectedRule = {
+    id: 'double_happiness',
+    rules: [NINE_PRINCES_SUCCESSION_RULE, STRENGTH_COMPENSATION_RULE]
+  };
+  room.gameState.currentRound = 1;
+  engine.applyStrengthCompensationForRound({ emit: false });
+  assert.equal(winner.cards[0].rank, '6');
+  room.gameState.currentRound = 2;
+  engine.applyStrengthCompensationForRound({ emit: false });
+  assert.equal(winner.cards[0].rank, '5', '临时牌面轮换后必须恢复到永久晋升结果');
+  assert.equal(getCardPoints(winner.cards[0]), 0);
+});
+
+test('九子夺嫡在真实轮末冻结下一轮，完成选择后恢复赢家牌权', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = NINE_PRINCES_SUCCESSION_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  const hands = [
+    [card('hearts', '3', 883), card('clubs', '3', 884)],
+    [card('hearts', 'A', 885), card('clubs', '4', 886)],
+    [card('hearts', '5', 887), card('clubs', '5', 888)],
+    [card('hearts', '4', 889), card('clubs', '6', 893)]
+  ];
+  hands.forEach((cards, playerIndex) => {
+    room.players[playerIndex].cards = cards;
+  });
+  engine.setFirstPlayer(room.players[0].id);
+
+  engine.playCards(room.players[0].id, [hands[0][0].id]);
+  engine.playCards(room.players[1].id, [hands[1][0].id]);
+  engine.playCards(room.players[2].id, [hands[2][0].id]);
+  const roundResult = engine.playCards(room.players[3].id, [hands[3][0].id]);
+
+  assert.equal(roundResult.roundWinner.playerId, room.players[1].id);
+  assert.equal(roundResult.roundUpdate.ninePrinces.pending, true);
+  assert.equal(room.gameState.ninePrincesDecision.playerId, room.players[1].id);
+  assert.equal(room.gameState.currentPlayerIndex, 1);
+  assert.throws(
+    () => engine.playCards(room.players[1].id, [room.players[1].cards[0].id]),
+    /九子夺嫡/
+  );
+
+  engine.respondNinePrincesDecision(
+    room.players[1].id,
+    room.players[1].cards[0].id
+  );
+  assert.equal(room.gameState.ninePrincesDecision, null);
+});
+
+test('九子夺嫡升出白王后给所在阵营加10分，并永久停止后续触发', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  const attackerWinner = room.players[1];
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = NINE_PRINCES_SUCCESSION_RULE;
+  room.gameState.trumpSuit = 'hearts';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  attackerWinner.cards = [card('joker', Ranks.PRINCE_JOKER, 890)];
+
+  engine.prepareNinePrincesDecisionAtRoundEnd({
+    winner: attackerWinner,
+    completedRound: 3,
+    roundPlays: [{
+      playerId: room.players[0].id,
+      originalCards: [card('diamonds', '10', 891)]
+    }]
+  });
+  const result = engine.respondNinePrincesDecision(
+    attackerWinner.id,
+    attackerWinner.cards[0].id
+  );
+
+  assert.equal(attackerWinner.cards[0].rank, Ranks.WHITE_JOKER);
+  assert.equal(result.becameWhite, true);
+  assert.equal(result.teamBonus, 10);
+  assert.equal(result.attackerScoreDelta, 10);
+  assert.equal(room.gameState.attackerScore, 10);
+  assert.equal(room.gameState.ninePrincesResolved, true);
+  assert.equal(
+    engine.prepareNinePrincesDecisionAtRoundEnd({
+      winner: attackerWinner,
+      completedRound: 4,
+      roundPlays: [{
+        playerId: room.players[0].id,
+        originalCards: [card('clubs', '5', 892)]
+      }]
+    }),
+    null
+  );
+});
+
+test('九子夺嫡由Bot获胜时自动选择最接近白王的可晋升手牌', () => {
+  const room = createRoom();
+  const engine = new GameEngine(room, createIo());
+  const botWinner = room.players[1];
+  botWinner.isBot = true;
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = NINE_PRINCES_SUCCESSION_RULE;
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  botWinner.cards = [
+    card('hearts', '4', 895),
+    card('joker', Ranks.PRINCE_JOKER, 896)
+  ];
+
+  engine.prepareNinePrincesDecisionAtRoundEnd({
+    winner: botWinner,
+    completedRound: 2,
+    roundPlays: [{
+      playerId: room.players[0].id,
+      originalCards: [card('hearts', '5', 897)]
+    }]
+  });
+  const result = engine.beginNinePrincesDecision();
+
+  assert.equal(result.automatic, true);
+  assert.equal(result.becameWhite, true);
+  assert.equal(Object.hasOwn(result, 'privateResult'), false);
+  assert.equal(
+    botWinner.cards.some(value => value.rank === Ranks.WHITE_JOKER),
+    true
+  );
+  assert.equal(room.gameState.ninePrincesDecision, null);
+});
+
+test('九子夺嫡与时间倒流同局时先等待回溯窗口，确认保留本轮后才询问', () => {
+  const room = createRoom();
+  const io = createIo();
+  const engine = new GameEngine(room, io);
+  const winner = room.players[1];
+  room.gameState.phase = GamePhases.PLAYING;
+  room.gameState.selectedRule = {
+    id: 'double_happiness',
+    rules: [
+      NINE_PRINCES_SUCCESSION_RULE,
+      getRuleById(RuleIds.TIME_REVERSAL)
+    ]
+  };
+  room.gameState.trumpSuit = 'spades';
+  room.gameState.trumpRank = '2';
+  room.gameState.buryingPlayerId = room.players[0].id;
+  room.gameState.timeReversalDecisionState = 'holding';
+  room.gameState.timeReversalWindowRound = 1;
+  winner.cards = [card('clubs', '4', 898)];
+
+  engine.prepareNinePrincesDecisionAtRoundEnd({
+    winner,
+    completedRound: 1,
+    roundPlays: [{
+      playerId: room.players[0].id,
+      originalCards: [card('clubs', 'K', 899)]
+    }]
+  });
+  const deferred = engine.beginNinePrincesDecision();
+  assert.equal(deferred.deferred, true);
+  assert.equal(
+    io.events.some(event => event.event === 'nine_princes_selection_required'),
+    false
+  );
+
+  const closed = engine.closeTimeReversalWindow('no_reservations');
+  assert.equal(closed.ninePrinces.pending, true);
+  assert.equal(
+    io.events.some(event => event.event === 'nine_princes_selection_required'),
+    true
+  );
+});
+
+test('八王议政的一对郡王和一对亲王可依次压过普通对王亮成无主', () => {
+  const countyPair = [
+    card('joker', Ranks.COUNTY_PRINCE_JOKER, 0),
+    card('joker', Ranks.COUNTY_PRINCE_JOKER, 1)
+  ];
+  const countyDeclaration = validateDeclaration(
+    countyPair,
+    'joker',
+    2,
+    '2',
+    {
+      playerId: 'other-player',
+      suit: 'joker',
+      declarationType: 'pair_big_joker',
+      strength: 4
+    },
+    'current-player'
+  );
+  assert.equal(countyDeclaration.valid, true);
+  assert.equal(countyDeclaration.declarationType, 'pair_county_prince_joker');
+  assert.equal(countyDeclaration.strength, 5);
+  assert.deepEqual(
+    countyDeclaration.cards.map(value => value.rank),
+    [Ranks.COUNTY_PRINCE_JOKER, Ranks.COUNTY_PRINCE_JOKER]
+  );
+
+  const princePair = [
+    card('joker', Ranks.PRINCE_JOKER, 0),
+    card('joker', Ranks.PRINCE_JOKER, 1)
+  ];
+  const princeDeclaration = validateDeclaration(
+    princePair,
+    'joker',
+    2,
+    '2',
+    {
+      playerId: 'other-player',
+      suit: 'joker',
+      declarationType: 'pair_county_prince_joker',
+      strength: 5
+    },
+    'current-player'
+  );
+  assert.equal(princeDeclaration.valid, true);
+  assert.equal(princeDeclaration.declarationType, 'pair_prince_joker');
+  assert.equal(princeDeclaration.strength, 6);
+});
+
+test('八王议政的扩展王不会作为空牌传给外部Bot', async () => {
+  const room = createRoom();
+  const bot = new BotService('simple');
+  const countyPrince = card('joker', Ranks.COUNTY_PRINCE_JOKER, 0);
+  let externalBotCalled = false;
+  bot._callPythonBot = async () => {
+    externalBotCalled = true;
+    return { player: 0, action: [] };
+  };
+  room.gameState.selectedRule = EIGHT_KINGS_COUNCIL_RULE;
+  room.gameState.leadingPattern = null;
+  room.gameState.currentRoundPlays = [];
+  room.gameState.playHistory = [];
+
+  const action = await bot.getBotAction(
+    room.gameState,
+    [countyPrince],
+    0,
+    room
+  );
+  assert.equal(externalBotCalled, false);
+  assert.deepEqual(action, [countyPrince.id]);
 });
 
 test('二鬼拍门在摸到第二张王时立即公开，后摸到的王也加入明置手牌', () => {
@@ -11596,6 +11979,31 @@ test('记录在案不会通过记牌器提前泄露本轮尚未揭晓的暗置�
   const revealedState = room.gameState.toJSON().recordOnFile;
   assert.equal(revealedState.playedCardCount, 2);
   assert.equal(revealedState.counts.spades.A, 1);
+});
+
+test('记录在案始终按九子夺嫡晋升前的开局实体牌面统计', () => {
+  const room = createRoom();
+  const promotedJoker = card('joker', Ranks.WHITE_JOKER, 2645);
+  promotedJoker.isNinePrincesPromoted = true;
+  promotedJoker.ninePrincesPromotionCount = 3;
+  promotedJoker.ninePrincesPermanentSuit = 'joker';
+  promotedJoker.ninePrincesPermanentRank = Ranks.WHITE_JOKER;
+  promotedJoker.ninePrincesScoringSuit = 'joker';
+  promotedJoker.ninePrincesScoringRank = Ranks.BIG_JOKER;
+  room.gameState.selectedRule = {
+    id: 'double_happiness',
+    rules: [RECORD_ON_FILE_RULE, NINE_PRINCES_SUCCESSION_RULE]
+  };
+  room.gameState.currentRound = 4;
+  room.gameState.recordOnFileActiveRound = 4;
+  room.gameState.playHistory = [{
+    round: 3,
+    cards: [promotedJoker.toJSON()]
+  }];
+
+  const tracker = room.gameState.toJSON().recordOnFile;
+  assert.equal(tracker.counts.joker.big_joker, 1);
+  assert.equal(tracker.counts.joker.white_joker, undefined);
 });
 
 test('记录在案在零分轮出现当前级牌或王牌时也会触发下一轮', () => {

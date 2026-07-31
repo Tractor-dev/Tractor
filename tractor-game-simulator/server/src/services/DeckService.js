@@ -33,6 +33,19 @@ export class DeckService {
   }
 
   /**
+   * “八王议政”：在标准两副牌中额外加入两张郡王和两张亲王。
+   * 两种扩展王各自沿用 0/1 的副本编号，保证实体牌 ID 唯一且稳定。
+   */
+  static addEightKingsCouncilCards(deck) {
+    const expandedDeck = [...deck];
+    for (let copyIndex = 0; copyIndex < 2; copyIndex++) {
+      expandedDeck.push(new Card(Suits.JOKER, Ranks.COUNTY_PRINCE_JOKER, copyIndex));
+      expandedDeck.push(new Card(Suits.JOKER, Ranks.PRINCE_JOKER, copyIndex));
+    }
+    return expandedDeck;
+  }
+
+  /**
    * Fisher-Yates 洗牌算法
    */
   static shuffle(deck) {

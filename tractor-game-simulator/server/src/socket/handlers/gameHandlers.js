@@ -652,6 +652,10 @@ async function triggerBotPlay(io, room, gameEngine) {
     logger.info('本轮正在等待时间倒流确认，暂不触发Bot出牌');
     return;
   }
+  if (gameEngine.hasPendingNinePrincesDecision()) {
+    logger.info('九子夺嫡正在等待本轮赢家选择晋升手牌，暂不触发Bot出牌');
+    return;
+  }
   if (gameEngine.hasPendingForbiddenMagicDecision()) {
     logger.info('轮首正在逐个确认禁术秘法，暂不触发Bot出牌');
     return;
@@ -1523,6 +1527,29 @@ export function registerGameHandlers(io, socket, roomManager) {
     } catch (error) {
       socket.emit('error', { message: error.message });
       logger.error('处理时间倒流决定失败:', error);
+    }
+  });
+
+  socket.on('respond_nine_princes', ({ roomId, cardId = null }) => {
+    try {
+      const room = roomManager.getRoom(roomId);
+      if (!room) throw new Error('房间不存在');
+      const player = room.findPlayerBySocketId(socket.id);
+      if (!player) throw new Error('玩家不存在');
+      const gameEngine = gameEngines.get(room.id);
+      if (!gameEngine) throw new Error('游戏未开始');
+
+      gameEngine.respondNinePrincesDecision(player.id, cardId || null);
+      const surrenderResult = beginSurrenderDecision(io, room, gameEngine);
+      io.to(room.id).emit('room_updated', { room: room.toJSON() });
+      if (!surrenderResult?.pending && !surrenderResult?.gameFinished) {
+        triggerBotPlay(io, room, gameEngine).catch(error => {
+          logger.error('九子夺嫡选择完成后触发Bot出牌失败:', error);
+        });
+      }
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+      logger.error('处理九子夺嫡选择失败:', error);
     }
   });
 

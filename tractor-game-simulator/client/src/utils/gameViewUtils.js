@@ -237,7 +237,7 @@ const RECORD_ON_FILE_SUITS = Object.freeze([
 export function getRecordOnFileTrackerView(
   recordOnFile,
   displayRoundNumber,
-  { showWhiteJoker = false } = {}
+  { showWhiteJoker = false, showRoyalJokers = false } = {}
 ) {
   const displayedRound = Number(displayRoundNumber);
   if (!recordOnFile || !Number.isInteger(displayedRound)) return null;
@@ -260,8 +260,13 @@ export function getRecordOnFileTrackerView(
     jokers: [
       Number(counts.joker?.small_joker) || 0,
       Number(counts.joker?.big_joker) || 0,
+      ...(showRoyalJokers ? [
+        Number(counts.joker?.county_prince_joker) || 0,
+        Number(counts.joker?.prince_joker) || 0
+      ] : []),
       ...(showWhiteJoker ? [Number(counts.joker?.white_joker) || 0] : [])
     ],
-    showWhiteJoker
+    showWhiteJoker,
+    showRoyalJokers
   };
 }

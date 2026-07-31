@@ -915,3 +915,40 @@
     grid-template-columns: 1fr;
   }
 }
+.nine-princes-card-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  max-height: 360px;
+  padding: 8px 2px 2px;
+  overflow-y: auto;
+}
+
+.nine-princes-card-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 112px;
+  padding: 10px;
+  color: inherit;
+  background: rgba(255, 248, 219, 0.08);
+  border: 1px solid rgba(223, 188, 91, 0.42);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.nine-princes-card-option:hover,
+.nine-princes-card-option:focus-visible {
+  background: rgba(223, 188, 91, 0.16);
+  border-color: #e5bd55;
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.nine-princes-card-arrow {
+  margin: 0 8px;
+  color: #e5bd55;
+  font-size: 22px;
+  font-weight: 800;
+}

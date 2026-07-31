@@ -12,6 +12,9 @@ const METICULOUS_ACCOUNTING_POINT_VALUES = Object.freeze({
 });
 
 function getScoringRank(card) {
+  if (card?.isNinePrincesPromoted && card?.ninePrincesScoringRank) {
+    return card.ninePrincesScoringRank;
+  }
   // 临时转化只改变牌面与牌力；分值始终来自被转化的实体牌。
   const usesOriginalRank = card?.isDivineWeaponTransformed
     || card?.isJokerSubstitution
@@ -21,7 +24,8 @@ function getScoringRank(card) {
     || card?.isDefenseAsOffenseBoosted
     || card?.isTeammateCheered
     || card?.isAfterglowBoosted
-    || card?.isThreeTigersTransformed;
+    || card?.isThreeTigersTransformed
+    || card?.isNinePrincesPromoted;
   return usesOriginalRank && card?.originalRank
     ? card.originalRank
     : card?.rank;

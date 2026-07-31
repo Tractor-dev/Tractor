@@ -139,6 +139,10 @@ test('拒绝投降后继续询问下一位申请者，断线同步只恢复给�
 
 test('庄家方投降按闲家当前实得分加80并让闲家方获胜', () => {
   const { room, engine } = createSurrenderGame({ attackerScore: 50 });
+  room.players.forEach((player, playerIndex) => {
+    player.addCard(new Card(playerIndex % 2 === 0 ? 'hearts' : 'clubs', `${playerIndex + 3}`, 0));
+    player.addCard(new Card(playerIndex % 2 === 0 ? 'diamonds' : 'spades', 'K', 1));
+  });
   engine.requestSurrender(room.players[0].id);
   const decision = engine.prepareSurrenderReview({ completedRound: 3 });
   const result = engine.respondSurrender(room.players[2].id, true);
@@ -151,6 +155,21 @@ test('庄家方投降按闲家当前实得分加80并让闲家方获胜', () => 
   assert.equal(room.gameState.upgradeResult.attackerWon, true);
   assert.equal(room.gameState.upgradeResult.attackerLevelUp, 1);
   assert.equal(decision.surrenderingSide, 'dealer');
+  assert.equal(room.gameState.bottomScoreResult.surrender.revealedHands.length, 4);
+  assert.deepEqual(
+    room.gameState.bottomScoreResult.surrender.revealedHands.map(hand => ({
+      playerId: hand.playerId,
+      side: hand.side,
+      isDealer: hand.isDealer,
+      cardCount: hand.cards.length
+    })),
+    room.players.map((player, playerIndex) => ({
+      playerId: player.id,
+      side: playerIndex % 2 === 0 ? 'dealer' : 'attacker',
+      isDealer: playerIndex === 0,
+      cardCount: 2
+    }))
+  );
 });
 
 test('闲家方在前两墩投降固定让庄家方升1级，不伪装成75分', () => {

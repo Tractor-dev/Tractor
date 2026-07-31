@@ -21,6 +21,12 @@ export class Card {
     this.isAfterglowBoosted = false;
     this.isUnarmed = false;
     this.isRiceToMulberryTransformed = false;
+    this.isNinePrincesPromoted = false;
+    this.ninePrincesPromotionCount = 0;
+    this.ninePrincesPermanentSuit = null;
+    this.ninePrincesPermanentRank = null;
+    this.ninePrincesScoringSuit = null;
+    this.ninePrincesScoringRank = null;
   }
 
   calculateValue() {
@@ -53,6 +59,14 @@ export class Card {
       ...(this.isAfterglowBoosted ? { isAfterglowBoosted: true } : {}),
       ...(this.isUnarmed ? { isUnarmed: true } : {}),
       ...(this.isRiceToMulberryTransformed ? { isRiceToMulberryTransformed: true } : {}),
+      ...(this.isNinePrincesPromoted ? {
+        isNinePrincesPromoted: true,
+        ninePrincesPromotionCount: this.ninePrincesPromotionCount,
+        ninePrincesPermanentSuit: this.ninePrincesPermanentSuit,
+        ninePrincesPermanentRank: this.ninePrincesPermanentRank,
+        ninePrincesScoringSuit: this.ninePrincesScoringSuit,
+        ninePrincesScoringRank: this.ninePrincesScoringRank
+      } : {}),
       ...(this.isLastStandTrump ? { isLastStandTrump: true } : {})
     };
   }

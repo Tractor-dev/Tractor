@@ -17,6 +17,9 @@ const METICULOUS_ACCOUNTING_POINT_VALUES = Object.freeze({
 });
 
 function getScoringRank(card) {
+  if (card?.isNinePrincesPromoted && card?.ninePrincesScoringRank) {
+    return card.ninePrincesScoringRank;
+  }
   const usesOriginalRank = card?.isDivineWeaponTransformed
     || card?.isJokerSubstitution
     || card?.isClusterAnalysisTransformed
@@ -37,12 +40,13 @@ export function getScoringDisplayCard(card) {
     && !card?.isDefenseAsOffenseBoosted
     && !card?.isTeammateCheered
     && !card?.isAfterglowBoosted
+    && !card?.isNinePrincesPromoted
   ) return card;
 
   return {
     ...card,
-    suit: card.originalSuit || card.suit,
-    rank: card.originalRank || card.rank,
+    suit: card.ninePrincesScoringSuit || card.originalSuit || card.suit,
+    rank: card.ninePrincesScoringRank || card.originalRank || card.rank,
     originalSuit: null,
     originalRank: null,
     isStrengthCompensated: false,

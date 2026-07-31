@@ -308,7 +308,13 @@ test('记录在案用共用点数轴压缩四种花色，并精确保留两副�
       hearts: { '10': 2 },
       clubs: {},
       diamonds: { '5': 1 },
-      joker: { small_joker: 1, big_joker: 2, white_joker: 1 }
+      joker: {
+        small_joker: 1,
+        big_joker: 2,
+        county_prince_joker: 1,
+        prince_joker: 2,
+        white_joker: 1
+      }
     }
   }, 3);
 
@@ -329,6 +335,23 @@ test('记录在案用共用点数轴压缩四种花色，并精确保留两副�
   }, 3, { showWhiteJoker: true });
   assert.deepEqual(kingOverWhiteView.jokers, [1, 2, 1]);
   assert.equal(kingOverWhiteView.showWhiteJoker, true);
+
+  const eightKingsView = getRecordOnFileTrackerView({
+    activeRound: 3,
+    lastActiveRound: null,
+    playedCardCount: 9,
+    counts: {
+      joker: {
+        small_joker: 1,
+        big_joker: 2,
+        county_prince_joker: 1,
+        prince_joker: 2,
+        white_joker: 1
+      }
+    }
+  }, 3, { showRoyalJokers: true, showWhiteJoker: true });
+  assert.deepEqual(eightKingsView.jokers, [1, 2, 1, 2, 1]);
+  assert.equal(eightKingsView.showRoyalJokers, true);
 
   assert.equal(getRecordOnFileTrackerView({
     activeRound: 3,

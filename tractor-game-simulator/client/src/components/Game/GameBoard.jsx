@@ -202,6 +202,7 @@ export default function GameBoard({ onReturnToRoom }) {
   const [lateMoverDecisionOpen, setLateMoverDecisionOpen] = useState(false);
   const [bushGateDecisionOpen, setBushGateDecisionOpen] = useState(false);
   const [timeReversalDecision, setTimeReversalDecision] = useState(null);
+  const [ninePrincesDecision, setNinePrincesDecision] = useState(null);
   const [surrenderDecision, setSurrenderDecision] = useState(null);
   const [forbiddenMagicDecision, setForbiddenMagicDecision] = useState(null);
   const [lureTigerDecision, setLureTigerDecision] = useState(null);
@@ -1018,7 +1019,6 @@ export default function GameBoard({ onReturnToRoom }) {
     // 游戏开始
     socket.on('game_started', ({ gameState }) => {
       clearCardTransitionTimers();
-      messageApi.success('游戏开始！');
       setShownCards({}); // 清空展示的牌
       setLivePlayerCardCounts({});
       setCurrentWinningPlayerId(null);
@@ -1099,7 +1099,6 @@ export default function GameBoard({ onReturnToRoom }) {
     // 游戏重新开始
     socket.on('game_restarted', () => {
       clearCardTransitionTimers();
-      messageApi.success('游戏重新开始！');
       setSurrenderDecision(null);
       setMyCards([]); // 清空手牌
       setLivePlayerCardCounts({});
@@ -1942,6 +1941,47 @@ export default function GameBoard({ onReturnToRoom }) {
       setIsHoldingCompletedRound(false);
       setHeldCompletedRoundNumber(null);
       messageApi.success(`${playerName} 发动时间倒流：重新开始第${round}轮`, 4);
+    });
+
+    socket.on('nine_princes_selection_required', payload => {
+      clearSelection();
+      setNinePrincesDecision(payload);
+    });
+    socket.on('nine_princes_decision_pending', ({ playerId, playerName }) => {
+      if (playerId !== currentPlayer?.id) {
+        messageApi.info(`九子夺嫡：等待 ${playerName} 选择是否晋升手牌`, 3);
+      }
+    });
+    socket.on('nine_princes_hand_updated', ({
+      cards = [],
+      previousFace,
+      promotedFace,
+      becameWhite
+    }) => {
+      clearSelection();
+      setMyCards(cards);
+      messageApi.success(
+        `九子夺嫡：${formatPublicCard(previousFace)} 晋升为 ${formatPublicCard(promotedFace)}` +
+        `${becameWhite ? '，己方获得10分，本局九子夺嫡结算结束' : ''}`,
+        4
+      );
+    });
+    socket.on('nine_princes_resolved', ({
+      playerId,
+      playerName,
+      promoted,
+      becameWhite
+    }) => {
+      setNinePrincesDecision(current => (
+        current?.playerId === playerId ? null : current
+      ));
+      if (playerId === currentPlayer?.id && promoted) return;
+      messageApi.info(
+        promoted
+          ? `${playerName} 完成九子夺嫡晋升${becameWhite ? '并得到白王，其阵营获得10分' : ''}`
+          : `${playerName} 放弃本轮九子夺嫡晋升`,
+        4
+      );
     });
 
     socket.on('forbidden_magic_reserved', ({ playerId, playerName, targetRound }) => {
@@ -3496,7 +3536,9 @@ export default function GameBoard({ onReturnToRoom }) {
               : '一国两制：双方共用主花色'
         );
       } else if (!oneCountryTwoSystems && trumpSuit && trumpRank) {
-        messageApi.info(`主牌已设置: ${trumpSuit} ${trumpRank}`);
+        // 普通亮主已由玩家框内的牌标和右上角主牌区表达。
+        // 不再弹出第二条全局消息，避免发牌时遮住对家的亮牌。
+        console.log(`🃏 主牌已设置: ${trumpSuit} ${trumpRank}`);
       } else if (trumpRank) {
         console.log(`📢 级牌已设置: ${trumpRank}`);
       }
@@ -3585,7 +3627,7 @@ export default function GameBoard({ onReturnToRoom }) {
       const suitSymbol = suitMap[suit] || suit;
 
       console.log(`🎺 ${action}成功: ${playerName} ${action}了 ${count} 张 ${suitSymbol}`);
-      messageApi.success(`${playerName} ${action}: ${count === 2 ? '一对' : '单张'}${suitSymbol}`);
+      // 亮牌本身就是持续可见的结果；全局 message 会直接遮住顶部玩家和牌标。
 
       const nextDeclaration = {
         playerId: playerId,
@@ -4135,6 +4177,10 @@ export default function GameBoard({ onReturnToRoom }) {
       socket.off('time_reversal_hand_restored');
       socket.off('time_reversal_response_recorded');
       socket.off('time_reversal_resolved');
+      socket.off('nine_princes_selection_required');
+      socket.off('nine_princes_decision_pending');
+      socket.off('nine_princes_hand_updated');
+      socket.off('nine_princes_resolved');
       socket.off('forbidden_magic_reserved');
       socket.off('forbidden_magic_decision_required');
       socket.off('forbidden_magic_activated');
@@ -8045,6 +8091,70 @@ export default function GameBoard({ onReturnToRoom }) {
         <p className="player-decision-secondary-text">
           选择保留结果不会消耗技能；多名玩家预备时，首个确认倒流的人发动成功。
         </p>
+      </Modal>
+
+      <Modal
+        title="九子夺嫡"
+        open={Boolean(ninePrincesDecision)}
+        wrapClassName="player-decision-modal-wrap"
+        width={560}
+        closable={false}
+        maskClosable={false}
+        keyboard={false}
+        footer={(
+          <Button
+            onClick={() => {
+              socket.emit(SOCKET_EVENTS.RESPOND_NINE_PRINCES, {
+                roomId: currentRoom.id,
+                cardId: null
+              });
+            }}
+          >
+            放弃本轮晋升
+          </Button>
+        )}
+      >
+        <p className="player-decision-primary-text">
+          你赢下了对方阵营打出的分牌，可以令一张剩余手牌沿当前牌力序列永久提升一级。
+        </p>
+        <p className="player-decision-secondary-text">
+          选择内容属于你的手牌信息，不会向其他玩家公开。升出白王时，己方立即获得10分，
+          且本局不再触发九子夺嫡。
+        </p>
+        <div className="nine-princes-card-options">
+          {(ninePrincesDecision?.candidates || []).map(candidate => (
+            <button
+              key={candidate.card.id}
+              type="button"
+              className="nine-princes-card-option"
+              title={`${formatPublicCard(candidate.card)} 晋升为 ${formatPublicCard(candidate.promotedFace)}`}
+              onClick={() => {
+                socket.emit(SOCKET_EVENTS.RESPOND_NINE_PRINCES, {
+                  roomId: currentRoom.id,
+                  cardId: candidate.card.id
+                });
+              }}
+            >
+              <Card
+                card={candidate.card}
+                small
+                trumpSuit={trumpSuit}
+                trumpRank={trumpRank}
+              />
+              <span className="nine-princes-card-arrow">→</span>
+              <Card
+                card={{
+                  ...candidate.card,
+                  ...candidate.promotedFace,
+                  id: `${candidate.card.id}-nine-princes-preview`
+                }}
+                small
+                trumpSuit={trumpSuit}
+                trumpRank={trumpRank}
+              />
+            </button>
+          ))}
+        </div>
       </Modal>
 
       {/* 埋底玩家选择弹窗 */}

@@ -3185,6 +3185,20 @@ test('冰山一角由四名玩家自行选牌，打出明牌后由原玩家补�
     await dealerPage.locator(`[data-card-id="${playedRevealedId}"]`).dispatchEvent('click');
     await dealerPage.getByRole('button', { name: '出牌(1)' }).click();
 
+    // 从庄家对家的视角验收：长期明牌和本轮出牌各占一条轨道，牌面不能互相覆盖。
+    const oppositeObserverPage = pages[(dealerPageIndex + 2) % 4];
+    const oppositeRevealedPanel = oppositeObserverPage.locator('[data-open-hand-position="top"]', {
+      hasText: `${dealerName} · 冰山`
+    });
+    const oppositePlayedCards = oppositeObserverPage.locator('.played-cards-top');
+    await expect(oppositeRevealedPanel).toBeVisible();
+    await expect(oppositePlayedCards.locator('.card')).toHaveCount(1);
+    const [revealedPanelBox, playedCardsBox] = await Promise.all([
+      oppositeRevealedPanel.boundingBox(),
+      oppositePlayedCards.boundingBox()
+    ]);
+    expect(revealedPanelBox.y + revealedPanelBox.height).toBeLessThanOrEqual(playedCardsBox.y);
+
     await expect(dealerPage.getByRole('button', { name: '确认明牌(0/1)' })).toBeVisible();
     await expect(dealerPage.locator('.my-hand .card-wrapper.is-publicly-revealed')).toHaveCount(1);
     const observerPage = pages[(dealerPageIndex + 1) % 4];
@@ -3207,6 +3221,442 @@ test('冰山一角由四名玩家自行选牌，打出明牌后由原玩家补�
     await expect(dealerPanel.locator(`[data-card-id="${replacementCardId}"]`)).toHaveCount(1);
     await observerPage.locator('.game-table').screenshot({
       path: testInfo.outputPath('tip-of-iceberg-four-views.png')
+    });
+  } finally {
+    await context.close();
+  }
+});
+
+test('开局早投降时用四宫格完整公开四家的大量剩余手牌', async ({ browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '世事无常');
+
+  try {
+    await Promise.all(pages.map(page => page.setViewportSize({ width: 1440, height: 900 })));
+    await finishDealerBury(pages);
+    const page = pages[0];
+
+    await page.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      const roomPlayers = state.currentRoom.players;
+      const dealerIndex = state.currentRoom.gameState.dealerPlayerIndex ?? 0;
+      const ranks = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
+      const suits = ['spades', 'hearts', 'clubs', 'diamonds'];
+      const revealedHands = roomPlayers.map((player, playerIndex) => ({
+        playerId: player.id,
+        playerName: player.name,
+        seatIndex: playerIndex,
+        isDealer: playerIndex === dealerIndex,
+        side: playerIndex % 2 === dealerIndex % 2 ? 'dealer' : 'attacker',
+        cards: Array.from({ length: 25 }, (_, cardIndex) => {
+          if (cardIndex < 2) {
+            return {
+              id: `showdown-${playerIndex}-joker-${cardIndex}`,
+              suit: 'joker',
+              rank: cardIndex === 0 ? 'big_joker' : 'small_joker',
+              copyIndex: cardIndex
+            };
+          }
+          return {
+            id: `showdown-${playerIndex}-${cardIndex}`,
+            suit: suits[(cardIndex + playerIndex) % suits.length],
+            rank: ranks[(cardIndex * 3 + playerIndex) % ranks.length],
+            copyIndex: cardIndex % 2
+          };
+        })
+      }));
+      const bottomCards = Array.from({ length: 8 }, (_, index) => ({
+        id: `surrender-bottom-${index}`,
+        suit: suits[index % suits.length],
+        rank: ranks[index],
+        copyIndex: index % 2
+      }));
+
+      useGameStore.setState({
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            phase: 'revealing',
+            attackerScore: 80
+          }
+        }
+      });
+      socketService.socket.listeners('bottom_revealed').forEach(listener => listener({
+        bottomCards,
+        bottomScoreResult: {
+          resultText: '玩家1一方投降，闲家方获胜',
+          bottomPoints: 0,
+          bottomMultiplier: 0,
+          bottomScoreGained: 0,
+          totalScore: 80,
+          collectedPointCards: [],
+          currentGameTrumpSuit: 'hearts',
+          currentGameTrumpRank: '2',
+          surrender: {
+            accepted: true,
+            winningSide: 'attacker',
+            revealedHands
+          }
+        },
+        upgradeResult: null
+      }));
+    });
+
+    const showdown = page.locator('[data-testid="surrender-showdown"]');
+    const handPanels = showdown.locator('.surrender-showdown-hand');
+    await expect(showdown).toBeVisible();
+    await expect(showdown).toContainText('共 100 张');
+    await expect(handPanels).toHaveCount(4);
+    await expect(showdown.locator('.card')).toHaveCount(100);
+
+    const handGeometry = await handPanels.evaluateAll(panels => panels.map(panel => {
+      const panelRect = panel.getBoundingClientRect();
+      const cards = [...panel.querySelectorAll('.card')].map(card => {
+        const rect = card.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+      });
+      return {
+        panel: {
+          left: panelRect.left,
+          top: panelRect.top,
+          right: panelRect.right,
+          bottom: panelRect.bottom
+        },
+        cards
+      };
+    }));
+    handGeometry.forEach(({ panel, cards }) => {
+      expect(cards).toHaveLength(25);
+      cards.forEach(card => {
+        expect(card.left).toBeGreaterThanOrEqual(panel.left);
+        expect(card.top).toBeGreaterThanOrEqual(panel.top);
+        expect(card.right).toBeLessThanOrEqual(panel.right);
+        expect(card.bottom).toBeLessThanOrEqual(panel.bottom);
+      });
+    });
+
+    const [centerBox, settlementBox] = await Promise.all([
+      page.locator('.settlement-table-center').boundingBox(),
+      page.locator('.settlement-panel.has-surrender-showdown').boundingBox()
+    ]);
+    expect(settlementBox.x).toBeGreaterThanOrEqual(centerBox.x);
+    expect(settlementBox.x + settlementBox.width).toBeLessThanOrEqual(centerBox.x + centerBox.width);
+    expect(settlementBox.height).toBeLessThanOrEqual(centerBox.height);
+
+    await page.locator('.game-table').screenshot({
+      path: testInfo.outputPath('surrender-showdown-100-cards.png')
+    });
+  } finally {
+    await context.close();
+  }
+});
+
+test('主视角手牌在发牌与出牌界面都完整落在手牌槽内', async ({ browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '单步调试');
+
+  try {
+    // 截图来自高 DPI / 浏览器缩放环境，还要覆盖会命中紧凑高度媒体查询的 CSS 视口。
+    await Promise.all(pages.map(page => page.setViewportSize({ width: 1069, height: 694 })));
+    const page = pages[0];
+
+    const assertCardsInsideTray = async (stage) => {
+      const geometry = await page.locator('.my-hand').evaluate((tray) => {
+        const rectOf = element => {
+          const rect = element.getBoundingClientRect();
+          return {
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height
+          };
+        };
+        return {
+          tray: rectOf(tray),
+          hand: rectOf(tray.querySelector('.hand')),
+          player: rectOf(tray.closest('.player-bottom')),
+          table: rectOf(tray.closest('.game-table')),
+          cards: [...tray.querySelectorAll('.card')].map(rectOf),
+          overflow: getComputedStyle(tray).overflow,
+          viewportHeight: window.innerHeight
+        };
+      });
+      expect(geometry.cards.length).toBeGreaterThan(0);
+      geometry.cards.forEach((card, index) => {
+        expect(
+          card.top,
+          `${stage}第${index + 1}张牌不得高出手牌槽`
+        ).toBeGreaterThanOrEqual(geometry.tray.top);
+        expect(
+          card.bottom,
+          `${stage}第${index + 1}张牌不得低于手牌槽`
+        ).toBeLessThanOrEqual(geometry.tray.bottom);
+        expect(
+          card.bottom,
+          `${stage}第${index + 1}张牌不得伸出底部玩家框`
+        ).toBeLessThanOrEqual(geometry.player.bottom);
+        expect(
+          card.bottom,
+          `${stage}第${index + 1}张牌不得伸出牌桌`
+        ).toBeLessThanOrEqual(Math.min(geometry.table.bottom, geometry.viewportHeight));
+      });
+      return geometry;
+    };
+
+    const drawingGeometry = await assertCardsInsideTray('发牌阶段');
+    await page.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      useGameStore.setState({
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            phase: 'playing',
+            currentPlayerIndex: 0,
+            currentTurnPlayerId: state.currentPlayer.id
+          }
+        }
+      });
+    });
+    await expect(page.getByRole('button', { name: /^\u51fa\u724c/ })).toBeVisible();
+    const playingGeometry = await assertCardsInsideTray('出牌阶段');
+    expect(playingGeometry.tray.height).toBe(drawingGeometry.tray.height);
+
+    await page.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      const playedCard = state.myCards[0];
+      socketService.socket.listeners('cards_played').forEach(listener => listener({
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        cards: [playedCard],
+        removedCardIds: [playedCard.id],
+        currentWinningPlayerId: state.currentPlayer.id,
+        cardsCount: 1
+      }));
+    });
+    const ownPlayedArea = page.locator('.player-bottom > .played-cards-area.has-cards');
+    await expect(ownPlayedArea.locator('.card')).toHaveCount(1);
+    const [ownPlayedBox, playerBox, tableBox] = await Promise.all([
+      ownPlayedArea.boundingBox(),
+      page.locator('.player-bottom').boundingBox(),
+      page.locator('.game-table').boundingBox()
+    ]);
+    expect(ownPlayedBox.y + ownPlayedBox.height).toBeLessThanOrEqual(playerBox.y);
+    expect(ownPlayedBox.y).toBeGreaterThanOrEqual(tableBox.y);
+    await assertCardsInsideTray('已出牌后');
+
+    await page.locator('.player-bottom').screenshot({
+      path: testInfo.outputPath('bottom-hand-contained.png')
+    });
+  } finally {
+    await context.close();
+  }
+});
+
+test('亮主牌标位于玩家框内且三六九等同时清楚显示主劣', async ({ browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '三六九等');
+
+  try {
+    await Promise.all(pages.map(page => page.setViewportSize({ width: 1440, height: 900 })));
+    const rightPlayerHeightBefore = await pages[0]
+      .locator('.player-right')
+      .evaluate(element => element.getBoundingClientRect().height);
+
+    await Promise.all(pages.map(page => page.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      const declaringPlayer = state.currentRoom.players[1];
+      const trumpDeclaration = {
+        playerId: declaringPlayer.id,
+        playerName: declaringPlayer.name,
+        suit: 'spades',
+        count: 2,
+        declarationType: 'pair',
+        declarationRole: 'trump',
+        cards: [
+          { id: 'trump-badge-spade-2-a', suit: 'spades', rank: '2', copyIndex: 0 },
+          { id: 'trump-badge-spade-2-b', suit: 'spades', rank: '2', copyIndex: 1 }
+        ]
+      };
+      const inferiorDeclaration = {
+        playerId: declaringPlayer.id,
+        playerName: declaringPlayer.name,
+        suit: 'clubs',
+        count: 2,
+        declarationType: 'pair',
+        declarationRole: 'inferior',
+        cards: [
+          { id: 'trump-badge-club-2-a', suit: 'clubs', rank: '2', copyIndex: 0 },
+          { id: 'trump-badge-club-2-b', suit: 'clubs', rank: '2', copyIndex: 1 }
+        ]
+      };
+      useGameStore.setState({
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            trumpSuit: 'spades',
+            trumpRank: '2',
+            currentTrumpDeclaration: trumpDeclaration,
+            currentInferiorDeclaration: inferiorDeclaration,
+            threeSixNine: {
+              ...(state.currentRoom.gameState.threeSixNine || {}),
+              trumpSuit: 'spades',
+              trumpRank: '2',
+              inferiorSuit: 'clubs',
+              currentTrumpDeclaration: trumpDeclaration,
+              currentInferiorDeclaration: inferiorDeclaration
+            }
+          }
+        }
+      });
+    })));
+
+    // 走一遍真实发牌阶段的亮主事件链：trump_declared 与 trump_updated
+    // 不得再各弹一条全局消息遮住顶部玩家的亮牌。
+    await pages[3].evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      const declaringPlayer = state.currentRoom.players[1];
+      useGameStore.setState({
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            phase: 'drawing'
+          }
+        }
+      });
+      const declarationPayload = {
+        playerId: declaringPlayer.id,
+        playerName: declaringPlayer.name,
+        suit: 'spades',
+        count: 2,
+        declarationType: 'pair',
+        strength: 2,
+        isCounter: false,
+        declarationRole: 'trump',
+        cards: [
+          { id: 'drawing-trump-spade-a', suit: 'spades', rank: '2', copyIndex: 0 },
+          { id: 'drawing-trump-spade-b', suit: 'spades', rank: '2', copyIndex: 1 }
+        ]
+      };
+      socketService.socket.listeners('trump_declared').forEach(listener => listener(declarationPayload));
+      socketService.socket.listeners('trump_updated').forEach(listener => listener({
+        trumpSuit: 'spades',
+        trumpRank: '2',
+        inferiorSuit: 'clubs'
+      }));
+    });
+    await pages[3].waitForTimeout(350);
+    await expect(pages[3].locator('.ant-message').getByText(/\u4eae主|\u4e3b牌已设置/)).toHaveCount(0);
+
+    const rightSidecar = pages[0].locator('.declaration-sidecar-right');
+    await expect(rightSidecar.locator('.declaration-card-slot')).toHaveCount(2);
+    await expect(rightSidecar.locator('.declaration-card-slot-label')).toHaveCount(0);
+    await expect(rightSidecar.locator('.card')).toHaveCount(4);
+    await expect(
+      rightSidecar.locator('.declaration-card-slot.is-trump .trump-badge')
+    ).toHaveCount(2);
+    await expect(
+      rightSidecar.locator('.declaration-card-slot.is-inferior .trump-badge')
+    ).toHaveCount(2);
+    await expect(
+      rightSidecar.locator('.declaration-card-slot.is-inferior .inferior-badge:visible')
+    ).toHaveCount(0);
+    await expect(
+      rightSidecar.locator('.card-corner.top-left .card-suit:visible')
+    ).toHaveCount(0);
+    await expect(
+      rightSidecar.locator('.card-center .suit-symbol:visible')
+    ).toHaveCount(4);
+    const rightPlayerHeightAfter = await pages[0]
+      .locator('.player-right')
+      .evaluate(element => element.getBoundingClientRect().height);
+    expect(rightPlayerHeightAfter).toBe(rightPlayerHeightBefore);
+    expect(rightPlayerHeightAfter).toBeGreaterThanOrEqual(108);
+
+    const [rightIdentityBox, rightDeclarationCardBoxes] = await Promise.all([
+      pages[0].locator('.player-right > .player-info > div:first-child').boundingBox(),
+      rightSidecar.locator('.declaration-card-slot .card').evaluateAll(cards => cards.map(card => {
+        const rect = card.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom };
+      }))
+    ]);
+    expect(Math.min(...rightDeclarationCardBoxes.map(box => box.top))).toBeGreaterThanOrEqual(
+      rightIdentityBox.y + rightIdentityBox.height + 8
+    );
+
+    const leftSidecar = pages[2].locator('.declaration-sidecar-left');
+    const topSidecar = pages[3].locator('.declaration-sidecar-top');
+    const bottomDock = pages[1].locator('.bottom-declaration-dock');
+    await expect(leftSidecar.locator('.declaration-card-slot')).toHaveCount(2);
+    await expect(topSidecar.locator('.declaration-card-slot')).toHaveCount(2);
+    await expect(bottomDock.locator('.declaration-card-slot')).toHaveCount(2);
+    const [bottomTrumpDockBox, bottomInferiorDockBox, bottomHandBox] = await Promise.all([
+      pages[1].locator('.bottom-declaration-dock.is-trump').boundingBox(),
+      pages[1].locator('.bottom-declaration-dock.is-inferior').boundingBox(),
+      pages[1].locator('.my-hand').boundingBox()
+    ]);
+    expect(bottomTrumpDockBox.x).toBeLessThan(bottomInferiorDockBox.x);
+    expect(bottomTrumpDockBox.x + bottomTrumpDockBox.width).toBeLessThanOrEqual(bottomHandBox.x);
+    expect(bottomInferiorDockBox.x).toBeGreaterThanOrEqual(bottomHandBox.x + bottomHandBox.width);
+
+    const [topPlayerBox, topSidecarBox, topCountBox] = await Promise.all([
+      pages[3].locator('.player-top').boundingBox(),
+      topSidecar.boundingBox(),
+      pages[3].locator('.player-top .player-hand-count').boundingBox()
+    ]);
+    expect(topSidecarBox.x).toBeGreaterThanOrEqual(topPlayerBox.x);
+    expect(topSidecarBox.y).toBeGreaterThanOrEqual(topPlayerBox.y);
+    expect(topSidecarBox.x + topSidecarBox.width).toBeLessThanOrEqual(topPlayerBox.x + topPlayerBox.width);
+    expect(topSidecarBox.y + topSidecarBox.height).toBeLessThanOrEqual(topPlayerBox.y + topPlayerBox.height);
+    expect(topCountBox.y).toBeLessThan(topPlayerBox.y);
+    expect(topCountBox.y + topCountBox.height).toBeGreaterThan(topPlayerBox.y);
+
+    const [trumpSlotBox, inferiorSlotBox] = await Promise.all([
+      rightSidecar.locator('.declaration-card-slot.is-trump').boundingBox(),
+      rightSidecar.locator('.declaration-card-slot.is-inferior').boundingBox()
+    ]);
+    expect(trumpSlotBox.x).toBeLessThan(inferiorSlotBox.x);
+    const cardPairs = await rightSidecar.locator('.declaration-card-pair').evaluateAll(pairs => (
+      pairs.map(pair => [...pair.querySelectorAll('.card')].map(card => {
+        const rect = card.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      }))
+    ));
+    cardPairs.forEach(cards => {
+      expect(cards).toHaveLength(2);
+      expect(cards[1].left - cards[0].right).toBeGreaterThanOrEqual(2);
+    });
+
+    const [spadeColor, clubColor] = await Promise.all([
+      rightSidecar.locator('.card-suit-spades .suit-symbol').first().evaluate(element => getComputedStyle(element).color),
+      rightSidecar.locator('.card-suit-clubs .suit-symbol').first().evaluate(element => getComputedStyle(element).color)
+    ]);
+    expect(spadeColor).not.toBe(clubColor);
+
+    await pages[0].locator('.game-table').screenshot({
+      path: testInfo.outputPath('trump-badge-right-dual.png')
+    });
+    await pages[3].locator('.game-table').screenshot({
+      path: testInfo.outputPath('trump-badge-top-dual.png')
+    });
+    await pages[1].locator('.game-table').screenshot({
+      path: testInfo.outputPath('trump-badge-bottom-dual.png')
+    });
+    await pages[1].locator('.my-hand-container').screenshot({
+      path: testInfo.outputPath('trump-badge-bottom-dock.png')
     });
   } finally {
     await context.close();

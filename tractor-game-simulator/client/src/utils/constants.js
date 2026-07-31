@@ -86,6 +86,7 @@ export const SOCKET_EVENTS = {
   VOTE_FOCUS_FIGURE: 'vote_focus_figure',
   ACTIVATE_TIME_REVERSAL: 'activate_time_reversal',
   RESPOND_TIME_REVERSAL: 'respond_time_reversal',
+  RESPOND_NINE_PRINCES: 'respond_nine_princes',
   ACTIVATE_LURE_TIGER: 'activate_lure_tiger',
   RESPOND_LURE_TIGER: 'respond_lure_tiger',
   SELECT_LURE_TIGER_TARGET: 'select_lure_tiger_target',

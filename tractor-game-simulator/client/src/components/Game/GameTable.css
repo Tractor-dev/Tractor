@@ -492,9 +492,29 @@
   font-weight: 800;
 }
 
-.position-top.has-open-hand { gap: 4px; }
-.position-top.has-open-hand .played-cards-area { height: 72px; }
-.position-top.has-open-hand .played-cards-area .hand { min-height: 72px; }
+/*
+ * 对家同时存在长期明牌和本轮出牌时，两者必须各自占用一条真实牌高的轨道。
+ * 不能为了塞进顶部网格而只压缩容器高度：普通牌仍有 110px 高，会从 72px
+ * 的旧容器向上溢出并盖住“冰山一角”等明牌。顶部出牌轨道可以自然延伸到
+ * 牌桌中央，但不能侵入明牌轨道。
+ */
+.position-top.has-open-hand {
+  gap: 10px;
+  overflow: visible;
+}
+
+.position-top.has-open-hand > .open-hand-panel {
+  flex: 0 0 105px;
+}
+
+.position-top.has-open-hand .played-cards-area {
+  flex: 0 0 116px;
+  height: 116px;
+}
+
+.position-top.has-open-hand .played-cards-area .hand {
+  min-height: 112px;
+}
 .position-left.has-open-hand,
 .position-right.has-open-hand { gap: 7px; }
 .position-left.has-open-hand .played-cards-area,
@@ -868,6 +888,24 @@
   box-shadow: 0 18px 48px rgba(0, 24, 18, 0.38), inset 0 1px rgba(255, 255, 255, 0.08);
 }
 
+.settlement-view.has-surrender-showdown .position-left,
+.settlement-view.has-surrender-showdown .position-right {
+  display: none;
+}
+
+.settlement-view.has-surrender-showdown .table-center {
+  grid-column: 1 / -1;
+}
+
+.center-content.settlement-panel.has-surrender-showdown {
+  width: min(980px, calc(100vw - 96px));
+  max-width: 980px;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
 .settlement-content {
   min-width: 0;
   display: flex;
@@ -1111,6 +1149,8 @@
 
 .player-area {
   position: relative;
+  min-height: 88px;
+  box-sizing: border-box;
   padding: 7px 12px;
   border: 1px solid rgba(214, 245, 222, 0.18);
   border-radius: 18px;
@@ -1460,8 +1500,53 @@
   line-height: 1.35;
 }
 
+.player-area > .player-info {
+  position: relative;
+  z-index: 21;
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.player-area.has-declaration > .player-info {
+  justify-content: flex-start;
+}
+
+.player-area.has-declaration > .player-info > div:first-child {
+  transform: translateY(-4px);
+}
+
 .player-info .ant-typography { color: rgba(244, 255, 247, 0.96); }
 .player-info .ant-typography-secondary { color: rgba(219, 238, 224, 0.66) !important; }
+
+.player-hand-count {
+  position: absolute;
+  z-index: 17;
+  right: 8px;
+  left: auto;
+  top: 0;
+  min-width: 36px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 7px;
+  border: 1px solid rgba(200, 231, 209, 0.24);
+  border-radius: 999px;
+  color: rgba(224, 241, 229, 0.76);
+  background: rgba(2, 39, 31, 0.76);
+  box-shadow: 0 3px 9px rgba(0, 23, 17, 0.22);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
 
 .strive-upstream-order-badge {
   display: inline-flex;
@@ -1644,31 +1729,110 @@
 }
 
 .declared-trump-zone:empty { display: none; }
-.declared-trump-zone { display: flex; justify-content: center; gap: 4px; }
-.player-top .declared-trump-zone.declaration-sidecar {
+
+/*
+ * 参考《欢乐升级》的头像角标：亮主固定在玩家框内左下角，亮劣固定在右下角。
+ * 外层覆盖整个玩家框但不参与布局，因此亮牌前后框体尺寸完全不变。
+ */
+.declared-trump-zone.declaration-sidecar {
   position: absolute;
-  top: 50%;
-  right: calc(100% + 12px);
-  z-index: 8;
-  min-width: 58px;
-  min-height: 78px;
-  align-items: center;
-  padding: 4px 6px;
-  border: 1px solid rgba(255, 220, 104, 0.42);
-  border-radius: 11px;
-  background: linear-gradient(145deg, rgba(8, 65, 48, 0.94), rgba(3, 42, 34, 0.94));
-  box-shadow: 0 8px 20px rgba(0, 24, 17, 0.3), inset 0 1px rgba(255, 255, 255, 0.08);
-  transform: translateY(-50%);
+  z-index: 19;
+  inset: 0;
+  display: block;
+  pointer-events: none;
 }
 
-.player-top .declared-trump-zone.declaration-sidecar .hand {
+.declaration-card-slot {
+  position: absolute;
+  bottom: 6px;
   width: max-content;
-  min-height: 70px;
+  min-width: 30px;
+  min-height: 44px;
   padding: 0;
+  filter: drop-shadow(0 5px 7px rgba(0, 24, 17, 0.34));
+  animation: declarationCardSlotReveal 0.28s cubic-bezier(.2, .82, .28, 1) both;
 }
 
-.player-top .declared-trump-zone.declaration-sidecar .inferior-declaration-zone {
-  min-height: 72px;
+@keyframes declarationCardSlotReveal {
+  from { opacity: 0; transform: translateY(5px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.declaration-sidecar .declaration-card-slot.is-trump { left: 8px; }
+.declaration-sidecar .declaration-card-slot.is-inferior { right: 8px; }
+
+.declaration-card-pair {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.declaration-card-slot .card.small {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 44px;
+  border-radius: 4px;
+  box-shadow: 0 2px 0 #9ea49e, 0 4px 7px rgba(0, 21, 15, 0.28);
+}
+
+.declaration-card-slot .card.small .card-corner.top-left {
+  top: 2px;
+  left: 3px;
+}
+
+/* 亮牌小卡中央已经有完整花色，左上角只保留点数，避免重复。 */
+.declaration-card-slot .card.small .card-corner.top-left .card-suit {
+  display: none;
+}
+
+.declaration-card-slot .card.small .card-corner.bottom-right {
+  display: none;
+}
+
+.declaration-card-slot .card.small .card-rank {
+  font-size: 11px;
+  line-height: 0.9;
+}
+
+.declaration-card-slot .card.small .card-suit {
+  margin-top: 1px;
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.declaration-card-slot .card.small .suit-symbol {
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+  font-size: 21px;
+  font-weight: 900;
+  opacity: 1;
+  filter: none;
+}
+
+/* 小牌时用轮廓和色调的双重差异区分黑桃与梅花。 */
+.declaration-card-slot .card.card-suit-spades {
+  color: #101a26 !important;
+}
+
+.declaration-card-slot .card.card-suit-spades .suit-symbol {
+  transform: translateY(1px) scale(0.92, 1.12);
+}
+
+.declaration-card-slot .card.card-suit-clubs {
+  color: #143021 !important;
+}
+
+.declaration-card-slot .card.card-suit-clubs .suit-symbol {
+  transform: scale(1.08, 1.03);
+}
+
+.declaration-card-slot .card.small .trump-badge {
+  width: 11px;
+  height: 11px;
+}
+
+.declaration-card-slot .card.small .trump-star {
+  font-size: 7px;
 }
 
 .inferior-declaration-zone {
@@ -1762,7 +1926,7 @@
 }
 
 .position-bottom .played-cards-area {
-  margin-bottom: 22px;
+  margin-bottom: 0;
 }
 
 .played-cards-area .hand {
@@ -2566,13 +2730,32 @@
 }
 
 .player-top { width: clamp(210px, 24vw, 280px); min-width: 0; }
-.player-left, .player-right { width: clamp(108px, 9vw, 150px); min-width: 0; flex: 0 0 auto; }
+.player-left, .player-right {
+  width: clamp(142px, 10vw, 156px);
+  min-width: 0;
+  min-height: 110px;
+  flex: 0 0 auto;
+}
 
 .player-bottom {
+  flex: 0 0 auto;
   width: min(1440px, 100%);
   min-width: 0;
   padding: 8px 14px 5px;
   border-radius: 22px 22px 8px 8px;
+}
+
+.player-bottom > .played-cards-area {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(100% + 18px);
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.player-bottom > .played-cards-area.is-empty {
+  visibility: hidden;
 }
 
 .bottom-player-header {
@@ -2738,27 +2921,24 @@
   gap: 10px;
 }
 
-.bottom-trump-zone {
-  flex: 0 0 88px;
-  width: 88px;
-  min-width: 88px;
+.bottom-declaration-dock {
+  flex: 0 0 68px;
+  width: 68px;
+  min-width: 68px;
   display: flex;
   align-items: flex-end;
-  padding: 4px;
+  padding: 4px 3px 8px;
 }
 
-.bottom-trump-zone.has-multiple-cards {
-  flex-basis: 142px;
-  width: 142px;
-  min-width: 142px;
-}
+.bottom-declaration-dock.is-trump { justify-content: flex-start; padding-left: 8px; }
+.bottom-declaration-dock.is-inferior { justify-content: flex-end; padding-right: 8px; }
 
-.bottom-trump-zone .hand {
-  min-height: 122px;
-  padding: 4px;
+.bottom-declaration-dock .declaration-card-slot {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
 }
-
-.bottom-trump-zone ~ .my-hand { flex: 1 1 auto; }
 
 .my-hand {
   flex: 1 1 auto;
@@ -3747,7 +3927,7 @@
   .game-table { padding-inline: 14px; }
   .position-middle { grid-template-columns: minmax(104px, 0.9fr) minmax(220px, 1.8fr) minmax(104px, 0.9fr); gap: 8px; }
   .position-left, .position-right { gap: 10px; }
-  .player-left, .player-right { width: clamp(100px, 11vw, 128px); }
+  .player-left, .player-right { width: 142px; }
   .score-panel { width: 184px !important; transform: scale(0.88); transform-origin: top left; }
   .position-left .played-cards-area,
   .position-right .played-cards-area { width: clamp(160px, 18vw, 210px); }
@@ -3761,8 +3941,8 @@
   .game-table { padding: 10px 8px; border-radius: 18px; }
   .game-table::after { font-size: 34px; }
   .position-top { flex-basis: 105px; }
-  .position-middle { grid-template-columns: 82px minmax(150px, 1fr) 82px; }
-  .player-left, .player-right { width: 82px; padding: 5px; font-size: 11px; }
+  .position-middle { grid-template-columns: 120px minmax(150px, 1fr) 120px; }
+  .player-left, .player-right { width: 120px; padding: 5px; font-size: 11px; }
   .player-avatar { width: 27px; height: 27px; flex-basis: 27px; font-size: 10px; }
   .played-cards-area { min-width: 82px; width: 116px; height: 95px; }
   .score-panel { display: none; }
@@ -3774,6 +3954,17 @@
   .bottom-player-header { flex-direction: column; align-items: stretch; }
   .inline-controls { width: 100%; margin-left: 0; max-width: 100%; }
   .my-hand { padding-inline: 4px; }
+
+  .declaration-card-slot .card.small {
+    flex-basis: 26px;
+    width: 26px;
+    height: 40px;
+  }
+
+  .declaration-card-pair { gap: 2px; }
+  .declaration-card-slot .card.small .suit-symbol { font-size: 19px; }
+  .declaration-sidecar .declaration-card-slot.is-trump { left: 6px; }
+  .declaration-sidecar .declaration-card-slot.is-inferior { right: 6px; }
 }
 
 @media (max-height: 760px) {

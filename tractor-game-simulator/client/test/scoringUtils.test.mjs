@@ -38,6 +38,23 @@ test('左上角计分区把取长补短牌还原为实体牌面', () => {
   assert.equal(getScoringDisplayCard(ordinaryCard), ordinaryCard);
 });
 
+test('九子夺嫡永久改牌面但计分区和分值仍读取开局实体牌面', () => {
+  const promotedCard = {
+    id: 'hearts-4-0',
+    suit: 'hearts',
+    rank: '5',
+    isNinePrincesPromoted: true,
+    ninePrincesPromotionCount: 1,
+    ninePrincesPermanentSuit: 'hearts',
+    ninePrincesPermanentRank: '5',
+    ninePrincesScoringSuit: 'hearts',
+    ninePrincesScoringRank: '4'
+  };
+
+  assert.equal(getCardPoints(promotedCard), 0);
+  assert.equal(getScoringDisplayCard(promotedCard).rank, '4');
+});
+
 test('三人成虎只改本轮牌力，中央计分仍读取实体牌点', () => {
   const transformedFive = {
     id: 'hearts-5-0',

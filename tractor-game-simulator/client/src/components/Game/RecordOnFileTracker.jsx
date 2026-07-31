@@ -4,12 +4,13 @@ import './RecordOnFileTracker.css';
 export default function RecordOnFileTracker({
   recordOnFile,
   displayRoundNumber,
-  showWhiteJoker = false
+  showWhiteJoker = false,
+  showRoyalJokers = false
 }) {
   const view = getRecordOnFileTrackerView(
     recordOnFile,
     displayRoundNumber,
-    { showWhiteJoker }
+    { showWhiteJoker, showRoyalJokers }
   );
   if (!view) return null;
 
@@ -65,7 +66,11 @@ export default function RecordOnFileTracker({
         </div>
 
         <div
-          className={`record-on-file-jokers ${view.showWhiteJoker ? 'has-white-joker' : ''}`}
+          className={[
+            'record-on-file-jokers',
+            view.showRoyalJokers ? 'has-royal-jokers' : '',
+            view.showWhiteJoker ? 'has-white-joker' : ''
+          ].filter(Boolean).join(' ')}
           aria-label="王牌已出牌统计"
         >
           <span className="record-on-file-jokers-title">王牌</span>
@@ -77,10 +82,26 @@ export default function RecordOnFileTracker({
             <span>大王</span>
             {renderCount(view.jokers[1], 'big-joker', '大王')}
           </div>
+          {view.showRoyalJokers && (
+            <>
+              <div className="record-joker-item">
+                <span>郡王</span>
+                {renderCount(view.jokers[2], 'county-prince-joker', '郡王')}
+              </div>
+              <div className="record-joker-item">
+                <span>亲王</span>
+                {renderCount(view.jokers[3], 'prince-joker', '亲王')}
+              </div>
+            </>
+          )}
           {view.showWhiteJoker && (
             <div className="record-joker-item">
               <span>白王</span>
-              {renderCount(view.jokers[2], 'white-joker', '白王')}
+              {renderCount(
+                view.jokers[view.showRoyalJokers ? 4 : 2],
+                'white-joker',
+                '白王'
+              )}
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ import { GamePhases } from '../utils/constants.js';
 import { DeckService } from './DeckService.js';
 import {
   isAdministrativeReviewRule,
+  isEightKingsCouncilRule,
   isFatalBeautyRule,
   isHeavyFogRule,
   isKingOverWhiteRule,
@@ -54,7 +55,11 @@ export class DrawingPhaseManager {
     logger.info(`房间 ${this.room.id} 开始摸牌阶段`);
 
     // 创建并洗牌
-    let deck = DeckService.shuffle(DeckService.createDeck());
+    let deck = DeckService.createDeck();
+    if (isEightKingsCouncilRule(this.room.gameState.selectedRule)) {
+      deck = DeckService.addEightKingsCouncilCards(deck);
+    }
+    deck = DeckService.shuffle(deck);
     if (isKingOverWhiteRule(this.room.gameState.selectedRule)) {
       deck = DeckService.transformRandomJokerToWhite(deck, this.random);
     }

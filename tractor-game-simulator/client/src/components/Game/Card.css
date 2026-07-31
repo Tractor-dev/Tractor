@@ -164,22 +164,14 @@
   line-height: 1;
 }
 
-[data-inferior-suit="hearts"] .card.card-suit-hearts .inferior-badge,
-[data-inferior-suit="diamonds"] .card.card-suit-diamonds .inferior-badge,
-[data-inferior-suit="clubs"] .card.card-suit-clubs .inferior-badge,
-[data-inferior-suit="spades"] .card.card-suit-spades .inferior-badge,
-.inferior-declaration-zone .inferior-badge {
+[data-inferior-suit="hearts"] .card.card-suit-hearts:not(.is-trump-card) .inferior-badge,
+[data-inferior-suit="diamonds"] .card.card-suit-diamonds:not(.is-trump-card) .inferior-badge,
+[data-inferior-suit="clubs"] .card.card-suit-clubs:not(.is-trump-card) .inferior-badge,
+[data-inferior-suit="spades"] .card.card-suit-spades:not(.is-trump-card) .inferior-badge {
   display: grid;
 }
 
-/* 劣花色级牌以减号标识优先，避免与同位置的主牌星标重叠。 */
-[data-inferior-suit="hearts"] .card.card-suit-hearts .trump-badge,
-[data-inferior-suit="diamonds"] .card.card-suit-diamonds .trump-badge,
-[data-inferior-suit="clubs"] .card.card-suit-clubs .trump-badge,
-[data-inferior-suit="spades"] .card.card-suit-spades .trump-badge,
-.inferior-declaration-zone .trump-badge {
-  display: none;
-}
+/* 劣花色中的级牌仍是级牌：沿用主牌星标，普通劣花色牌才显示减号。 */
 
 .card.small .inferior-badge {
   left: 3px;

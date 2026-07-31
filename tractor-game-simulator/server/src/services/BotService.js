@@ -27,6 +27,15 @@ const __dirname = path.dirname(__filename);
  * 卡牌格式转换工具
  */
 class CardConverter {
+  static supportedRanks = new Set([
+    '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    'J', 'Q', 'K', 'A', 'small_joker', 'big_joker'
+  ]);
+
+  static isSupportedCard(card) {
+    return Boolean(card && this.supportedRanks.has(card.rank));
+  }
+
   /**
    * 将项目卡牌格式转换为bot需要的格式
    * 项目格式: {suit: 'hearts', rank: 'A', id: 'hearts-A-0'}
@@ -157,6 +166,21 @@ export class BotService {
         isLeading: !gameState.leadingPattern
       });
       const decisionCards = [...physicalDecisionCards, ...externalPlayableCards];
+      const visibleCards = [
+        ...decisionCards,
+        ...(gameState.currentRoundPlays || []).flatMap(play => play.cards || []),
+        ...(gameState.playHistory || []).flatMap(play => play.cards || [])
+      ];
+      if (visibleCards.some(card => !this.converter.isSupportedCard(card))) {
+        logger.info('当前牌局含外部 Bot 不认识的扩展牌面，改用内置合法出牌策略');
+        return this.getFallbackAction(
+          gameState,
+          playerCards,
+          room?.players?.[playerIndex]?.id,
+          playerIndex,
+          externalPlayableCards
+        );
+      }
       // 构建bot需要的输入格式
       const botInput = this._buildBotInput(gameState, decisionCards, playerIndex, room);
 

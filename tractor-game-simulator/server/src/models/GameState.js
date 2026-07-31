@@ -108,6 +108,10 @@ export class GameState {
     // “记录在案”只公开当前生效轮；lastActiveRound 用于客户端轮末停牌的一秒多展示。
     this.recordOnFileActiveRound = null;
     this.recordOnFileLastActiveRound = null;
+    // “九子夺嫡”的候选手牌只对获胜者私发；公共状态仅说明正在等待谁以及规则是否已终止。
+    this.ninePrincesDecision = null;
+    this.ninePrincesResolved = false;
+    this.ninePrincesLastResult = null;
     this.playHistory = [];
     this.drawingIndex = 0;
     this.startTime = null;
@@ -367,6 +371,9 @@ export class GameState {
     this.destroyDykeLastResult = null;
     this.recordOnFileActiveRound = null;
     this.recordOnFileLastActiveRound = null;
+    this.ninePrincesDecision = null;
+    this.ninePrincesResolved = false;
+    this.ninePrincesLastResult = null;
     this.playHistory = [];
     this.drawingIndex = 0;
     this.startTime = null;
@@ -568,11 +575,17 @@ export class GameState {
       this.playHistory.forEach(play => {
         (play.cards || []).forEach(card => {
           if (concealedCardIds.has(card.id)) return;
-          const suit = card.originalSuit || card.suit;
-          const rank = card.originalRank || card.rank;
+          const suit = card.ninePrincesScoringSuit || card.originalSuit || card.suit;
+          const rank = card.ninePrincesScoringRank || card.originalRank || card.rank;
           const isOrdinaryCard = ordinarySuits.has(suit) && ordinaryRanks.has(rank);
           const isJoker = suit === 'joker'
-            && ['small_joker', 'big_joker', 'white_joker'].includes(rank);
+            && [
+              'small_joker',
+              'big_joker',
+              'county_prince_joker',
+              'prince_joker',
+              'white_joker'
+            ].includes(rank);
           if (!isOrdinaryCard && !isJoker) return;
           counts[suit][rank] = (counts[suit][rank] || 0) + 1;
           playedCardCount++;
@@ -685,6 +698,18 @@ export class GameState {
         lastResult: this.destroyDykeLastResult ? { ...this.destroyDykeLastResult } : null
       } : null,
       recordOnFile,
+      ninePrinces: ruleIncludesId(this.selectedRule, 'nine_princes_succession') ? {
+        resolved: this.ninePrincesResolved,
+        pending: this.ninePrincesDecision ? {
+          decisionId: this.ninePrincesDecision.decisionId,
+          round: this.ninePrincesDecision.round,
+          playerId: this.ninePrincesDecision.playerId,
+          playerName: this.ninePrincesDecision.playerName
+        } : null,
+        lastResult: this.ninePrincesLastResult
+          ? { ...this.ninePrincesLastResult }
+          : null
+      } : null,
       playHistoryCount: this.playHistory.length,
       drawingProgress: this.drawingIndex,
       totalCards: this.deck.length,

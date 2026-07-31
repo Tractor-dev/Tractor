@@ -104,7 +104,9 @@
   RECORD_ON_FILE: 'record_on_file',
   WEIGHING_THOUSAND_JIN: 'weighing_thousand_jin',
   KING_OVER_WHITE: 'king_over_white',
-  FEAR_OF_BREAKING_VASE: 'fear_of_breaking_vase'
+  FEAR_OF_BREAKING_VASE: 'fear_of_breaking_vase',
+  EIGHT_KINGS_COUNCIL: 'eight_kings_council',
+  NINE_PRINCES_SUCCESSION: 'nine_princes_succession'
 });
 
 export const ActiveSkillIds = Object.freeze({
@@ -914,6 +916,18 @@ const RULE_DEFINITIONS = Object.freeze([
     name: '投鼠忌器',
     content: '每轮结束时，若赢家一方出现以下任一“误伤队友”情形，则该方失去10分：①首家最终最大，而其队友本轮打出了至少两对或至少两张王；②第二家是本轮唯一完成毙牌的玩家，且若不计第二家的出牌，其队友本可在其余三家中最大。闲家方失分时闲家总分−10；庄家方失分时闲家总分+10。',
     setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
+    id: RuleIds.EIGHT_KINGS_COUNCIL,
+    name: '八王议政',
+    content: '本局牌堆额外加入两张郡王和两张亲王。郡王、亲王均为主牌，依次大于大王；同牌面的两张可以作为一对王亮成无主。',
+    setup: DEFAULT_RULE_SETUP
+  }),
+  Object.freeze({
+    id: RuleIds.NINE_PRINCES_SUCCESSION,
+    name: '九子夺嫡',
+    content: '每轮结束时，若本轮赢家收下了对方阵营打出的至少一张分牌，且仍有可以提升的手牌，其可以选择一张手牌沿当前完整牌力序列永久提升一级，也可以放弃。若此次提升使该牌成为白王（皇），该玩家所在阵营立即获得10分，随后本局不再触发九子夺嫡。',
+    setup: DEFAULT_RULE_SETUP
   })
 ]);
 
@@ -1259,6 +1273,14 @@ export function isKingOverWhiteRule(rule) {
 
 export function isFearOfBreakingVaseRule(rule) {
   return ruleIncludesId(rule, RuleIds.FEAR_OF_BREAKING_VASE);
+}
+
+export function isEightKingsCouncilRule(rule) {
+  return ruleIncludesId(rule, RuleIds.EIGHT_KINGS_COUNCIL);
+}
+
+export function isNinePrincesSuccessionRule(rule) {
+  return ruleIncludesId(rule, RuleIds.NINE_PRINCES_SUCCESSION);
 }
 
 export function getOddEvenRoundMultiplier(rule, roundNumber) {

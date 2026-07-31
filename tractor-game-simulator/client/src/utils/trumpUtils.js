@@ -7,7 +7,9 @@ export const DeclarationTypes = {
   SINGLE_RANK: 'single_rank',      // 单张级牌
   PAIR_RANK: 'pair_rank',          // 一对级牌
   PAIR_SMALL_JOKER: 'pair_small_joker',  // 一对小王
-  PAIR_BIG_JOKER: 'pair_big_joker'      // 一对大王
+  PAIR_BIG_JOKER: 'pair_big_joker',      // 一对大王
+  PAIR_COUNTY_PRINCE_JOKER: 'pair_county_prince_joker', // 一对郡王
+  PAIR_PRINCE_JOKER: 'pair_prince_joker' // 一对亲王
 };
 
 /**
@@ -17,7 +19,9 @@ export const DeclarationStrength = {
   [DeclarationTypes.SINGLE_RANK]: 1,
   [DeclarationTypes.PAIR_RANK]: 2,
   [DeclarationTypes.PAIR_SMALL_JOKER]: 3,
-  [DeclarationTypes.PAIR_BIG_JOKER]: 4
+  [DeclarationTypes.PAIR_BIG_JOKER]: 4,
+  [DeclarationTypes.PAIR_COUNTY_PRINCE_JOKER]: 5,
+  [DeclarationTypes.PAIR_PRINCE_JOKER]: 6
 };
 
 /**
@@ -50,7 +54,9 @@ export function detectAvailableDeclarations(cards, trumpRank, currentTrump = nul
   // 统计王的数量
   const jokerCounts = {
     [Ranks.SMALL_JOKER]: 0,
-    [Ranks.BIG_JOKER]: 0
+    [Ranks.BIG_JOKER]: 0,
+    [Ranks.COUNTY_PRINCE_JOKER]: 0,
+    [Ranks.PRINCE_JOKER]: 0
   };
 
   // 遍历手牌统计
@@ -156,6 +162,38 @@ export function detectAvailableDeclarations(cards, trumpRank, currentTrump = nul
       description: canDeclare ? '可亮一对大王（无主）' : '已是最强',
       strength: strength,
       declarationType: DeclarationTypes.PAIR_BIG_JOKER
+    });
+  }
+
+  if (jokerCounts[Ranks.COUNTY_PRINCE_JOKER] >= 2) {
+    const strength = DeclarationStrength[DeclarationTypes.PAIR_COUNTY_PRINCE_JOKER];
+    const canDeclare = (!forbidDifferentSuitForSelf) && (strength > currentStrength);
+
+    declarations.push({
+      type: 'joker',
+      suit: Suits.JOKER,
+      count: 2,
+      jokerType: 'county_prince',
+      canDeclare,
+      description: canDeclare ? '可亮一对郡王（无主）' : '无法反主（需要一对亲王）',
+      strength,
+      declarationType: DeclarationTypes.PAIR_COUNTY_PRINCE_JOKER
+    });
+  }
+
+  if (jokerCounts[Ranks.PRINCE_JOKER] >= 2) {
+    const strength = DeclarationStrength[DeclarationTypes.PAIR_PRINCE_JOKER];
+    const canDeclare = (!forbidDifferentSuitForSelf) && (strength > currentStrength);
+
+    declarations.push({
+      type: 'joker',
+      suit: Suits.JOKER,
+      count: 2,
+      jokerType: 'prince',
+      canDeclare,
+      description: canDeclare ? '可亮一对亲王（无主）' : '已是最强',
+      strength,
+      declarationType: DeclarationTypes.PAIR_PRINCE_JOKER
     });
   }
 

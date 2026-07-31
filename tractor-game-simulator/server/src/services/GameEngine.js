@@ -145,6 +145,7 @@ import {
   isWoodenOxFlowingHorseRule,
   isWeighingThousandJinRule,
   isFearOfBreakingVaseRule,
+  isNinePrincesSuccessionRule,
   isTimeReversalRule,
   resolveOfferedRule,
   RuleIds
@@ -575,6 +576,16 @@ export class GameEngine {
 
     if (gameState.surrenderCurrentDecision?.teammatePlayerId === player.id) {
       add('surrender_decision_required', this.getSurrenderPublicDecision());
+    }
+
+    if (
+      gameState.ninePrincesDecision?.playerId === player.id
+      && !this.hasPendingTimeReversalDecision()
+    ) {
+      add(
+        'nine_princes_selection_required',
+        this.getNinePrincesPrivateDecision(gameState.ninePrincesDecision)
+      );
     }
 
     const administrativeReview = gameState.administrativeReview;
@@ -1487,6 +1498,7 @@ export class GameEngine {
       || this.hasPendingStrawBoatBorrowingArrowsDecision()
       || this.hasPendingTeammateCheerDecision()
       || this.hasPendingAfterglowDecision()
+      || this.hasPendingNinePrincesDecision()
       || this.hasPendingAmbiguousChoice()
       || this.hasPendingDestroyDykeDecision()
       || this.hasPendingWaitingRabbitDecision()
@@ -1584,6 +1596,19 @@ export class GameEngine {
   finishGameBySurrender(decision) {
     const { gameState } = this.room;
     const scoreBeforeSurrender = gameState.attackerScore;
+    const dealerPlayer = this.room.findPlayerById(gameState.buryingPlayerId)
+      || this.room.findPlayerByIndex(gameState.dealerPlayerIndex);
+    const dealerTeamIndex = this.getPlayerTeamIndex(dealerPlayer?.id);
+    // 只有投降被队友正式同意、牌局结束后才公开四家的剩余手牌。
+    // 在这里先于升级/换庄流程取快照，确保欢乐成双等临时换位规则下的身份仍然准确。
+    const revealedHands = this.room.players.map((player, seatIndex) => ({
+      playerId: player.id,
+      playerName: player.name,
+      seatIndex,
+      isDealer: player.id === dealerPlayer?.id,
+      side: this.getPlayerTeamIndex(player.id) === dealerTeamIndex ? 'dealer' : 'attacker',
+      cards: player.cards.map(card => card.toJSON ? card.toJSON() : card)
+    }));
     let forcedUpgrade;
 
     if (decision.surrenderingSide === 'dealer') {
@@ -1612,7 +1637,8 @@ export class GameEngine {
       scoreAdjustment: gameState.attackerScore - scoreBeforeSurrender,
       finalAttackerScore: gameState.attackerScore,
       earlyAttackerSurrender: decision.surrenderingSide === 'attacker'
-        && decision.completedRound <= 2
+        && decision.completedRound <= 2,
+      revealedHands
     };
 
     gameState.phase = GamePhases.REVEALING;
@@ -2707,6 +2733,20 @@ export class GameEngine {
     };
   }
 
+  restoreNinePrincesPermanentFace(card) {
+    if (
+      !card?.isNinePrincesPromoted
+      || !card.ninePrincesPermanentSuit
+      || !card.ninePrincesPermanentRank
+    ) {
+      return card;
+    }
+    card.suit = card.ninePrincesPermanentSuit;
+    card.rank = card.ninePrincesPermanentRank;
+    card.value = card.calculateValue();
+    return card;
+  }
+
   restoreStrengthCompensationCards() {
     for (const player of this.room.players) {
       for (const card of player.cards) {
@@ -2717,6 +2757,7 @@ export class GameEngine {
         card.originalSuit = null;
         card.isStrengthCompensated = false;
         card.strengthCompensationDelta = 0;
+        this.restoreNinePrincesPermanentFace(card);
         card.value = card.calculateValue();
       }
     }
@@ -2801,6 +2842,7 @@ export class GameEngine {
         card.originalSuit = null;
         card.isDefenseAsOffenseBoosted = false;
         card.defenseAsOffenseDelta = 0;
+        this.restoreNinePrincesPermanentFace(card);
         card.value = card.calculateValue();
       }
     }
@@ -3747,6 +3789,16 @@ export class GameEngine {
       divineWeaponUsedThisRound: gameState.divineWeaponUsedThisRound,
       divineWeaponUsedByPlayerId: gameState.divineWeaponUsedByPlayerId,
       divineWeaponUsedCardId: gameState.divineWeaponUsedCardId,
+      ninePrincesDecision: gameState.ninePrincesDecision
+        ? {
+            ...gameState.ninePrincesDecision,
+            eligibleCardIds: [...gameState.ninePrincesDecision.eligibleCardIds]
+          }
+        : null,
+      ninePrincesResolved: gameState.ninePrincesResolved,
+      ninePrincesLastResult: gameState.ninePrincesLastResult
+        ? { ...gameState.ninePrincesLastResult }
+        : null,
       timeReversalLockedRounds: new Set(gameState.timeReversalLockedRounds),
       trumpAction: gameState.trumpAction || null,
       players: players.map(player => ({
@@ -3796,6 +3848,16 @@ export class GameEngine {
     gameState.divineWeaponUsedThisRound = snapshot.divineWeaponUsedThisRound;
     gameState.divineWeaponUsedByPlayerId = snapshot.divineWeaponUsedByPlayerId;
     gameState.divineWeaponUsedCardId = snapshot.divineWeaponUsedCardId;
+    gameState.ninePrincesDecision = snapshot.ninePrincesDecision
+      ? {
+          ...snapshot.ninePrincesDecision,
+          eligibleCardIds: [...snapshot.ninePrincesDecision.eligibleCardIds]
+        }
+      : null;
+    gameState.ninePrincesResolved = snapshot.ninePrincesResolved;
+    gameState.ninePrincesLastResult = snapshot.ninePrincesLastResult
+      ? { ...snapshot.ninePrincesLastResult }
+      : null;
     gameState.timeReversalLockedRounds = new Set(snapshot.timeReversalLockedRounds);
     gameState.trumpAction = snapshot.trumpAction;
     gameState.timeReversalReservations.clear();
@@ -3960,12 +4022,16 @@ export class GameEngine {
     gameState.timeReversalDecisionState = null;
     gameState.timeReversalWindowRound = null;
     this.timeReversalRoundSnapshot = null;
+    const ninePrinces = this.beginNinePrincesDecision();
     const gameWouldFinish = this.room.players.every(candidate => candidate.cards.length === 0);
-    const surrenderDecision = this.prepareSurrenderReview({
-      completedRound: round,
-      finishGameAfterReview: gameWouldFinish
-    });
+    const surrenderDecision = this.hasPendingNinePrincesDecision()
+      ? null
+      : this.prepareSurrenderReview({
+          completedRound: round,
+          finishGameAfterReview: gameWouldFinish
+        });
     const gameFinished = gameWouldFinish
+      && !this.hasPendingNinePrincesDecision()
       && !surrenderDecision
       && gameState.surrenderRequests.size === 0;
     if (gameFinished) this.finishGame();
@@ -3975,7 +4041,8 @@ export class GameEngine {
       reason,
       round,
       gameFinished,
-      surrenderDecision
+      surrenderDecision,
+      ninePrinces
     };
   }
 
@@ -9266,6 +9333,284 @@ export class GameEngine {
     };
   }
 
+  hasPendingNinePrincesDecision() {
+    return Boolean(this.room.gameState.ninePrincesDecision);
+  }
+
+  assertNinePrincesDecisionComplete() {
+    const decision = this.room.gameState.ninePrincesDecision;
+    if (!decision) return;
+    throw new Error(`请等待${decision.playerName || '本轮赢家'}完成九子夺嫡`);
+  }
+
+  getNinePrincesEligibleCards(player) {
+    const { trumpSuit, trumpRank } = this.room.gameState;
+    return (player?.cards || []).filter(card => {
+      const promotedFace = shiftStrengthCompensationCardFace(
+        card,
+        trumpSuit,
+        trumpRank,
+        1
+      );
+      return promotedFace.suit !== card.suit || promotedFace.rank !== card.rank;
+    });
+  }
+
+  getNinePrincesPrivateDecision(
+    decision = this.room.gameState.ninePrincesDecision
+  ) {
+    if (!decision) return null;
+    const player = this.room.findPlayerById(decision.playerId);
+    const eligibleCardIdSet = new Set(decision.eligibleCardIds || []);
+    const candidates = this.getNinePrincesEligibleCards(player)
+      .filter(card => eligibleCardIdSet.has(card.id))
+      .map(card => ({
+        card: card.toJSON ? card.toJSON() : card,
+        promotedFace: shiftStrengthCompensationCardFace(
+          card,
+          this.room.gameState.trumpSuit,
+          this.room.gameState.trumpRank,
+          1
+        )
+      }));
+    return {
+      decisionId: decision.decisionId,
+      round: decision.round,
+      playerId: decision.playerId,
+      playerName: decision.playerName,
+      candidates
+    };
+  }
+
+  prepareNinePrincesDecisionAtRoundEnd({
+    winner,
+    completedRound,
+    roundPlays
+  }) {
+    const { gameState } = this.room;
+    if (
+      !isNinePrincesSuccessionRule(gameState.selectedRule)
+      || gameState.ninePrincesResolved
+      || gameState.ninePrincesDecision
+      || !winner
+    ) {
+      return null;
+    }
+
+    const winnerTeamIndex = this.getPlayerTeamIndex(winner.id);
+    const capturedOpponentPointCard = (roundPlays || []).some(play => (
+      this.getPlayerTeamIndex(play.playerId) !== winnerTeamIndex
+      && (play.originalCards || play.cards || []).some(
+        card => this.getRuleCardPoints(card) > 0
+      )
+    ));
+    if (!capturedOpponentPointCard) return null;
+
+    const eligibleCards = this.getNinePrincesEligibleCards(winner);
+    if (eligibleCards.length === 0) return null;
+
+    const decision = {
+      decisionId: `nine-princes-${completedRound}-${winner.id}`,
+      round: completedRound,
+      playerId: winner.id,
+      playerName: winner.name,
+      eligibleCardIds: eligibleCards.map(card => card.id)
+    };
+    gameState.ninePrincesDecision = decision;
+    logger.info(
+      `房间 ${this.room.id} 九子夺嫡：第${completedRound}轮赢家 ${winner.name} ` +
+      `收下了对方分牌，等待选择一张手牌晋升`
+    );
+    return {
+      decisionId: decision.decisionId,
+      round: decision.round,
+      playerId: decision.playerId,
+      playerName: decision.playerName,
+      pending: true
+    };
+  }
+
+  chooseNinePrincesBotCard(player, decision) {
+    const eligibleCardIdSet = new Set(decision?.eligibleCardIds || []);
+    const candidates = this.getNinePrincesEligibleCards(player)
+      .filter(card => eligibleCardIdSet.has(card.id));
+    if (candidates.length === 0) return null;
+    const { trumpSuit, trumpRank, selectedRule } = this.room.gameState;
+    return [...candidates].sort((left, right) => {
+      const leftFace = shiftStrengthCompensationCardFace(left, trumpSuit, trumpRank, 1);
+      const rightFace = shiftStrengthCompensationCardFace(right, trumpSuit, trumpRank, 1);
+      const leftBecomesWhite = left.rank !== Ranks.WHITE_JOKER
+        && leftFace.rank === Ranks.WHITE_JOKER;
+      const rightBecomesWhite = right.rank !== Ranks.WHITE_JOKER
+        && rightFace.rank === Ranks.WHITE_JOKER;
+      if (leftBecomesWhite !== rightBecomesWhite) return leftBecomesWhite ? -1 : 1;
+      return getCardStrength(
+        { ...right, ...rightFace },
+        trumpSuit,
+        trumpRank,
+        selectedRule
+      ) - getCardStrength(
+        { ...left, ...leftFace },
+        trumpSuit,
+        trumpRank,
+        selectedRule
+      );
+    })[0];
+  }
+
+  beginNinePrincesDecision() {
+    const decision = this.room.gameState.ninePrincesDecision;
+    if (!decision) return null;
+    if (this.hasPendingTimeReversalDecision()) {
+      return {
+        decisionId: decision.decisionId,
+        round: decision.round,
+        playerId: decision.playerId,
+        playerName: decision.playerName,
+        pending: true,
+        deferred: true
+      };
+    }
+
+    const player = this.room.findPlayerById(decision.playerId);
+    if (!player) {
+      this.room.gameState.ninePrincesDecision = null;
+      return null;
+    }
+    if (player.isBot) {
+      const card = this.chooseNinePrincesBotCard(player, decision);
+      const result = this.respondNinePrincesDecision(player.id, card?.id || null, {
+        automatic: true
+      });
+      const { privateResult: _privateResult, ...publicResult } = result;
+      return publicResult;
+    }
+
+    const payload = this.getNinePrincesPrivateDecision(decision);
+    if (player.socketId) {
+      this.io.to(player.socketId).emit('nine_princes_selection_required', payload);
+    }
+    this.io.to(this.room.id).emit('nine_princes_decision_pending', {
+      decisionId: decision.decisionId,
+      round: decision.round,
+      playerId: decision.playerId,
+      playerName: decision.playerName
+    });
+    return {
+      decisionId: decision.decisionId,
+      round: decision.round,
+      playerId: decision.playerId,
+      playerName: decision.playerName,
+      pending: true
+    };
+  }
+
+  respondNinePrincesDecision(playerId, cardId = null, { automatic = false } = {}) {
+    const { gameState } = this.room;
+    const decision = gameState.ninePrincesDecision;
+    if (!decision || decision.playerId !== playerId) {
+      throw new Error('当前没有等待你的九子夺嫡选择');
+    }
+    if (this.hasPendingTimeReversalDecision()) {
+      throw new Error('请先等待时间倒流窗口结束');
+    }
+    const player = this.room.findPlayerById(playerId);
+    if (!player) throw new Error('玩家不存在');
+
+    let promoted = false;
+    let becameWhite = false;
+    let scoreDelta = 0;
+    let privateResult = null;
+    if (cardId) {
+      if (!decision.eligibleCardIds.includes(cardId)) {
+        throw new Error('这张牌不能用于九子夺嫡');
+      }
+      const card = player.cards.find(candidate => candidate.id === cardId);
+      if (!card) throw new Error('所选手牌已不存在');
+      const previousFace = { suit: card.suit, rank: card.rank };
+      const promotedFace = shiftStrengthCompensationCardFace(
+        card,
+        gameState.trumpSuit,
+        gameState.trumpRank,
+        1
+      );
+      if (
+        promotedFace.suit === previousFace.suit
+        && promotedFace.rank === previousFace.rank
+      ) {
+        throw new Error('这张牌已经无法继续提升');
+      }
+
+      card.ninePrincesScoringSuit = card.ninePrincesScoringSuit
+        || card.originalSuit
+        || card.suit;
+      card.ninePrincesScoringRank = card.ninePrincesScoringRank
+        || card.originalRank
+        || card.rank;
+      card.suit = promotedFace.suit;
+      card.rank = promotedFace.rank;
+      card.isNinePrincesPromoted = true;
+      card.ninePrincesPromotionCount = (Number(card.ninePrincesPromotionCount) || 0) + 1;
+      card.ninePrincesPermanentSuit = promotedFace.suit;
+      card.ninePrincesPermanentRank = promotedFace.rank;
+      card.value = card.calculateValue();
+      player.cards = DeckService.autoSortCards(player.cards);
+      promoted = true;
+      becameWhite = previousFace.rank !== Ranks.WHITE_JOKER
+        && promotedFace.rank === Ranks.WHITE_JOKER;
+
+      if (becameWhite) {
+        const dealer = this.room.findPlayerById(gameState.buryingPlayerId);
+        const winnerTeamIndex = this.getPlayerTeamIndex(player.id);
+        const dealerTeamIndex = this.getPlayerTeamIndex(dealer?.id);
+        scoreDelta = winnerTeamIndex === dealerTeamIndex ? -10 : 10;
+        gameState.attackerScore += scoreDelta;
+        gameState.ninePrincesResolved = true;
+      }
+
+      privateResult = {
+        decisionId: decision.decisionId,
+        round: decision.round,
+        previousFace,
+        promotedFace,
+        becameWhite,
+        teamBonus: becameWhite ? 10 : 0,
+        cards: player.cards.map(candidate => candidate.toJSON())
+      };
+      if (player.socketId) {
+        this.io.to(player.socketId).emit('nine_princes_hand_updated', privateResult);
+      }
+      this.updateRuleHandVisibilityAfterCardChange(player);
+    }
+
+    const publicResult = {
+      decisionId: decision.decisionId,
+      round: decision.round,
+      playerId: player.id,
+      playerName: player.name,
+      promoted,
+      skipped: !promoted,
+      becameWhite,
+      teamBonus: becameWhite ? 10 : 0,
+      attackerScoreDelta: scoreDelta,
+      attackerScore: gameState.attackerScore,
+      ruleResolved: gameState.ninePrincesResolved,
+      automatic: Boolean(automatic)
+    };
+    gameState.ninePrincesDecision = null;
+    gameState.ninePrincesLastResult = publicResult;
+    this.io.to(this.room.id).emit('nine_princes_resolved', publicResult);
+    logger.info(
+      `房间 ${this.room.id} 九子夺嫡：${player.name}` +
+      `${promoted ? '完成手牌晋升' : '放弃晋升'}` +
+      `${becameWhite ? '，升为白王并令所在阵营获得10分，规则终止' : ''}`
+    );
+    return {
+      ...publicResult,
+      privateResult
+    };
+  }
+
   resolveDestroyDykeAtGameEnd() {
     const disaster = this.room.gameState.destroyDykeDisaster;
     if (!disaster || disaster.roundsElapsed >= 3) return null;
@@ -10268,6 +10613,7 @@ export class GameEngine {
     if (this.hasPendingMutualSupportAction()) {
       throw new Error('请先完成同舟共济交牌');
     }
+    this.assertNinePrincesDecisionComplete();
     this.assertTimeReversalDecisionComplete();
     this.assertForbiddenMagicDecisionComplete();
     this.assertLureTigerDecisionComplete();
@@ -11302,6 +11648,7 @@ export class GameEngine {
     let antinomyReselectionPlayerIds = [];
     let destroyDykeRoundResult = null;
     let surrenderDecision = null;
+    let ninePrinces = null;
     if (this.room.gameState.playersPlayedThisRound.size === this.room.players.length) {
       logger.info(`[调试] 检测到轮次结束，当前轮: ${this.room.gameState.currentRound}`);
       // 魔术戏法只在四家都按各自真实手牌完成出牌后，交换两个座位的结算结果。
@@ -11737,6 +12084,12 @@ export class GameEngine {
         )
       });
 
+      ninePrinces = this.prepareNinePrincesDecisionAtRoundEnd({
+        winner,
+        completedRound: roundUpdate?.round ?? this.room.gameState.currentRound,
+        roundPlays: scoringRoundPlays
+      });
+
       // 清空当前轮出牌记录，准备下一轮
       this.room.gameState.currentRoundPlays = [];
       this.room.gameState.leadingPattern = null;
@@ -11796,6 +12149,8 @@ export class GameEngine {
         // 第四家出完后的两秒仍属于刚结束的这一轮：所有人都可继续预备，下一轮不得抢跑。
         this.room.gameState.timeReversalDecisionState = 'holding';
         this.room.gameState.timeReversalWindowRound = roundUpdate?.round ?? null;
+      } else if (ninePrinces) {
+        ninePrinces = this.beginNinePrincesDecision() || ninePrinces;
       }
 
       // 更新roundUpdate
@@ -11831,6 +12186,7 @@ export class GameEngine {
         roundUpdate.culturalRevolutionTransition = culturalRevolutionTransition;
         roundUpdate.encircleThreeMissingOneTransition = encircleThreeMissingOneTransition;
         roundUpdate.recordOnFile = recordOnFileTransition;
+        roundUpdate.ninePrinces = ninePrinces;
         roundUpdate.antinomyReselection = antinomyReselection;
         roundUpdate.inviteIntoUrn = inviteIntoUrn;
         roundUpdate.oldHorse = oldHorse;
@@ -11912,6 +12268,7 @@ export class GameEngine {
     const strawBoatPending = this.hasPendingStrawBoatBorrowingArrowsDecision();
     const teammateCheerPending = this.hasPendingTeammateCheerDecision();
     const afterglowPending = this.hasPendingAfterglowDecision();
+    const ninePrincesPending = this.hasPendingNinePrincesDecision();
     if (
       (allPlayersFinished || abruptlyStopped)
       && !timeReversalPending
@@ -11919,6 +12276,7 @@ export class GameEngine {
       && !strawBoatPending
       && !teammateCheerPending
       && !afterglowPending
+      && !ninePrincesPending
       && !surrenderDecision
       && this.room.gameState.surrenderRequests.size === 0
     ) {
@@ -12072,6 +12430,7 @@ export class GameEngine {
     if (this.room.gameState.phase !== GamePhases.PLAYING) {
       throw new Error('当前不是出牌阶段');
     }
+    this.assertNinePrincesDecisionComplete();
     this.assertTimeReversalDecisionComplete();
     this.assertDestroyDykeDecisionComplete();
     this.assertForbiddenMagicDecisionComplete();
@@ -12161,6 +12520,12 @@ export class GameEngine {
       card.isTeammateCheered = Boolean(cardData.isTeammateCheered);
       card.isAfterglowBoosted = Boolean(cardData.isAfterglowBoosted);
       card.isRiceToMulberryTransformed = Boolean(cardData.isRiceToMulberryTransformed);
+      card.isNinePrincesPromoted = Boolean(cardData.isNinePrincesPromoted);
+      card.ninePrincesPromotionCount = Number(cardData.ninePrincesPromotionCount) || 0;
+      card.ninePrincesPermanentSuit = cardData.ninePrincesPermanentSuit || null;
+      card.ninePrincesPermanentRank = cardData.ninePrincesPermanentRank || null;
+      card.ninePrincesScoringSuit = cardData.ninePrincesScoringSuit || null;
+      card.ninePrincesScoringRank = cardData.ninePrincesScoringRank || null;
       card.value = card.calculateValue();
       if (woodenOxCardIdSet.has(card.id)) {
         const mule = this.room.gameState.woodenOxMulesByTeam.get(lastPlay.woodenOxTeamIndex);
