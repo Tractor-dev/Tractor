@@ -281,6 +281,22 @@ test('mobile portrait prompts rotation and landscape keeps the full hand inside 
     await page.setViewportSize({ width: 667, height: 375 });
     await expect(orientationGuard).toBeHidden();
     await expect(page.locator('.my-hand .card')).toHaveCount(25);
+    await expect(page.getByRole('button', { name: '全选', exact: true })).toHaveCount(0);
+
+    const mobileRuleDescription = page.locator('.table-rule-description');
+    await expect(mobileRuleDescription).toBeVisible();
+    await expect(mobileRuleDescription).not.toHaveText('');
+    const mobileRuleDescriptionStyle = await mobileRuleDescription.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        display: style.display,
+        overflowY: style.overflowY,
+        maxHeight: style.maxHeight
+      };
+    });
+    expect(mobileRuleDescriptionStyle.display).toBe('block');
+    expect(mobileRuleDescriptionStyle.overflowY).toBe('auto');
+    expect(mobileRuleDescriptionStyle.maxHeight).toBe('43px');
 
     const geometry = await page.evaluate(() => {
       const rect = (selector, last = false) => {
@@ -324,6 +340,7 @@ test('mobile portrait prompts rotation and landscape keeps the full hand inside 
     await page.screenshot({ path: testInfo.outputPath('mobile-landscape-table.png') });
 
     await finishDealerBury(pages);
+    await expect(page.getByRole('button', { name: '全选', exact: true })).toHaveCount(0);
     await page.evaluate(async () => {
       const { useGameStore } = await import('/src/store/gameStore.js');
       const socketService = (await import('/src/services/socket.js')).default;
@@ -372,6 +389,31 @@ test('mobile portrait prompts rotation and landscape keeps the full hand inside 
     expect(playingGeometry.points.top).toBeGreaterThanOrEqual(playingGeometry.score.top - 1);
     expect(playingGeometry.points.bottom).toBeLessThanOrEqual(playingGeometry.score.bottom + 1);
     await page.screenshot({ path: testInfo.outputPath('mobile-landscape-round-score.png') });
+  } finally {
+    await context.close();
+  }
+});
+
+test('mobile landscape keeps an active skill and all core actions inside the control bar', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '时间倒流');
+
+  try {
+    await Promise.all(pages.map(page => page.setViewportSize({ width: 667, height: 375 })));
+    const dealerPageIndex = await finishDealerBury(pages);
+    const dealerPage = pages[dealerPageIndex];
+
+    await expect(dealerPage.locator('.active-skill-button')).toBeVisible();
+    await expect(dealerPage.getByRole('button', { name: '全选', exact: true })).toHaveCount(0);
+
+    const controlsGeometry = await dealerPage.locator('.inline-controls').evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      viewportWidth: window.innerWidth,
+      right: element.getBoundingClientRect().right
+    }));
+    expect(controlsGeometry.scrollWidth).toBeLessThanOrEqual(controlsGeometry.clientWidth + 1);
+    expect(controlsGeometry.right).toBeLessThanOrEqual(controlsGeometry.viewportWidth + 1);
   } finally {
     await context.close();
   }

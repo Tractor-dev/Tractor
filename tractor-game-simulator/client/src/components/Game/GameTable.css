@@ -4303,6 +4303,16 @@
     gap: 4px !important;
   }
 
+  .inline-controls > .play-controls .ant-btn {
+    width: auto !important;
+    min-width: 48px;
+    flex: 0 0 auto;
+  }
+
+  .inline-controls > .play-controls .active-skill-button.ant-btn {
+    min-width: 68px;
+  }
+
   .inline-controls .ant-btn,
   .inline-controls .room-action-stack .ant-btn {
     height: 27px;
@@ -4350,11 +4360,13 @@
   .center-content.table-tools {
     top: 5px;
     right: 6px;
-    width: 188px;
-    max-width: 28vw;
-    max-height: 78px;
+    width: clamp(188px, 31vw, 248px);
+    max-width: 32vw;
+    max-height: clamp(104px, 27vh, 132px);
     padding: 4px 7px;
     border-radius: 10px;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
   }
 
   .table-status-stack {
@@ -4390,8 +4402,25 @@
     white-space: nowrap;
   }
 
+  .table-rule-body {
+    min-height: 0;
+  }
+
   .table-rule-description {
-    display: none !important;
+    display: block !important;
+    max-height: 43px;
+    margin-top: 2px;
+    padding: 2px 4px 1px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+    text-align: left;
+    white-space: normal;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 222, 104, 0.72) rgba(0, 31, 24, 0.3);
   }
 
   .dealer-countdown-panel {

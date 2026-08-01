@@ -4627,30 +4627,6 @@ export default function GameBoard({ onReturnToRoom }) {
     });
   };
 
-  // 一键选中所有手牌
-  const handleSelectAllCards = () => {
-    const baseCards = phase === GamePhases.PLAYING ? activePlayCards : myCards;
-    const disabledCardIds = new Set(
-      phase === GamePhases.PLAYING ? ruleDisabledCardIds : []
-    );
-    const selectableCards = baseCards.filter(card => !disabledCardIds.has(card.id));
-    if (selectableCards.length === 0) {
-      messageApi.warning(baseCards.length > 0 ? '当前没有可选择的牌' : '没有手牌可选择');
-      return;
-    }
-    const allCardIds = selectableCards.map(card => card.id);
-    // 如果已经全选，则取消全选
-    if (
-      selectedCards.length === selectableCards.length
-      && allCardIds.every(cardId => selectedCards.includes(cardId))
-    ) {
-      clearSelection();
-    } else {
-      // 选中所有牌
-      setSelectedCards(allCardIds);
-    }
-  };
-
   // 设置埋底玩家
   const handleSetBuryingPlayer = () => {
     if (!selectedBuryingPlayer) {
@@ -5884,20 +5860,11 @@ export default function GameBoard({ onReturnToRoom }) {
             </div>
           );
         }
+        if (!canViewBottomCards) return null;
         return (
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            {canViewBottomCards && (
-              <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
-                查看底牌
-              </Button>
-            )}
-            <Button
-              key="selectAll"
-              onClick={handleSelectAllCards}
-              disabled={myCards.length === 0}
-              style={buttonStyle}
-            >
-              全选
+            <Button key="viewBottom" onClick={handleViewMyBottomCards} style={buttonStyle}>
+              查看底牌
             </Button>
           </div>
         );
@@ -6224,7 +6191,7 @@ export default function GameBoard({ onReturnToRoom }) {
         // 检查是否有上轮出牌记录
         const hasLastRound = Object.keys(lastRoundPlayedCards).length > 0;
 
-        // 右上角操作区：出牌、撤回、庄家查看底牌、查看上轮、聊天、全选
+        // 右上角操作区：出牌、撤回、庄家查看底牌、查看上轮、聊天
         return (
           <div className="play-controls" style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
             {activeSkillAvailability.visible && activeSkill && (
@@ -6283,9 +6250,6 @@ export default function GameBoard({ onReturnToRoom }) {
             )}
             <Button key="chat" onClick={() => setChatModal(true)} style={buttonStyle}>
               聊天
-            </Button>
-            <Button key="selectAll" onClick={handleSelectAllCards} disabled={activePlayCards.length === 0 || isOpenHandSelf} style={buttonStyle}>
-              全选
             </Button>
           </div>
         );
