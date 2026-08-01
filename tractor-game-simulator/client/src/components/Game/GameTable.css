@@ -594,6 +594,10 @@
   text-shadow: 0 2px 8px rgba(255, 190, 36, 0.28);
 }
 
+.mobile-round-points-indicator {
+  display: none;
+}
+
 .table-center.has-public-bottom .round-points-indicator {
   top: 37%;
 }
@@ -4449,11 +4453,225 @@
   }
 
   .round-points-indicator {
-    padding: 5px 10px 6px;
+    display: none;
   }
 
-  .round-points-value {
-    font-size: 20px;
+  .mobile-round-points-indicator {
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    display: flex !important;
+    align-items: baseline;
+    gap: 2px;
+    margin: 0 !important;
+    padding: 2px 5px;
+    border: 1px solid rgba(255, 224, 117, 0.48);
+    border-radius: 999px;
+    color: rgba(255, 246, 200, 0.82);
+    background: rgba(69, 47, 8, 0.82);
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .mobile-round-points-indicator strong {
+    color: #ffda61;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score-panel:has(.mobile-round-points-indicator) > div:nth-child(3) {
+    padding-right: 62px;
+    text-align: left !important;
+  }
+
+  /*
+   * 横屏中央功能坞：公开底牌、第二战场和神兵只使用牌桌中部的短轨道。
+   * 主视角出牌临时让到右侧，避免与公共牌复用同一条中央轴线。
+   */
+  .game-table.has-center-table-feature .player-bottom > .played-cards-area {
+    left: 70%;
+  }
+
+  .game-table.has-center-table-feature .position-left > .played-cards-area,
+  .game-table.has-center-table-feature .position-right > .played-cards-area {
+    transform: translateY(-12px);
+  }
+
+  .public-bottom-tray,
+  .second-battlefield-tray,
+  .divine-weapon-tray {
+    animation: none;
+    transform-origin: center;
+  }
+
+  .public-bottom-tray {
+    top: 35%;
+    width: min(410px, 58vw);
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+
+  .second-battlefield-tray {
+    top: 36%;
+    width: min(390px, 58vw);
+    gap: 4px;
+    padding: 7px 10px 8px;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+
+  .second-battlefield-tray.is-settlement {
+    top: 31%;
+    transform: translate(-50%, -50%) scale(0.58);
+  }
+
+  .divine-weapon-tray {
+    top: 36%;
+    transform: translate(-50%, -50%) scale(0.68);
+  }
+
+  /* 对家明置牌在横屏中拥有独立轨道，出牌轨道排列在它的下方。 */
+  .game-table.has-top-open-hand {
+    grid-template-rows: 112px minmax(58px, 1fr) clamp(184px, 49%, 212px);
+  }
+
+  .position-top.has-open-hand > .open-hand-panel {
+    position: absolute;
+    left: 50%;
+    top: 56px;
+    width: min(330px, 42vw);
+    height: 58px;
+    max-width: none;
+    flex: none;
+    transform: translateX(-50%);
+    animation: none;
+  }
+
+  .position-top.has-open-hand .open-hand-header {
+    height: 19px;
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .position-top.has-open-hand .open-hand-seal {
+    width: 14px;
+    height: 14px;
+    flex-basis: 14px;
+    font-size: 8px;
+  }
+
+  .position-top.has-open-hand .open-hand-opposite-cards {
+    height: 39px;
+    padding: 0 4px;
+    overflow: hidden;
+  }
+
+  .position-top.has-open-hand .open-hand-opposite-cards .hand {
+    --card-width: 28px;
+    --card-overlap: 18px;
+    width: 100%;
+    max-width: 100%;
+    height: 39px;
+    min-height: 39px;
+    padding: 0 2px;
+    transform: none;
+  }
+
+  .position-top.has-open-hand .open-hand-opposite-cards .hand > .card-wrapper {
+    width: 28px;
+    height: 39px;
+    margin-left: -18px;
+  }
+
+  .position-top.has-open-hand .open-hand-opposite-cards .hand > .card-wrapper:first-child {
+    margin-left: 0;
+  }
+
+  .position-top.has-open-hand .open-hand-opposite-cards .card {
+    transform: scale(0.56);
+    transform-origin: top left;
+  }
+
+  .position-top.has-open-hand .open-hand-opposite-cards .card:not(.disabled):hover,
+  .position-top.has-open-hand .open-hand-opposite-cards .card.selected {
+    transform: translateY(-5px) scale(0.56);
+  }
+
+  .position-top.has-open-hand > .played-cards-area {
+    top: 115px;
+    height: 66px;
+  }
+
+  .position-top.has-open-hand > .played-cards-area .hand {
+    width: 172%;
+    min-height: 104px;
+    height: 104px;
+    transform: scale(0.58);
+  }
+
+  /* 侧家明置牌脱离横向排版，压缩成玩家框上方的只读卡册。 */
+  .position-left.has-open-hand > .open-hand-side,
+  .position-right.has-open-hand > .open-hand-side {
+    position: absolute;
+    top: -99px;
+    width: 132px;
+    max-height: 112px;
+    overflow: hidden;
+    animation: none;
+    transform: scale(0.56);
+  }
+
+  .position-left.has-open-hand > .open-hand-side {
+    left: 190px;
+    transform-origin: left bottom;
+  }
+
+  .position-right.has-open-hand > .open-hand-side {
+    right: 190px;
+    transform-origin: right bottom;
+  }
+
+  .position-left.has-open-hand,
+  .position-right.has-open-hand {
+    gap: 5px;
+  }
+
+  .position-left.has-open-hand .played-cards-area,
+  .position-right.has-open-hand .played-cards-area {
+    width: 120px;
+    transform: translateY(30px);
+  }
+
+  /* 手机上的全局提示保持为一行小胶囊，不再遮住对家出牌。 */
+  .ant-message {
+    top: 2px !important;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .ant-message > .ant-message-notice-wrapper {
+    display: none;
+    flex: 0 1 min(32vw, 240px);
+    margin: 0 !important;
+  }
+
+  .ant-message > .ant-message-notice-wrapper:nth-last-child(-n + 2) {
+    display: block;
+  }
+
+  .ant-message .ant-message-notice {
+    padding: 1px 0 !important;
+  }
+
+  .ant-message .ant-message-notice-content {
+    max-width: min(32vw, 240px);
+    padding: 3px 7px !important;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .turn-indicator {

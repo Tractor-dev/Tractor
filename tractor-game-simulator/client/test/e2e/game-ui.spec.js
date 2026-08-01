@@ -96,15 +96,17 @@ async function openGameOfferingRule(browser, targetRuleName, targetRuleId) {
       getRuleDialog(playerPage).isVisible().catch(() => false)
     ));
     return visible.filter(Boolean).length;
-  }).toBe(1);
+  }).toBe(pages.length);
 
   let chooserPage = null;
   for (const playerPage of pages) {
-    if (await getRuleDialog(playerPage).isVisible().catch(() => false)) {
+    const targetOption = getRuleDialog(playerPage).locator('.rule-option', { hasText: targetRuleName });
+    if (await targetOption.isEnabled().catch(() => false)) {
       chooserPage = playerPage;
       break;
     }
   }
+  expect(chooserPage).not.toBeNull();
   const targetOption = getRuleDialog(chooserPage).locator('.rule-option', { hasText: targetRuleName });
   await expect(targetOption).toHaveCount(1);
   await targetOption.click();
@@ -320,6 +322,109 @@ test('mobile portrait prompts rotation and landscape keeps the full hand inside 
     expect(geometry.controls.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1);
 
     await page.screenshot({ path: testInfo.outputPath('mobile-landscape-table.png') });
+
+    await finishDealerBury(pages);
+    await page.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      socketService.socket.listeners('cards_played').forEach(listener => listener({
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        cards: [{ id: 'mobile-round-score-card', suit: 'hearts', rank: '10' }],
+        cardsCount: 1,
+        remainingCount: Math.max(0, (state.currentPlayer.cardsCount || 25) - 1)
+      }));
+    });
+
+    const roundPoints = page.locator('.mobile-round-points-indicator');
+    await expect(roundPoints).toBeVisible();
+    const playingGeometry = await page.evaluate(() => {
+      const rect = selector => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+      };
+      const overlaps = (first, second) => Boolean(
+        first && second
+        && first.left < second.right
+        && first.right > second.left
+        && first.top < second.bottom
+        && first.bottom > second.top
+      );
+      const score = rect('.score-panel');
+      const points = rect('.mobile-round-points-indicator');
+      const playedAreas = ['top', 'right', 'bottom', 'left']
+        .map(position => rect(`.played-cards-${position}.has-cards`))
+        .filter(Boolean);
+      return {
+        score,
+        points,
+        pointsOverlapScore: overlaps(points, score),
+        pointsOverlapPlayedCards: playedAreas.some(area => overlaps(points, area))
+      };
+    });
+    expect(playingGeometry.pointsOverlapScore).toBe(true);
+    expect(playingGeometry.pointsOverlapPlayedCards).toBe(false);
+    expect(playingGeometry.points.left).toBeGreaterThanOrEqual(playingGeometry.score.left - 1);
+    expect(playingGeometry.points.right).toBeLessThanOrEqual(playingGeometry.score.right + 1);
+    expect(playingGeometry.points.top).toBeGreaterThanOrEqual(playingGeometry.score.top - 1);
+    expect(playingGeometry.points.bottom).toBeLessThanOrEqual(playingGeometry.score.bottom + 1);
+    await page.screenshot({ path: testInfo.outputPath('mobile-landscape-round-score.png') });
+  } finally {
+    await context.close();
+  }
+});
+
+test('mobile landscape reserves a separate dock for public center cards', async ({ browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '第二战场');
+  const page = pages[0];
+
+  try {
+    await finishDealerBury(pages);
+    await page.setViewportSize({ width: 667, height: 375 });
+
+    const tray = page.getByTestId('second-battlefield-tray');
+    await expect(tray).toBeVisible();
+    await expect(tray.locator('.second-battlefield-card-row .card')).toHaveCount(5);
+
+    const geometry = await page.evaluate(() => {
+      const rect = selector => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+      };
+      const overlaps = (first, second) => Boolean(
+        first && second
+        && first.left < second.right
+        && first.right > second.left
+        && first.top < second.bottom
+        && first.bottom > second.top
+      );
+      const centerTray = rect('.second-battlefield-tray');
+      const bottomPlayer = rect('.player-bottom');
+      return {
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        table: rect('.game-table'),
+        centerTray,
+        bottomPlayer,
+        overlapsBottomPlayer: overlaps(centerTray, bottomPlayer),
+        overlapsScore: overlaps(centerTray, rect('.score-panel')),
+        overlapsRules: overlaps(centerTray, rect('.center-content.table-tools'))
+      };
+    });
+
+    expect(geometry.centerTray.left).toBeGreaterThanOrEqual(geometry.table.left);
+    expect(geometry.centerTray.right).toBeLessThanOrEqual(geometry.table.right);
+    expect(geometry.centerTray.top).toBeGreaterThanOrEqual(geometry.table.top);
+    expect(geometry.centerTray.bottom).toBeLessThanOrEqual(geometry.bottomPlayer.top + 1);
+    expect(geometry.overlapsBottomPlayer).toBe(false);
+    expect(geometry.overlapsScore).toBe(false);
+    expect(geometry.overlapsRules).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath('mobile-landscape-center-card-dock.png') });
   } finally {
     await context.close();
   }
@@ -3184,6 +3289,55 @@ test('算无遗策在四个页面中展示差异化明牌，并由庄家代打',
     const dealerOpenHand = dealerPage.locator('[data-open-hand-position="top"]');
     await expect(dealerOpenHand).toBeVisible();
     await expect(dealerOpenHand.locator('.card')).toHaveCount(25);
+    await dealerPage.setViewportSize({ width: 667, height: 375 });
+    const mobileOpenHandGeometry = await dealerPage.evaluate(() => {
+      const rect = selector => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+      };
+      const overlaps = (first, second) => Boolean(
+        first && second
+        && first.left < second.right
+        && first.right > second.left
+        && first.top < second.bottom
+        && first.bottom > second.top
+      );
+      const panel = rect('[data-open-hand-position="top"]');
+      const cards = Array.from(document.querySelectorAll('[data-open-hand-position="top"] .card-wrapper'))
+        .map(card => {
+          const box = card.getBoundingClientRect();
+          return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+        });
+      return {
+        panel,
+        cards,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        documentWidth: document.documentElement.scrollWidth,
+        scrollX: window.scrollX,
+        overlapsScore: overlaps(panel, rect('.score-panel')),
+        overlapsRules: overlaps(panel, rect('.center-content.table-tools')),
+        overlapsBottomPlayer: overlaps(panel, rect('.player-bottom')),
+        overlapsTopPlay: overlaps(panel, rect('.played-cards-top'))
+      };
+    });
+    expect(mobileOpenHandGeometry.panel.left).toBeGreaterThanOrEqual(0);
+    expect(mobileOpenHandGeometry.panel.right).toBeLessThanOrEqual(mobileOpenHandGeometry.viewport.width);
+    expect(mobileOpenHandGeometry.documentWidth).toBeLessThanOrEqual(mobileOpenHandGeometry.viewport.width + 1);
+    expect(mobileOpenHandGeometry.scrollX).toBe(0);
+    expect(mobileOpenHandGeometry.overlapsScore).toBe(false);
+    expect(mobileOpenHandGeometry.overlapsRules).toBe(false);
+    expect(mobileOpenHandGeometry.overlapsBottomPlayer).toBe(false);
+    expect(mobileOpenHandGeometry.overlapsTopPlay).toBe(false);
+    mobileOpenHandGeometry.cards.forEach(card => {
+      expect(card.left).toBeGreaterThanOrEqual(mobileOpenHandGeometry.panel.left - 1);
+      expect(card.right).toBeLessThanOrEqual(mobileOpenHandGeometry.panel.right + 1);
+      expect(card.top).toBeGreaterThanOrEqual(mobileOpenHandGeometry.panel.top - 1);
+      expect(card.bottom).toBeLessThanOrEqual(mobileOpenHandGeometry.panel.bottom + 1);
+    });
+    await dealerPage.screenshot({ path: testInfo.outputPath('perfect-strategy-mobile-landscape.png') });
+    await dealerPage.setViewportSize({ width: 1600, height: 1000 });
     await expect(dealerOpenHand).toContainText(`${openPlayerName} · 明牌`);
 
     await expect(openPlayerPage.locator('.open-hand-panel')).toHaveCount(0);
@@ -3239,6 +3393,49 @@ test('算无遗策在四个页面中展示差异化明牌，并由庄家代打',
         expect(playerBox.x).toBeGreaterThanOrEqual(panelBox.x + panelBox.width - 1);
       }
     }
+
+    await firstAttackerPage.setViewportSize({ width: 667, height: 375 });
+    const mobileSideOpenHandGeometry = await firstAttackerPage.evaluate(() => {
+      const rect = selector => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
+      };
+      const overlaps = (first, second) => Boolean(
+        first && second
+        && first.left < second.right
+        && first.right > second.left
+        && first.top < second.bottom
+        && first.bottom > second.top
+      );
+      const panel = rect('[data-open-hand-position="right"]');
+      return {
+        panel,
+        table: rect('.game-table'),
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        documentWidth: document.documentElement.scrollWidth,
+        scrollX: window.scrollX,
+        overlapsScore: overlaps(panel, rect('.score-panel')),
+        overlapsRules: overlaps(panel, rect('.center-content.table-tools')),
+        overlapsPlayer: overlaps(panel, rect('.player-right')),
+        overlapsPlayedCards: overlaps(panel, rect('.played-cards-right')),
+        overlapsBottomPlayer: overlaps(panel, rect('.player-bottom'))
+      };
+    });
+    expect(mobileSideOpenHandGeometry.panel.left).toBeGreaterThanOrEqual(mobileSideOpenHandGeometry.table.left);
+    expect(mobileSideOpenHandGeometry.panel.right).toBeLessThanOrEqual(mobileSideOpenHandGeometry.table.right);
+    expect(mobileSideOpenHandGeometry.panel.top).toBeGreaterThanOrEqual(mobileSideOpenHandGeometry.table.top);
+    expect(mobileSideOpenHandGeometry.panel.bottom).toBeLessThanOrEqual(mobileSideOpenHandGeometry.table.bottom);
+    expect(mobileSideOpenHandGeometry.documentWidth).toBeLessThanOrEqual(mobileSideOpenHandGeometry.viewport.width + 1);
+    expect(mobileSideOpenHandGeometry.scrollX).toBe(0);
+    expect(mobileSideOpenHandGeometry.overlapsScore).toBe(false);
+    expect(mobileSideOpenHandGeometry.overlapsRules).toBe(false);
+    expect(mobileSideOpenHandGeometry.overlapsPlayer).toBe(false);
+    expect(mobileSideOpenHandGeometry.overlapsPlayedCards).toBe(false);
+    expect(mobileSideOpenHandGeometry.overlapsBottomPlayer).toBe(false);
+    await firstAttackerPage.screenshot({ path: testInfo.outputPath('perfect-strategy-side-mobile-landscape.png') });
+    await firstAttackerPage.setViewportSize({ width: 1366, height: 768 });
 
     await dealerPage.locator('.game-table').screenshot({
       path: testInfo.outputPath('perfect-strategy-dealer-view.png')

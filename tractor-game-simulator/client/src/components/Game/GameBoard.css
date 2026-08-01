@@ -1070,6 +1070,14 @@
 }
 
 @media (orientation: landscape) and (max-height: 620px) {
+  .game-board,
+  .main-game-area,
+  .phase-content.playing-phase {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
   .phase-content.playing-phase {
     padding:
       max(2px, env(safe-area-inset-top))

@@ -1,7 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function MobileLandscapeGuard() {
   const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    const resetViewportOrigin = () => {
+      window.requestAnimationFrame(() => window.scrollTo({ left: 0, top: 0, behavior: 'instant' }));
+    };
+    resetViewportOrigin();
+    window.addEventListener('resize', resetViewportOrigin);
+    window.screen?.orientation?.addEventListener?.('change', resetViewportOrigin);
+    return () => {
+      window.removeEventListener('resize', resetViewportOrigin);
+      window.screen?.orientation?.removeEventListener?.('change', resetViewportOrigin);
+    };
+  }, []);
 
   const requestLandscape = async () => {
     const orientation = window.screen?.orientation;

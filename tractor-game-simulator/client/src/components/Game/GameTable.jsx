@@ -951,9 +951,16 @@ export default function GameTable({
     && bottomTrumpDeclaration?.cards?.length
   );
   const bottomHasInferiorDeclaration = Boolean(bottomInferiorDeclaration?.cards?.length);
+  const hasCenterTableFeature = Boolean(
+    isPublicBottomVisible
+    || (ruleIncludesId(selectedRule, 'second_battlefield')
+      && displayedSecondBattlefieldCards?.length === 5)
+    || (ruleIncludesId(selectedRule, 'divine_weapon') && divineWeapon?.cards?.length > 0)
+  );
+  const hasTopOpenHand = hasRevealedHand(positions.top);
 
   return (
-    <div className={`game-table ${isSettlementView ? 'settlement-view' : ''} ${hasSurrenderShowdown ? 'has-surrender-showdown' : ''}`}>
+    <div className={`game-table ${isSettlementView ? 'settlement-view' : ''} ${hasSurrenderShowdown ? 'has-surrender-showdown' : ''} ${hasCenterTableFeature ? 'has-center-table-feature' : ''} ${hasTopOpenHand ? 'has-top-open-hand' : ''}`}>
       {cardExchange && (
         <div className="card-exchange-status" role="status" aria-live="polite">
           <span className="card-exchange-status-title">{cardExchange.ruleName}</span>
@@ -1117,6 +1124,14 @@ export default function GameTable({
             `${attackerScore} 分`
           )}
         </div>
+        {!isSettlementView && !isLostInFogScoringHidden && currentRoundPoints > 0
+          && !ruleIncludesId(selectedRule, 'second_battlefield') && (
+          <div className="mobile-round-points-indicator" role="status" aria-live="polite">
+            <span>本轮</span>
+            <strong>{currentRoundPoints}</strong>
+            <span>分</span>
+          </div>
+        )}
         {tenSidedAmbush && (
           <div
             className={`ten-sided-ambush-score-counter ${ambushAttackerNetCardCount > 0 ? 'is-negative-score' : ambushAttackerNetCardCount < 0 ? 'is-positive-score' : ''}`}
