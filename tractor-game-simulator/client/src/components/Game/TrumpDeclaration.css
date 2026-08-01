@@ -144,3 +144,56 @@
 .declaration-slot.active:nth-child(5) .slot-label {
   color: #e74c3c;
 }
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .trump-declaration {
+    gap: 4px;
+    margin-bottom: 1px;
+    padding: 2px 5px;
+    border-radius: 7px;
+  }
+
+  .declaration-label {
+    min-width: 34px;
+    font-size: 10px;
+  }
+
+  .declaration-slots {
+    gap: 3px;
+  }
+
+  .declaration-slot {
+    height: 28px;
+    border-width: 1px;
+    border-radius: 4px;
+  }
+
+  .declaration-slot .slot-label {
+    font-size: 15px;
+  }
+
+  .declaration-slots.three-six-nine .declaration-slot {
+    height: 38px;
+  }
+
+  .declaration-slot-split {
+    height: 34px;
+    gap: 1px;
+    padding: 2px;
+  }
+
+  .declaration-slot-split .slot-label {
+    font-size: 12px;
+  }
+
+  .declaration-role-actions {
+    gap: 2px;
+  }
+
+  .declaration-role-button {
+    height: 13px;
+    padding: 0 2px;
+    font-size: 8px;
+    line-height: 11px;
+  }
+}

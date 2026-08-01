@@ -4087,3 +4087,387 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/* 手机横屏：保持手牌为完整牌高，将非操作信息压成顶部仪表条。 */
+@media (orientation: landscape) and (max-height: 620px) {
+  .game-table {
+    grid-template-rows:
+      clamp(60px, 18%, 88px)
+      minmax(72px, 1fr)
+      clamp(184px, 52%, 220px);
+    padding: 4px 6px 3px;
+    border-radius: 14px;
+  }
+
+  .game-table::before {
+    inset: 5px;
+    border-radius: 10px;
+  }
+
+  .game-table::after {
+    top: 44%;
+    font-size: clamp(24px, 5vw, 38px);
+  }
+
+  .score-panel {
+    display: block !important;
+    top: 5px !important;
+    left: 6px !important;
+    width: 126px !important;
+    height: 58px !important;
+    padding: 4px 7px !important;
+    overflow: hidden;
+    border-radius: 10px !important;
+    transform: none;
+  }
+
+  .score-panel > div:first-child {
+    margin-bottom: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .score-panel > div:first-child .ant-typography {
+    font-size: 8px !important;
+    line-height: 1.1;
+  }
+
+  .score-panel > div:first-child .ant-typography-strong {
+    font-size: 12px !important;
+  }
+
+  .score-panel > div:nth-child(2) {
+    display: none !important;
+  }
+
+  .score-panel > div:nth-child(3) {
+    margin: 0 !important;
+    font-size: 15px !important;
+    line-height: 1.15;
+  }
+
+  .score-panel > div:last-child,
+  .ten-sided-ambush-score-counter {
+    display: none !important;
+  }
+
+  .position-top {
+    gap: 0;
+    padding-top: 1px;
+    overflow: visible;
+  }
+
+  .player-top {
+    width: clamp(144px, 23vw, 190px);
+    height: 52px;
+    min-height: 52px;
+    padding: 3px 8px;
+    border-radius: 12px;
+  }
+
+  .player-top > .player-info {
+    min-height: 44px;
+  }
+
+  .position-top > .played-cards-area {
+    position: absolute;
+    left: 50%;
+    top: 47px;
+    z-index: 9;
+    width: 150px;
+    height: 76px;
+    transform: translateX(-50%);
+  }
+
+  .position-middle {
+    grid-template-columns: minmax(170px, 1fr) minmax(64px, 0.32fr) minmax(170px, 1fr);
+    gap: 4px;
+    min-height: 72px;
+  }
+
+  .position-left,
+  .position-right {
+    gap: 5px;
+  }
+
+  .player-left,
+  .player-right {
+    width: 96px;
+    height: 68px;
+    min-height: 68px;
+    padding: 3px 5px;
+    border-radius: 12px;
+    font-size: 10px;
+  }
+
+  .player-left > .player-info,
+  .player-right > .player-info {
+    min-height: 60px;
+  }
+
+  .player-avatar {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+    border-radius: 9px;
+    font-size: 10px;
+  }
+
+  .player-left .player-name,
+  .player-right .player-name {
+    max-width: 5em;
+  }
+
+  .player-hand-count {
+    right: 2px;
+    min-width: 31px;
+    height: 16px;
+    padding: 0 5px;
+    font-size: 9px;
+  }
+
+  .played-cards-area,
+  .position-left .played-cards-area,
+  .position-right .played-cards-area,
+  .position-bottom .played-cards-area {
+    width: 120px;
+    height: 76px;
+  }
+
+  .played-cards-area .hand {
+    width: 152%;
+    max-width: none;
+    min-height: 112px;
+    height: 112px;
+    flex: 0 0 152%;
+    transform: scale(0.66);
+    transform-origin: center center;
+  }
+
+  .position-bottom {
+    padding: 0 3px 2px;
+  }
+
+  .player-bottom {
+    width: 100%;
+    padding: 3px 5px 2px;
+    border-radius: 14px 14px 6px 6px;
+  }
+
+  .player-bottom > .played-cards-area {
+    bottom: calc(100% + 2px);
+  }
+
+  .bottom-player-header {
+    min-height: 30px;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0;
+  }
+
+  .bottom-player-header .player-info {
+    min-width: 104px;
+    flex: 0 1 auto;
+  }
+
+  .bottom-player-header .player-info > div {
+    gap: 4px !important;
+  }
+
+  .bottom-player-header .player-avatar-self {
+    width: 27px;
+    height: 27px;
+    flex-basis: 27px;
+  }
+
+  .player-name-self {
+    max-width: 8em;
+    font-size: 11px;
+  }
+
+  .inline-controls {
+    width: auto;
+    max-width: calc(100% - 108px);
+    min-height: 30px;
+    flex-direction: row;
+    gap: 3px;
+    padding: 2px 3px;
+    border-radius: 9px;
+  }
+
+  .inline-controls > .play-controls {
+    gap: 4px !important;
+  }
+
+  .inline-controls .ant-btn,
+  .inline-controls .room-action-stack .ant-btn {
+    height: 27px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .room-action-stack,
+  .room-action-stack.has-surrender {
+    width: 118px;
+    height: 27px;
+    grid-template-columns: 42px 73px;
+  }
+
+  .my-hand-container {
+    min-height: 114px;
+    gap: 4px;
+  }
+
+  .my-hand {
+    height: 114px;
+    min-height: 114px;
+    padding: 0 3px;
+    overflow: visible;
+    border-radius: 10px 10px 5px 5px;
+  }
+
+  .my-hand .hand {
+    height: 112px;
+    min-height: 112px;
+    padding: 0 3px 2px;
+    transform: none;
+  }
+
+  .bottom-declaration-dock {
+    width: 46px;
+    min-width: 46px;
+    flex-basis: 46px;
+    padding: 2px 1px 5px;
+  }
+
+  .bottom-declaration-dock.is-trump { padding-left: 3px; }
+  .bottom-declaration-dock.is-inferior { padding-right: 3px; }
+
+  .center-content.table-tools {
+    top: 5px;
+    right: 6px;
+    width: 188px;
+    max-width: 28vw;
+    max-height: 78px;
+    padding: 4px 7px;
+    border-radius: 10px;
+  }
+
+  .table-status-stack {
+    gap: 3px !important;
+  }
+
+  .table-trump-summary {
+    gap: 3px !important;
+    line-height: 1;
+  }
+
+  .table-trump-summary > .ant-typography {
+    font-size: 12px !important;
+  }
+
+  .table-rule-summary {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 2px !important;
+    padding: 3px 6px !important;
+  }
+
+  .table-rule-summary > div:first-child {
+    display: none !important;
+  }
+
+  .table-rule-title {
+    margin-bottom: 0 !important;
+    overflow: hidden;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .table-rule-description {
+    display: none !important;
+  }
+
+  .dealer-countdown-panel {
+    min-width: 0;
+    flex-direction: row !important;
+    gap: 3px !important;
+    padding: 2px 6px !important;
+    border-width: 1px !important;
+    border-radius: 7px !important;
+  }
+
+  .dealer-countdown-main {
+    gap: 4px !important;
+  }
+
+  .dealer-countdown-main > div {
+    flex-direction: row !important;
+    gap: 5px;
+  }
+
+  .dealer-countdown-main .ant-typography {
+    font-size: 9px !important;
+    white-space: nowrap;
+  }
+
+  .dealer-countdown-icon {
+    font-size: 14px !important;
+  }
+
+  .dealer-countdown-value {
+    font-size: 15px !important;
+    line-height: 1 !important;
+  }
+
+  .dealer-countdown-hint {
+    display: none !important;
+  }
+
+  .double-happiness-selected-rules {
+    gap: 2px;
+    margin: 1px 0 2px;
+  }
+
+  .double-happiness-selected-rules span {
+    padding: 1px 4px;
+    font-size: 8px;
+  }
+
+  .rule-runtime-status {
+    min-height: 18px;
+    margin: 1px auto 2px;
+    padding: 1px 5px;
+    font-size: 8px;
+  }
+
+  .rule-runtime-status strong,
+  .rule-runtime-status-icon {
+    font-size: 10px;
+  }
+
+  .round-points-indicator {
+    padding: 5px 10px 6px;
+  }
+
+  .round-points-value {
+    font-size: 20px;
+  }
+
+  .turn-indicator {
+    height: 20px;
+    min-width: 52px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .player-left > .turn-indicator,
+  .player-right > .turn-indicator {
+    width: 22px;
+    min-width: 22px;
+    min-height: 52px;
+    padding: 4px 3px;
+  }
+}

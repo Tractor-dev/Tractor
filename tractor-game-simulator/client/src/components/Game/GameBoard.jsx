@@ -44,6 +44,7 @@ import { sortCards } from '../../utils/cardUtils';
 import Hand from './Hand';
 import Card from './Card';
 import GameTable from './GameTable';
+import MobileLandscapeGuard from './MobileLandscapeGuard';
 import RuleSelector from './RuleSelector';
 import TrumpDeclaration from './TrumpDeclaration';
 import './GameBoard.css';
@@ -6791,6 +6792,7 @@ export default function GameBoard({ onReturnToRoom }) {
     >
       {contextHolder}
       {modalContextHolder}
+      <MobileLandscapeGuard />
 
       <Modal
         title="烛尽天明 · 初始烛态"

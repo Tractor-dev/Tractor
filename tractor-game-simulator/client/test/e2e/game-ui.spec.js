@@ -263,6 +263,68 @@ test('轮到自己时返回房间再重返会恢复本墩牌面并可继续跟�
   }
 });
 
+test('mobile portrait prompts rotation and landscape keeps the full hand inside the table', async ({ browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '世事无常');
+  const page = pages[0];
+
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const orientationGuard = page.getByTestId('portrait-orientation-guard');
+    await expect(orientationGuard).toBeVisible();
+    await expect(orientationGuard.getByText('请横屏游戏', { exact: true })).toBeVisible();
+    await expect(orientationGuard.getByRole('button', { name: '尝试进入横屏' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('mobile-portrait-rotation-guard.png') });
+
+    await page.setViewportSize({ width: 667, height: 375 });
+    await expect(orientationGuard).toBeHidden();
+    await expect(page.locator('.my-hand .card')).toHaveCount(25);
+
+    const geometry = await page.evaluate(() => {
+      const rect = (selector, last = false) => {
+        const elements = document.querySelectorAll(selector);
+        const element = last ? elements[elements.length - 1] : elements[0];
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        return {
+          top: box.top,
+          right: box.right,
+          bottom: box.bottom,
+          left: box.left,
+          width: box.width,
+          height: box.height
+        };
+      };
+      return {
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        documentWidth: document.documentElement.scrollWidth,
+        documentHeight: document.documentElement.scrollHeight,
+        table: rect('.game-table'),
+        bottomPlayer: rect('.player-bottom'),
+        hand: rect('.my-hand'),
+        firstCard: rect('.my-hand .card'),
+        lastCard: rect('.my-hand .card', true),
+        controls: rect('.inline-controls')
+      };
+    });
+
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport.width + 1);
+    expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewport.height + 1);
+    expect(geometry.table.top).toBeGreaterThanOrEqual(0);
+    expect(geometry.table.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1);
+    expect(geometry.bottomPlayer.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1);
+    expect(geometry.hand.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1);
+    expect(geometry.firstCard.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.lastCard.right).toBeLessThanOrEqual(geometry.viewport.width + 1);
+    expect(geometry.firstCard.height).toBeGreaterThanOrEqual(108);
+    expect(geometry.controls.bottom).toBeLessThanOrEqual(geometry.viewport.height + 1);
+
+    await page.screenshot({ path: testInfo.outputPath('mobile-landscape-table.png') });
+  } finally {
+    await context.close();
+  }
+});
+
 test('路线摇摆和昼夜轮转状态独占一行', async ({ browser }, testInfo) => {
   test.setTimeout(180_000);
 

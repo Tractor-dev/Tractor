@@ -1,0 +1,16 @@
+{
+  "name": "拖拉机纸牌游戏模拟器",
+  "short_name": "拖拉机",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#073b35",
+  "theme_color": "#073b35",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "200x200",
+      "type": "image/png"
+    }
+  ]
+}

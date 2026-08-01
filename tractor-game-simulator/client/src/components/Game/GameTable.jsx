@@ -1560,9 +1560,9 @@ export default function GameTable({
                 )}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+              <div className="table-status-stack" style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
                 {/* 主牌显示 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <div className="table-trump-summary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <Text strong style={{ fontSize: '16px', color: '#fff' }}>主牌：</Text>
                   {oneCountryTwoSystems ? (
                     <div
@@ -1621,7 +1621,7 @@ export default function GameTable({
 
                 {/* 庄家倒计时显示 */}
                 {dealerCountdown !== null && dealerCountdown > 0 && (
-                  <div style={{
+                  <div className="dealer-countdown-panel" style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -1632,11 +1632,11 @@ export default function GameTable({
                     border: '2px solid #ffd700',
                     boxShadow: '0 4px 12px rgba(255, 215, 0, 0.3)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '32px' }}>⏰</span>
+                    <div className="dealer-countdown-main" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span className="dealer-countdown-icon" style={{ fontSize: '32px' }}>⏰</span>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <Text strong style={{ fontSize: '14px', color: '#ffd700' }}>指定庄家倒计时</Text>
-                        <Text style={{
+                        <Text className="dealer-countdown-value" style={{
                           fontSize: '36px',
                           fontWeight: 'bold',
                           color: dealerCountdown <= 3 ? '#ff4757' : '#ffd700',
@@ -1646,14 +1646,14 @@ export default function GameTable({
                         </Text>
                       </div>
                     </div>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                    <Text className="dealer-countdown-hint" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
                       {currentTrumpDeclaration ? '有人亮主，倒计时已重置' : '无人亮主将随机指定'}
                     </Text>
                   </div>
                 )}
 
                 {/* 规则显示 */}
-                <div style={{
+                <div className="table-rule-summary" style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -1675,8 +1675,8 @@ export default function GameTable({
                     )}
                   </div>
                   {selectedRule ? (
-                    <div style={{ textAlign: 'center', width: '100%' }}>
-                      <Text strong style={{ fontSize: '18px', color: '#ffd700', display: 'block', marginBottom: '6px' }}>
+                    <div className="table-rule-body" style={{ textAlign: 'center', width: '100%' }}>
+                      <Text strong className="table-rule-title" style={{ fontSize: '18px', color: '#ffd700', display: 'block', marginBottom: '6px' }}>
                         {selectedRule.name}
                       </Text>
                       {Array.isArray(selectedRule.rules) && (
@@ -2319,7 +2319,7 @@ export default function GameTable({
                           })}
                         </div>
                       )}
-                      <Text style={{ display: 'block', width: '100%', fontSize: '14px', color: '#ffffff', lineHeight: '1.5' }}>
+                      <Text className="table-rule-description" style={{ display: 'block', width: '100%', fontSize: '14px', color: '#ffffff', lineHeight: '1.5' }}>
                         {getRuleTableContent(selectedRule)}
                       </Text>
                     </div>
