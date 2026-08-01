@@ -1,4 +1,6 @@
 ﻿import { Typography, Button } from 'antd';
+import { useState } from 'react';
+import { Modal } from 'antd';
 import Hand from './Hand';
 import Card from './Card';
 import OpenHandPanel from './OpenHandPanel';
@@ -159,6 +161,7 @@ export default function GameTable({
   canControlOpenHand = false,
   disableMyHand = false
 }) {
+  const [isScoreDetailsOpen, setIsScoreDetailsOpen] = useState(false);
   const ruleChooser = players.find(player => player.id === ruleChooserPlayerId);
   const mainstayAction = mainstay?.currentAction || null;
   const mainstayActor = players.find(player => player.id === mainstayAction?.actorPlayerId);
@@ -1143,7 +1146,7 @@ export default function GameTable({
             </span>
           </div>
         )}
-        <div style={{
+        <div className="score-cards-section" style={{
           height: '100px',
           position: 'relative'
         }}>
@@ -1175,7 +1178,95 @@ export default function GameTable({
             <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>暂无</Text>
           )}
         </div>
+        <button
+          type="button"
+          className="mobile-score-panel-trigger"
+          onClick={() => setIsScoreDetailsOpen(true)}
+          aria-label="查看详细计分和分数牌"
+        >
+          <span>{isLostInFogScoringHidden ? '分牌—' : `分牌${collectedPointCards.length}`} ›</span>
+        </button>
       </div>
+
+      <Modal
+        title="计分详情"
+        open={isScoreDetailsOpen}
+        onCancel={() => setIsScoreDetailsOpen(false)}
+        footer={null}
+        centered
+        width={520}
+        className="mobile-score-details-modal"
+      >
+        <div className="mobile-score-details">
+          <div className="mobile-score-detail-levels">
+            <div>
+              <span>{teamLabels.myTeamLabel}等级</span>
+              <strong className="is-my-team">{formatLevel(teamLabels.myTeamLevel)}</strong>
+            </div>
+            <div>
+              <span>{teamLabels.opponentTeamLabel}等级</span>
+              <strong className="is-opponent-team">{formatLevel(teamLabels.opponentTeamLevel)}</strong>
+            </div>
+          </div>
+
+          <div className="mobile-score-detail-totals">
+            <div>
+              <span>{isFocusFigureRule ? '闲家收牌' : '闲家得分'}</span>
+              <strong>
+                {isLostInFogScoringHidden
+                  ? '分值终局揭晓'
+                  : isFocusFigureRule
+                    ? '实际得分终局揭晓'
+                    : `${attackerScore} 分`}
+              </strong>
+            </div>
+            {!isSettlementView && !isLostInFogScoringHidden
+              && !ruleIncludesId(selectedRule, 'second_battlefield') && (
+              <div>
+                <span>本轮牌面</span>
+                <strong>{currentRoundPoints} 分</strong>
+              </div>
+            )}
+          </div>
+
+          {tenSidedAmbush && (
+            <div
+              className={`ten-sided-ambush-score-counter ${ambushAttackerNetCardCount > 0 ? 'is-negative-score' : ambushAttackerNetCardCount < 0 ? 'is-positive-score' : ''}`}
+            >
+              <span>伏击 <strong>{tenSidedAmbush.rank || '?'}</strong></span>
+              <span>
+                闲家净拿 <strong>{ambushAttackerNetCardCount > 0 ? '+' : ''}{ambushAttackerNetCardCount}</strong> 张
+              </span>
+            </div>
+          )}
+
+          <div className="mobile-score-detail-cards">
+            <div className="mobile-score-detail-cards-heading">
+              <strong>{isLostInFogScoringHidden ? '得分牌' : '闲家分牌'}</strong>
+              {!isLostInFogScoringHidden && <span>{collectedPointCards.length} 张</span>}
+            </div>
+            {isLostInFogScoringHidden ? (
+              <div className="mobile-score-detail-empty">牌面与分值已隐藏</div>
+            ) : collectedPointCards.length > 0 ? (
+              <div className="score-card-list">
+                {collectedPointCards.map((card, index) => (
+                  <div key={card.id || index} className="score-card-item">
+                    <Card
+                      card={getScoringDisplayCard(card)}
+                      disabled
+                      small
+                      trumpSuit={trumpSuit}
+                      trumpRank={trumpRank}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mobile-score-detail-empty">暂无分牌</div>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* 上方玩家 */}
       {positions.top && (

@@ -283,6 +283,56 @@ test('mobile portrait prompts rotation and landscape keeps the full hand inside 
     await expect(page.locator('.my-hand .card')).toHaveCount(25);
     await expect(page.getByRole('button', { name: '全选', exact: true })).toHaveCount(0);
 
+    await page.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      useGameStore.setState({
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            attackerScore: 15,
+            collectedPointCards: [
+              { id: 'mobile-score-five', suit: 'hearts', rank: '5' },
+              { id: 'mobile-score-ten', suit: 'clubs', rank: '10' },
+              { id: 'mobile-score-king', suit: 'diamonds', rank: 'K' }
+            ]
+          }
+        }
+      });
+    });
+
+    const mobileScoreTrigger = page.locator('.mobile-score-panel-trigger');
+    await expect(mobileScoreTrigger).toBeVisible();
+    await expect(mobileScoreTrigger).toContainText('分牌3');
+    await mobileScoreTrigger.click();
+    const mobileScoreDialog = page.getByRole('dialog', { name: '计分详情' });
+    await expect(mobileScoreDialog).toBeVisible();
+    await expect.poll(async () => (await mobileScoreDialog.boundingBox())?.width || 0).toBeGreaterThan(400);
+    await expect(mobileScoreDialog.getByText('15 分', { exact: true })).toBeVisible();
+    await expect(mobileScoreDialog.locator('.score-card-list .card')).toHaveCount(3);
+    const scoreDialogGeometry = await mobileScoreDialog.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const cardList = element.querySelector('.score-card-list');
+      return {
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+        left: box.left,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        cardListOverflowX: cardList ? getComputedStyle(cardList).overflowX : null
+      };
+    });
+    expect(scoreDialogGeometry.left).toBeGreaterThanOrEqual(0);
+    expect(scoreDialogGeometry.top).toBeGreaterThanOrEqual(0);
+    expect(scoreDialogGeometry.right).toBeLessThanOrEqual(scoreDialogGeometry.viewportWidth + 1);
+    expect(scoreDialogGeometry.bottom).toBeLessThanOrEqual(scoreDialogGeometry.viewportHeight + 1);
+    expect(scoreDialogGeometry.cardListOverflowX).toBe('auto');
+    await mobileScoreDialog.screenshot({ path: testInfo.outputPath('mobile-score-details.png') });
+    await mobileScoreDialog.locator('.ant-modal-close').click();
+    await expect(mobileScoreDialog).toBeHidden();
+
     const mobileRuleDescription = page.locator('.table-rule-description');
     await expect(mobileRuleDescription).toBeVisible();
     await expect(mobileRuleDescription).not.toHaveText('');
