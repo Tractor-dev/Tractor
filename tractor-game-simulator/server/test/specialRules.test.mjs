@@ -1987,15 +1987,15 @@ test('无独有偶不改变底牌的常规抠底计分', () => {
   assert.equal(result.bottomScoreGained, 10);
 });
 
-test('第二战场按德州牌型选出最佳五张，忽略王并支持双副牌五条', () => {
+test('第二战场由系统把王转换成最优牌面，并支持双副牌五条', () => {
   const straightFlush = evaluateBestPokerHand([
-    card('hearts', '2', 800),
-    card('hearts', '3', 801),
-    card('hearts', '4', 802),
-    card('hearts', '5', 803),
-    card('hearts', '6', 804),
-    card('joker', 'big_joker', 805),
-    card('hearts', '6', 806)
+    card('clubs', '2', 798),
+    card('diamonds', '7', 799),
+    card('hearts', '10', 800),
+    card('hearts', 'J', 801),
+    card('hearts', 'Q', 802),
+    card('hearts', 'K', 803),
+    card('joker', 'big_joker', 804)
   ]);
   const fourOfAKind = evaluateBestPokerHand([
     card('hearts', 'A', 810),
@@ -2006,43 +2006,41 @@ test('第二战场按德州牌型选出最佳五张，忽略王并支持双副�
   ]);
   const fiveOfAKind = evaluateBestPokerHand([
     card('hearts', 'A', 815),
-    card('hearts', 'A', 816),
-    card('diamonds', 'A', 817),
-    card('clubs', 'A', 818),
-    card('spades', 'A', 819)
+    card('diamonds', 'A', 816),
+    card('clubs', 'A', 817),
+    card('spades', 'A', 818),
+    card('joker', 'small_joker', 819)
   ]);
 
   assert.equal(straightFlush.categoryName, '同花顺');
+  const resolvedBigJoker = straightFlush.cards.find(value => value.secondBattlefieldWildcard);
+  assert.equal(resolvedBigJoker.rank, 'A');
+  assert.equal(resolvedBigJoker.suit, 'hearts');
+  assert.equal(resolvedBigJoker.originalRank, 'big_joker');
+  assert.equal(resolvedBigJoker.secondBattlefieldWildcard, true);
   assert.equal(fourOfAKind.categoryName, '四条');
   assert.equal(comparePokerScores(straightFlush.score, fourOfAKind.score), 1);
   assert.equal(fiveOfAKind.categoryName, '五条');
+  assert.equal(fiveOfAKind.cards.find(value => value.secondBattlefieldWildcard).rank, 'A');
   assert.equal(comparePokerScores(fiveOfAKind.score, straightFlush.score), 1);
 });
 
-test('第二战场开局亮五张公共牌，只在轮末四家满5张时开牌，剩余手牌严格少于5张才延至终局', () => {
+test('第二战场只比较各家累计牌，四家满5张即开牌，残局不足下一场时延至终局', () => {
   assert.equal(SECOND_BATTLEFIELD_RULE.name, '第二战场');
   const room = createRoom();
   const engine = new GameEngine(room, createIo(), () => 0.5);
   room.gameState.selectedRule = SECOND_BATTLEFIELD_RULE;
   room.gameState.buryingPlayerId = room.players[0].id;
   room.gameState.phase = GamePhases.PLAYING;
-  const initialCommunity = engine.initializeSecondBattlefield();
-  assert.equal(initialCommunity.cards.length, 5, '第一场必须直接公开完整五张公共牌');
-  assert.equal(room.gameState.toJSON().secondBattlefield.communityCards.length, 5);
-
-  room.gameState.secondBattlefieldCommunityCards = [
-    card('hearts', '2', 820),
-    card('hearts', '3', 821),
-    card('hearts', '4', 822),
-    card('clubs', '9', 823),
-    card('diamonds', 'K', 824)
-  ];
+  const initialized = engine.initializeSecondBattlefield();
+  assert.equal(initialized.initialized, true);
+  assert.equal('communityCards' in room.gameState.toJSON().secondBattlefield, false);
   room.players.forEach((player, playerIndex) => {
     player.cards = Array.from({ length: 12 }, (_, index) => card('spades', '2', 900 + playerIndex * 20 + index));
   });
   const accumulatedCards = [
-    [card('hearts', '5', 830), card('hearts', '6', 831), card('clubs', '7', 832), card('spades', '8', 833), card('diamonds', '10', 834)],
-    [card('spades', '5', 840), card('diamonds', '6', 841), card('clubs', '7', 842), card('spades', '8', 843), card('diamonds', '10', 844)],
+    [card('hearts', '10', 830), card('hearts', 'J', 831), card('hearts', 'Q', 832), card('hearts', 'K', 833), card('joker', 'big_joker', 834)],
+    [card('hearts', 'A', 840), card('diamonds', 'A', 841), card('clubs', 'A', 842), card('spades', 'A', 843), card('diamonds', '10', 844)],
     [card('clubs', '5', 850), card('spades', '7', 851), card('diamonds', '8', 852), card('clubs', 'J', 853), card('spades', 'Q', 854)],
     [card('diamonds', '5', 860), card('clubs', '6', 861), card('spades', '9', 862), card('diamonds', 'J', 863), card('clubs', 'Q', 864)]
   ];
@@ -2070,8 +2068,10 @@ test('第二战场开局亮五张公共牌，只在轮末四家满5张时开牌�
       assert.deepEqual(result.winnerPlayerIds, [room.players[0].id]);
       assert.equal(result.winningCategoryName, '同花顺');
       assert.equal(result.scoreDelta, -5, '庄家阵营胜出应使闲家总分减少5分');
-      assert.equal(result.nextCommunityCards.length, 5, '结算后必须立即亮出下一场五张公共牌');
       assert.ok(result.players.every(player => player.accumulatedCards.length === 5));
+      const resolvedJoker = result.players[0].bestFive.find(value => value.id === accumulatedCards[0][4].id);
+      assert.equal(resolvedJoker.rank, 'A');
+      assert.equal(resolvedJoker.originalRank, 'big_joker');
     }
   }
   assert.equal(room.gameState.secondBattlefieldShowdownCount, 1);
@@ -2120,7 +2120,6 @@ test('第二战场开局亮五张公共牌，只在轮末四家满5张时开牌�
   assert.equal(deferredResult.triggered, false);
   assert.equal(deferredResult.isFinalStage, true, '四家剩余手牌严格少于5张后才延至最终开牌');
 
-  const finalCommunityIds = room.gameState.secondBattlefieldCommunityCards.map(value => value.id);
   room.players.forEach(player => {
     player.cards = [];
   });
@@ -2132,10 +2131,9 @@ test('第二战场开局亮五张公共牌，只在轮末四家满5张时开牌�
   assert.equal(finalResult.triggered, true);
   assert.equal(finalResult.isFinal, true);
   assert.equal(finalResult.showdownNumber, 3);
-  assert.deepEqual(
-    room.gameState.secondBattlefieldCommunityCards.map(value => value.id),
-    finalCommunityIds,
-    '最终场结算后不应再发一组无用的公共牌'
+  assert.ok(
+    finalResult.players.every(player => player.accumulatedCardCount === 6),
+    '残局必须把先前累计的5张和最后打出的牌一起用于最佳五张判定'
   );
 });
 

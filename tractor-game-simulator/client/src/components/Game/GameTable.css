@@ -645,97 +645,46 @@
   background: rgba(2, 40, 30, 0.36);
 }
 
-.second-battlefield-tray {
+.second-battlefield-showdown {
   position: absolute;
   left: 50%;
-  top: 39%;
-  z-index: 11;
-  width: min(390px, 42vw);
+  top: 42%;
+  z-index: 18;
+  min-width: 250px;
   display: grid;
-  gap: 8px;
-  padding: 10px 13px 11px;
-  border: 1px solid rgba(113, 207, 255, 0.62);
-  border-radius: 15px;
-  color: #e8f8ff;
-  background: linear-gradient(145deg, rgba(8, 42, 68, 0.95), rgba(7, 61, 43, 0.95));
-  box-shadow: 0 13px 32px rgba(0, 22, 34, 0.38), inset 0 1px rgba(255, 255, 255, 0.12);
+  justify-items: center;
+  gap: 3px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 216, 92, 0.86);
+  border-radius: 14px;
+  color: #fff4bd;
+  background: linear-gradient(145deg, rgba(73, 49, 5, 0.97), rgba(5, 55, 41, 0.97));
+  box-shadow: 0 12px 30px rgba(0, 22, 15, 0.42), 0 0 22px rgba(255, 205, 61, 0.22);
   transform: translate(-50%, -50%);
-  animation: divineWeaponTrayDeal 420ms cubic-bezier(.2,.82,.25,1) both;
+  animation: secondBattlefieldShowdownIn 360ms cubic-bezier(.2,.82,.25,1) both;
+  pointer-events: none;
 }
 
-.second-battlefield-tray.is-final-stage {
-  border-color: rgba(255, 205, 92, 0.78);
-  background: linear-gradient(145deg, rgba(75, 43, 7, 0.96), rgba(8, 57, 43, 0.95));
-}
-
-.second-battlefield-tray.is-settlement {
-  top: 28%;
-  transform: translate(-50%, -50%) scale(0.9);
-}
-
-.second-battlefield-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-}
-
-.second-battlefield-heading > div:first-child {
-  display: grid;
-  gap: 2px;
-  text-align: center;
-}
-
-.second-battlefield-heading strong {
-  color: #9ee5ff;
+.second-battlefield-showdown strong {
+  color: #ffe06a;
   font-size: 14px;
 }
 
-.second-battlefield-tray.is-final-stage .second-battlefield-heading strong {
-  color: #ffe28a;
+.second-battlefield-showdown span {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
 }
 
-.second-battlefield-heading span,
-.second-battlefield-last-result {
-  color: rgba(230, 248, 255, 0.72);
-  font-size: 9px;
-  line-height: 1.3;
+.second-battlefield-showdown em {
+  color: rgba(255, 246, 205, 0.78);
+  font-size: 10px;
+  font-style: normal;
 }
 
-.second-battlefield-card-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 7px;
-}
-
-.second-battlefield-card-row .card {
-  animation: divineWeaponCardDeal 360ms cubic-bezier(.2,.82,.25,1) both;
-}
-
-.second-battlefield-round-points {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 5px;
-  padding: 5px 10px 1px;
-  border-top: 1px solid rgba(150, 222, 255, 0.2);
-  color: rgba(230, 248, 255, 0.76);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.second-battlefield-round-points strong {
-  color: #ffd85c;
-  font-size: 22px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.second-battlefield-last-result {
-  padding-top: 5px;
-  border-top: 1px solid rgba(150, 222, 255, 0.18);
-  color: #d8f3ff;
-  text-align: center;
+@keyframes secondBattlefieldShowdownIn {
+  from { opacity: 0; transform: translate(-50%, -44%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 .divine-weapon-tray {
@@ -2257,8 +2206,23 @@
   pointer-events: none;
 }
 
+.second-battlefield-staged-cards.is-showdown {
+  border-color: rgba(255, 220, 96, 0.7);
+  background: linear-gradient(145deg, rgba(59, 43, 8, 0.96), rgba(8, 61, 43, 0.96));
+}
+
+.second-battlefield-staged-cards.is-winner {
+  border-color: #ffe06a;
+  box-shadow: 0 8px 22px rgba(0, 23, 31, 0.38), 0 0 20px rgba(255, 211, 66, 0.48);
+}
+
+.second-battlefield-staged-cards.is-showdown .second-battlefield-staged-label {
+  color: #ffe37d;
+}
+
 .second-battlefield-staged-top {
-  left: 22%;
+  /* 对家累计牌位于计分板与中央出牌区之间，不能再伸入左上角计分板。 */
+  left: 27%;
   bottom: 0;
   transform: translateX(-50%);
 }
@@ -2293,6 +2257,12 @@
   font-weight: 900;
   line-height: 1.15;
   writing-mode: vertical-rl;
+}
+
+.second-battlefield-staged-card-rows {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .second-battlefield-staged-card-row {
@@ -4693,7 +4663,6 @@
   }
 
   .public-bottom-tray,
-  .second-battlefield-tray,
   .divine-weapon-tray {
     animation: none;
     transform-origin: center;
@@ -4705,17 +4674,13 @@
     transform: translate(-50%, -50%) scale(0.6);
   }
 
-  .second-battlefield-tray {
-    top: 36%;
-    width: min(390px, 58vw);
-    gap: 4px;
-    padding: 7px 10px 8px;
-    transform: translate(-50%, -50%) scale(0.6);
-  }
-
-  .second-battlefield-tray.is-settlement {
-    top: 31%;
-    transform: translate(-50%, -50%) scale(0.58);
+  .second-battlefield-showdown {
+    top: 40%;
+    min-width: 210px;
+    gap: 2px;
+    padding: 6px 12px;
+    animation: none;
+    transform: translate(-50%, -50%) scale(0.78);
   }
 
   .divine-weapon-tray {

@@ -260,13 +260,13 @@ export default function GameTable({
     secondBattlefield?.lastResult?.triggerRound === displayRoundNumber
     && displayRoundNumber !== ruleRuntimeStatus?.currentRound
   );
-  const displayedSecondBattlefieldCards = isHoldingSecondBattlefieldResult
-    ? secondBattlefield.lastResult.communityCards
-    : secondBattlefield?.communityCards;
+  const secondBattlefieldResultByPlayerId = Object.fromEntries(
+    (secondBattlefield?.lastResult?.players || []).map(player => [player.playerId, player])
+  );
   const displayedSecondBattlefieldAccumulatedCards = isHoldingSecondBattlefieldResult
     ? Object.fromEntries(
         (secondBattlefield?.lastResult?.players || []).map(
-          player => [player.playerId, player.accumulatedCards || []]
+          player => [player.playerId, player.bestFive || player.accumulatedCards || []]
         )
       )
     : secondBattlefield?.accumulatedCardsByPlayerId || {};
@@ -735,7 +735,9 @@ export default function GameTable({
   // 渲染出牌区域（在玩家框和桌面中央之间）
   const renderPlayedCardsArea = (player, position) => {
     if (!player) return null;
-    const played = throwFailedPreviews[player.id] || playedCards[player.id];
+    const played = isHoldingSecondBattlefieldResult
+      ? null
+      : throwFailedPreviews[player.id] || playedCards[player.id];
 
     // 始终渲染出牌区域，即使没有牌，以保持布局稳定
     const hasPlayedCards = Boolean(played && (played.cards?.length > 0 || played.concealed));
@@ -906,36 +908,57 @@ export default function GameTable({
 
   const renderSecondBattlefieldStagedArea = (player, position) => {
     if (!player || !ruleIncludesId(selectedRule, 'second_battlefield')) return null;
-    const currentCardIds = new Set(
-      (playedCards[player.id]?.cards || []).map(card => card.id).filter(Boolean)
+    const playerResult = secondBattlefieldResultByPlayerId[player.id] || null;
+    const isWinner = Boolean(
+      isHoldingSecondBattlefieldResult
+      && secondBattlefield?.lastResult?.winnerPlayerIds?.includes(player.id)
     );
+    const currentCardIds = new Set(isHoldingSecondBattlefieldResult
+      ? []
+      : (playedCards[player.id]?.cards || []).map(card => card.id).filter(Boolean));
     const stagedCards = (
       displayedSecondBattlefieldAccumulatedCards?.[player.id] || []
     ).filter(card => !currentCardIds.has(card.id));
     if (stagedCards.length === 0) return null;
+    const sortedStagedCards = sortCards(stagedCards, trumpSuit, trumpRank);
+    const stagedCardRows = [];
+    for (let index = 0; index < sortedStagedCards.length; index += 5) {
+      stagedCardRows.push(sortedStagedCards.slice(index, index + 5));
+    }
 
     return (
       <div
-        className={`second-battlefield-staged-cards second-battlefield-staged-${position}`}
+        className={`second-battlefield-staged-cards second-battlefield-staged-${position} ${stagedCardRows.length > 1 ? 'has-multiple-rows' : ''} ${isHoldingSecondBattlefieldResult ? 'is-showdown' : ''} ${isWinner ? 'is-winner' : ''}`}
         data-testid={`second-battlefield-staged-${player.id}`}
         data-position={position}
-        aria-label={`${player.name}尚未参与德州的牌`}
+        aria-label={isHoldingSecondBattlefieldResult
+          ? `${player.name}的第二战场最佳五张：${playerResult?.categoryName || '牌型待定'}`
+          : `${player.name}尚未参与第二战场结算的牌`}
       >
-        <span className="second-battlefield-staged-label">待比牌</span>
-        <div className="second-battlefield-staged-card-row">
-          {sortCards(stagedCards, trumpSuit, trumpRank).map((card, index) => (
-            <span
-              className="second-battlefield-staged-card"
-              key={card.id || `${card.suit}-${card.rank}-${index}`}
-            >
-              <Card
-                card={card}
-                small
-                disabled
-                trumpSuit={trumpSuit}
-                trumpRank={trumpRank}
-              />
-            </span>
+        <span className="second-battlefield-staged-label">
+          {isHoldingSecondBattlefieldResult
+            ? `${isWinner ? '胜·' : ''}${playerResult?.categoryName || '牌型'}`
+            : `待比牌 ${stagedCards.length}`}
+        </span>
+        <div className="second-battlefield-staged-card-rows">
+          {stagedCardRows.map((row, rowIndex) => (
+            <div className="second-battlefield-staged-card-row" key={`row-${rowIndex}`}>
+              {row.map((card, cardIndex) => (
+                <span
+                  className="second-battlefield-staged-card"
+                  key={card.id || `${card.suit}-${card.rank}-${rowIndex}-${cardIndex}`}
+                >
+                  <Card
+                    card={card}
+                    small
+                    disabled
+                    showOriginalFace={isHoldingSecondBattlefieldResult}
+                    trumpSuit={trumpSuit}
+                    trumpRank={trumpRank}
+                  />
+                </span>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -956,8 +979,7 @@ export default function GameTable({
   const bottomHasInferiorDeclaration = Boolean(bottomInferiorDeclaration?.cards?.length);
   const hasCenterTableFeature = Boolean(
     isPublicBottomVisible
-    || (ruleIncludesId(selectedRule, 'second_battlefield')
-      && displayedSecondBattlefieldCards?.length === 5)
+    || isHoldingSecondBattlefieldResult
     || (ruleIncludesId(selectedRule, 'divine_weapon') && divineWeapon?.cards?.length > 0)
   );
   const hasTopOpenHand = hasRevealedHand(positions.top);
@@ -1295,7 +1317,7 @@ export default function GameTable({
         {/* 中央桌面 */}
         <div className={`table-center ${isSettlementView ? 'settlement-table-center' : ''} ${isPublicBottomVisible ? 'has-public-bottom' : ''}`}>
           {!isSettlementView && !isLostInFogScoringHidden && currentRoundPoints > 0
-            && !ruleIncludesId(selectedRule, 'second_battlefield') && (
+            && (
             <div className="round-points-indicator" role="status" aria-live="polite">
               <span className="round-points-label">本轮</span>
               <strong className="round-points-value">{currentRoundPoints}</strong>
@@ -1320,59 +1342,23 @@ export default function GameTable({
               />
             </div>
           )}
-          {ruleIncludesId(selectedRule, 'second_battlefield') && displayedSecondBattlefieldCards?.length === 5 && (
+          {isHoldingSecondBattlefieldResult && (
             <div
-              className={`second-battlefield-tray ${secondBattlefield.isFinalStage ? 'is-final-stage' : ''} ${isSettlementView ? 'is-settlement' : ''}`}
-              data-testid="second-battlefield-tray"
-              data-generation={isHoldingSecondBattlefieldResult && !secondBattlefield.lastResult?.isFinal
-                ? Math.max(1, secondBattlefield.generation - 1)
-                : secondBattlefield.generation}
+              className="second-battlefield-showdown"
+              data-testid="second-battlefield-showdown"
+              role="status"
+              aria-live="assertive"
             >
-              <div className="second-battlefield-heading">
-                <div>
-                  <strong>
-                    第二战场 · {isHoldingSecondBattlefieldResult
-                      ? `第${secondBattlefield.lastResult.showdownNumber}场判定`
-                      : secondBattlefield.lastResult?.isFinal
-                      ? `最终第${secondBattlefield.showdownCount}场`
-                      : `第${secondBattlefield.showdownCount + 1}场`}
-                  </strong>
-                  <span>{isHoldingSecondBattlefieldResult
-                    ? `${secondBattlefield.lastResult.winnerPlayerNames.join('、')} · ${secondBattlefield.lastResult.winningCategoryName}`
-                    : secondBattlefield.lastResult?.isFinal
-                    ? '最终场已由系统判定'
-                    : secondBattlefield.isFinalStage
-                      ? '残局锁定 · 出完后最终开牌'
-                      : '五张公共牌已全部亮出'}</span>
-                </div>
-              </div>
-              <div className="second-battlefield-card-row">
-                {displayedSecondBattlefieldCards.map(card => (
-                  <Card key={card.id} card={card} disabled small />
-                ))}
-              </div>
-              {!isSettlementView && !isLostInFogScoringHidden && currentRoundPoints > 0 && (
-                <div
-                  className="second-battlefield-round-points"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <span>本轮分数</span>
-                  <strong>{currentRoundPoints}</strong>
-                  <span>分</span>
-                </div>
-              )}
-              {secondBattlefield.lastResult && (
-                <div className="second-battlefield-last-result" role="status">
-                  上场：{secondBattlefield.lastResult.winnerPlayerNames.join('、')}
-                  · {secondBattlefield.lastResult.winningCategoryName}
-                  · {secondBattlefield.lastResult.scoreDelta > 0
-                    ? '闲家+5分'
-                    : secondBattlefield.lastResult.scoreDelta < 0
-                      ? '庄家+5分'
-                      : '跨阵营平分'}
-                </div>
-              )}
+              <strong>第二战场 · 第{secondBattlefield.lastResult.showdownNumber}场</strong>
+              <span>
+                {secondBattlefield.lastResult.winnerPlayerNames.join('、')}
+                以{secondBattlefield.lastResult.winningCategoryName}最大
+              </span>
+              <em>{secondBattlefield.lastResult.scoreDelta > 0
+                ? '闲家阵营 +5分'
+                : secondBattlefield.lastResult.scoreDelta < 0
+                  ? '庄家阵营 +5分'
+                  : '跨阵营并列，相互抵消'}</em>
             </div>
           )}
           {!isSettlementView && ruleIncludesId(selectedRule, 'divine_weapon') && divineWeapon?.cards?.length > 0 && (

@@ -294,11 +294,8 @@ export class GameState {
     this.birdPlayedPointCardIds = new Set();
     this.birdPlayedPointCardSuitsById = new Map();
     this.birdExhaustedSuits = new Set();
-    // “第二战场”使用独立的标准52张牌堆公开公共牌；各家实体出牌只在完整轮次结束后累计。
-    this.secondBattlefieldReserveCards = [];
-    this.secondBattlefieldCommunityCards = [];
+    // “第二战场”按各家跨轮累计的实体出牌进行比较，不另设公共牌。
     this.secondBattlefieldAccumulatedCardsByPlayerId = new Map();
-    this.secondBattlefieldGeneration = 0;
     this.secondBattlefieldShowdownCount = 0;
     this.secondBattlefieldFinalStage = false;
     this.secondBattlefieldLastResult = null;
@@ -522,10 +519,7 @@ export class GameState {
     this.birdPlayedPointCardIds.clear();
     this.birdPlayedPointCardSuitsById.clear();
     this.birdExhaustedSuits.clear();
-    this.secondBattlefieldReserveCards = [];
-    this.secondBattlefieldCommunityCards = [];
     this.secondBattlefieldAccumulatedCardsByPlayerId.clear();
-    this.secondBattlefieldGeneration = 0;
     this.secondBattlefieldShowdownCount = 0;
     this.secondBattlefieldFinalStage = false;
     this.secondBattlefieldLastResult = null;
@@ -1154,10 +1148,6 @@ export class GameState {
         exhaustedSuits: Array.from(this.birdExhaustedSuits)
       } : null,
       secondBattlefield: isSecondBattlefieldRule(this.selectedRule) ? {
-        communityCards: this.secondBattlefieldCommunityCards.map(
-          card => card.toJSON ? card.toJSON() : card
-        ),
-        generation: this.secondBattlefieldGeneration,
         showdownCount: this.secondBattlefieldShowdownCount,
         accumulatedCardsByPlayerId: Object.fromEntries(
           Array.from(this.secondBattlefieldAccumulatedCardsByPlayerId.entries()).map(

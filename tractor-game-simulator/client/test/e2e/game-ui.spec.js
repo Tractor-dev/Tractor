@@ -596,7 +596,7 @@ test('mobile landscape keeps an active skill and all core actions inside the con
   }
 });
 
-test('mobile landscape reserves a separate dock for public center cards', async ({ browser }, testInfo) => {
+test('mobile landscape does not reserve a dock for removed second-battlefield public cards', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '第二战场');
   const page = pages[0];
@@ -605,45 +605,10 @@ test('mobile landscape reserves a separate dock for public center cards', async 
     await finishDealerBury(pages);
     await page.setViewportSize({ width: 667, height: 375 });
 
-    const tray = page.getByTestId('second-battlefield-tray');
-    await expect(tray).toBeVisible();
-    await expect(tray.locator('.second-battlefield-card-row .card')).toHaveCount(5);
-
-    const geometry = await page.evaluate(() => {
-      const rect = selector => {
-        const element = document.querySelector(selector);
-        if (!element) return null;
-        const box = element.getBoundingClientRect();
-        return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
-      };
-      const overlaps = (first, second) => Boolean(
-        first && second
-        && first.left < second.right
-        && first.right > second.left
-        && first.top < second.bottom
-        && first.bottom > second.top
-      );
-      const centerTray = rect('.second-battlefield-tray');
-      const bottomPlayer = rect('.player-bottom');
-      return {
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-        table: rect('.game-table'),
-        centerTray,
-        bottomPlayer,
-        overlapsBottomPlayer: overlaps(centerTray, bottomPlayer),
-        overlapsScore: overlaps(centerTray, rect('.score-panel')),
-        overlapsRules: overlaps(centerTray, rect('.center-content.table-tools'))
-      };
-    });
-
-    expect(geometry.centerTray.left).toBeGreaterThanOrEqual(geometry.table.left);
-    expect(geometry.centerTray.right).toBeLessThanOrEqual(geometry.table.right);
-    expect(geometry.centerTray.top).toBeGreaterThanOrEqual(geometry.table.top);
-    expect(geometry.centerTray.bottom).toBeLessThanOrEqual(geometry.bottomPlayer.top + 1);
-    expect(geometry.overlapsBottomPlayer).toBe(false);
-    expect(geometry.overlapsScore).toBe(false);
-    expect(geometry.overlapsRules).toBe(false);
-    await page.screenshot({ path: testInfo.outputPath('mobile-landscape-center-card-dock.png') });
+    await expect(page.getByTestId('second-battlefield-tray')).toHaveCount(0);
+    await expect(page.getByTestId('second-battlefield-showdown')).toHaveCount(0);
+    await expect(page.locator('.game-table')).not.toHaveClass(/has-center-table-feature/);
+    await page.screenshot({ path: testInfo.outputPath('mobile-landscape-second-battlefield.png') });
   } finally {
     await context.close();
   }
@@ -2090,20 +2055,21 @@ test('烛尽天明在轮末事件分帧到达时也只在清桌后切换烛态',
   }
 });
 
-test('第二战场在出牌开始前向四个视角同时亮出五张公共牌', async ({ browser }, testInfo) => {
+test('第二战场不再显示公共牌，只在四家桌前显示各自累计牌', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '第二战场');
 
   try {
+    const viewportSizes = [
+      { width: 1870, height: 1100 },
+      { width: 1600, height: 900 },
+      { width: 1440, height: 900 },
+      { width: 1280, height: 720 }
+    ];
+    await Promise.all(pages.map((page, index) => page.setViewportSize(viewportSizes[index])));
     await finishDealerBury(pages);
     for (const playerPage of pages) {
-      const tray = playerPage.getByTestId('second-battlefield-tray');
-      await expect(tray).toBeVisible();
-      await expect(tray).toHaveAttribute('data-generation', '1');
-      await expect(tray.locator('.second-battlefield-card-row .card')).toHaveCount(5);
-      await expect(tray).toContainText('第1场');
-      await expect(tray).toContainText('五张公共牌已全部亮出');
-      await expect(tray.locator('.second-battlefield-progress')).toHaveCount(0);
+      await expect(playerPage.getByTestId('second-battlefield-tray')).toHaveCount(0);
 
       await playerPage.evaluate(async () => {
         const { useGameStore } = await import('/src/store/gameStore.js');
@@ -2112,7 +2078,7 @@ test('第二战场在出牌开始前向四个视角同时亮出五张公共牌',
         const accumulatedCardsByPlayerId = Object.fromEntries(
           state.currentRoom.players.map((player, playerIndex) => [
             player.id,
-            Array.from({ length: 5 }, (_, cardIndex) => ({
+            Array.from({ length: 7 }, (_, cardIndex) => ({
               id: `staged-${player.id}-${cardIndex}`,
               suit: ['hearts', 'diamonds', 'clubs', 'spades'][playerIndex],
               rank: String(cardIndex + 2)
@@ -2140,13 +2106,14 @@ test('第二战场在出牌开始前向四个视角同时亮出五张公共牌',
         }));
       });
       await expect(playerPage.locator('.second-battlefield-staged-cards')).toHaveCount(4);
-      await expect(playerPage.locator('.second-battlefield-staged-card-row .card')).toHaveCount(20);
-      await expect(playerPage.locator('.second-battlefield-staged-card-row .card.small')).toHaveCount(20);
+      await expect(playerPage.locator('.second-battlefield-staged-card-row')).toHaveCount(8);
+      await expect(playerPage.locator('.second-battlefield-staged-card-row .card')).toHaveCount(28);
+      await expect(playerPage.locator('.second-battlefield-staged-card-row .card.small')).toHaveCount(28);
       await expect(playerPage.locator('.second-battlefield-staged-cards[data-position="top"]')).toHaveCount(1);
       await expect(playerPage.locator('.second-battlefield-staged-cards[data-position="bottom"]')).toHaveCount(1);
       await expect(playerPage.locator('.second-battlefield-side-player .second-battlefield-staged-cards')).toHaveCount(2);
-      await expect(playerPage.locator('.second-battlefield-round-points')).toHaveCount(1);
-      await expect(playerPage.locator('.round-points-indicator')).toHaveCount(0);
+      await expect(playerPage.locator('.second-battlefield-round-points')).toHaveCount(0);
+      await expect(playerPage.locator('.round-points-indicator')).toHaveCount(1);
 
       const overlappingAreas = await playerPage.evaluate(() => {
         const rect = selector => {
@@ -2167,14 +2134,11 @@ test('第二战场在出牌开始前向四个视角同时亮出五张公共牌',
           && first.top < second.bottom
           && first.bottom > second.top
         );
-        const publicTray = rect('.second-battlefield-tray');
-        const publicCards = rect('.second-battlefield-card-row');
-        const roundPoints = rect('.second-battlefield-round-points');
         const positions = ['top', 'right', 'bottom', 'left'];
         const blockedPositions = positions.filter(position => {
           const staged = rect(`.second-battlefield-staged-${position}`);
           const currentPlay = rect(`.played-cards-${position}`);
-          return overlaps(staged, publicTray) || overlaps(staged, currentPlay);
+          return overlaps(staged, currentPlay);
         });
         const stagedPairs = [];
         positions.forEach((position, index) => {
@@ -2190,15 +2154,80 @@ test('第二战场在出牌开始前向四个视角同时亮出五张公共牌',
         return {
           blockedPositions,
           stagedPairs,
-          publicCardsOverlapRoundPoints: overlaps(publicCards, roundPoints)
+          topOverlapsScorePanel: overlaps(
+            rect('.second-battlefield-staged-top'),
+            rect('.score-panel')
+          )
         };
       });
       expect(overlappingAreas).toEqual({
         blockedPositions: [],
         stagedPairs: [],
-        publicCardsOverlapRoundPoints: false
+        topOverlapsScorePanel: false
       });
     }
+
+    await pages[0].evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      const triggerRound = state.currentRoom.gameState.currentRound;
+      const players = state.currentRoom.players.map((player, playerIndex) => ({
+        playerId: player.id,
+        playerName: player.name,
+        categoryName: playerIndex === 0 ? '同花顺' : '高牌',
+        bestFive: Array.from({ length: 5 }, (_, cardIndex) => cardIndex === 4 && playerIndex === 0
+          ? {
+              id: `resolved-joker-${player.id}`,
+              suit: 'hearts',
+              rank: 'A',
+              originalSuit: 'joker',
+              originalRank: 'big_joker',
+              secondBattlefieldWildcard: true
+            }
+          : {
+              id: `showdown-${player.id}-${cardIndex}`,
+              suit: ['hearts', 'diamonds', 'clubs', 'spades'][playerIndex],
+              rank: String(cardIndex + 2)
+            })
+      }));
+      const result = {
+        triggered: true,
+        triggerRound,
+        showdownNumber: 1,
+        players,
+        winnerPlayerIds: [state.currentRoom.players[0].id],
+        winnerPlayerNames: [state.currentRoom.players[0].name],
+        winningCategoryName: '同花顺',
+        scoreDelta: -5
+      };
+      const room = {
+        ...state.currentRoom,
+        gameState: {
+          ...state.currentRoom.gameState,
+          currentRound: triggerRound + 1,
+          secondBattlefield: {
+            ...state.currentRoom.gameState.secondBattlefield,
+            lastResult: result
+          }
+        }
+      };
+      socketService.socket.listeners('room_updated').forEach(listener => listener({ room }));
+      await new Promise(resolve => setTimeout(resolve, 50));
+      socketService.socket.listeners('round_updated').forEach(listener => listener({
+        type: 'round_ended',
+        round: triggerRound,
+        secondBattlefield: result
+      }));
+    });
+    const showdown = pages[0].getByTestId('second-battlefield-showdown');
+    await expect(showdown).toBeVisible();
+    await expect(showdown).toContainText('同花顺最大');
+    await expect(pages[0].locator('.second-battlefield-staged-cards.is-winner')).toHaveCount(1);
+    await expect(pages[0].locator('.second-battlefield-staged-cards .original-face-badge')).toHaveCount(1);
+    await pages[0].waitForTimeout(1500);
+    await expect(showdown).toBeVisible();
+    await expect(showdown).toHaveCount(0, { timeout: 1800 });
     await pages[0].screenshot({ path: testInfo.outputPath('second-battlefield-staged-layout.png') });
   } finally {
     await context.close();

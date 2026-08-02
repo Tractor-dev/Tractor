@@ -4146,6 +4146,8 @@ export default function GameBoard({ onReturnToRoom }) {
           'time_reversal'
         )
           ? 2000
+          : roundUpdate.secondBattlefield?.triggered
+            ? 2600
           : roundUpdate.magicTrick?.triggered
             ? 1800
             : 1000;

@@ -165,7 +165,6 @@ const PLANNED_ECONOMY_DRAW_ANIMATION_MS = 1500;
 const EQUIVALENT_RECIPROCITY_ANIMATION_MS = 1600;
 const MUTUAL_SUPPORT_ANIMATION_MS = 1100;
 const SECOND_BATTLEFIELD_AWARD = 5;
-const SECOND_BATTLEFIELD_COMMUNITY_CARD_COUNT = 5;
 const SECOND_BATTLEFIELD_MIN_ACCUMULATED_CARDS = 5;
 const SECOND_BATTLEFIELD_FINAL_HAND_THRESHOLD = 5;
 const OUTWARD_HARMONY_AWARD = 5;
@@ -3517,64 +3516,25 @@ export class GameEngine {
     return this.refreshDivineWeaponCards();
   }
 
-  createSecondBattlefieldDeck() {
-    const deck = [];
-    for (const suit of DIVINE_WEAPON_SUITS) {
-      for (const rank of DIVINE_WEAPON_RANKS) {
-        const card = new Card(suit, rank, 0);
-        card.id = `second-battlefield-${suit}-${rank}`;
-        deck.push(card);
-      }
-    }
-    for (let index = deck.length - 1; index > 0; index--) {
-      const sample = Number(this.random());
-      const boundedSample = Number.isFinite(sample)
-        ? Math.min(0.999999999, Math.max(0, sample))
-        : 0;
-      const swapIndex = Math.floor(boundedSample * (index + 1));
-      [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
-    }
-    return deck;
-  }
-
-  refreshSecondBattlefieldCommunityCards() {
-    const { gameState } = this.room;
-    if (!isSecondBattlefieldRule(gameState.selectedRule)) return null;
-    if (gameState.secondBattlefieldReserveCards.length < SECOND_BATTLEFIELD_COMMUNITY_CARD_COUNT) {
-      gameState.secondBattlefieldReserveCards = this.createSecondBattlefieldDeck();
-    }
-    const previousCards = [...gameState.secondBattlefieldCommunityCards];
-    gameState.secondBattlefieldCommunityCards = gameState.secondBattlefieldReserveCards.splice(
-      0,
-      SECOND_BATTLEFIELD_COMMUNITY_CARD_COUNT
-    );
-    gameState.secondBattlefieldGeneration += 1;
-    return {
-      generation: gameState.secondBattlefieldGeneration,
-      previousCards: previousCards.map(card => card.toJSON ? card.toJSON() : card),
-      cards: gameState.secondBattlefieldCommunityCards.map(card => card.toJSON ? card.toJSON() : card)
-    };
-  }
-
   initializeSecondBattlefield() {
     const { gameState } = this.room;
     if (!isSecondBattlefieldRule(gameState.selectedRule)) return null;
-    if (gameState.secondBattlefieldCommunityCards.length === SECOND_BATTLEFIELD_COMMUNITY_CARD_COUNT) {
-      return null;
+    const accumulatedCards = gameState.secondBattlefieldAccumulatedCardsByPlayerId;
+    for (const player of this.room.players) {
+      if (!accumulatedCards.has(player.id)) accumulatedCards.set(player.id, []);
     }
-    gameState.secondBattlefieldReserveCards = this.createSecondBattlefieldDeck();
-    gameState.secondBattlefieldAccumulatedCardsByPlayerId = new Map(
-      this.room.players.map(player => [player.id, []])
-    );
-    return this.refreshSecondBattlefieldCommunityCards();
+    return {
+      initialized: true,
+      accumulatedCountsByPlayerId: Object.fromEntries(
+        this.room.players.map(player => [player.id, accumulatedCards.get(player.id).length])
+      )
+    };
   }
 
   applySecondBattlefieldAtRoundEnd() {
     const { gameState } = this.room;
     if (!isSecondBattlefieldRule(gameState.selectedRule)) return null;
-    if (gameState.secondBattlefieldCommunityCards.length !== SECOND_BATTLEFIELD_COMMUNITY_CARD_COUNT) {
-      this.initializeSecondBattlefield();
-    }
+    this.initializeSecondBattlefield();
 
     gameState.currentRoundPlays.forEach(play => {
       const accumulatedCards = gameState.secondBattlefieldAccumulatedCardsByPlayerId.get(play.playerId) || [];
@@ -3612,10 +3572,7 @@ export class GameEngine {
 
     const playerResults = this.room.players.map((player, playerIndex) => {
       const accumulatedCards = gameState.secondBattlefieldAccumulatedCardsByPlayerId.get(player.id) || [];
-      const bestHand = evaluateBestPokerHand([
-        ...gameState.secondBattlefieldCommunityCards,
-        ...accumulatedCards
-      ]);
+      const bestHand = evaluateBestPokerHand(accumulatedCards);
       return {
         playerId: player.id,
         playerName: player.name,
@@ -3655,19 +3612,14 @@ export class GameEngine {
     gameState.attackerScore += scoreDelta;
     gameState.secondBattlefieldShowdownCount += 1;
 
-    const communityCards = gameState.secondBattlefieldCommunityCards.map(
-      card => card.toJSON ? card.toJSON() : card
-    );
     gameState.secondBattlefieldAccumulatedCardsByPlayerId = new Map(
       this.room.players.map(player => [player.id, []])
     );
-    const nextCommunity = allPlayersFinished ? null : this.refreshSecondBattlefieldCommunityCards();
     const result = {
       triggered: true,
       triggerRound: gameState.currentRound,
       showdownNumber: gameState.secondBattlefieldShowdownCount,
       isFinal: allPlayersFinished,
-      communityCards,
       players: playerResults,
       winnerPlayerIds: winners.map(winner => winner.playerId),
       winnerPlayerNames: winners.map(winner => winner.playerName),
@@ -3675,8 +3627,7 @@ export class GameEngine {
       winningSides: [...winningSides],
       award: SECOND_BATTLEFIELD_AWARD,
       scoreDelta,
-      attackerScore: gameState.attackerScore,
-      nextCommunityCards: nextCommunity?.cards || []
+      attackerScore: gameState.attackerScore
     };
     gameState.secondBattlefieldLastResult = result;
     logger.info(
@@ -10328,7 +10279,7 @@ export class GameEngine {
 
     // 神兵牌只在埋底完成、正式出牌后出现，不向埋底阶段泄露额外信息。
     this.initializeDivineWeaponCards();
-    // 第二战场的五张公共牌在第一张牌打出前一次性全部公开。
+    // 第二战场从出牌开始累计各家自己的参赛牌，不另行生成公共牌。
     this.initializeSecondBattlefield();
     this.initializeWoodenOx();
     this.applyStrengthCompensationForRound();
