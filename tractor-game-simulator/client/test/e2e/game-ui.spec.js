@@ -265,6 +265,133 @@ test('轮到自己时返回房间再重返会恢复本墩牌面并可继续跟�
   }
 });
 
+test('nine princes uses inline hand selection with confirm and skip actions', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const { context, pages } = await openTestModeGame(browser, '九子夺嫡');
+
+  try {
+    await finishDealerBury(pages);
+    const chooserPage = pages[0];
+    await chooserPage.setViewportSize({ width: 667, height: 375 });
+    const candidateIds = await chooserPage.evaluate(async () => {
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const socketService = (await import('/src/services/socket.js')).default;
+      const state = useGameStore.getState();
+      const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+      const cards = state.myCards
+        .filter(card => card.suit !== 'joker' && card.rank !== 'A')
+        .slice(0, 2);
+      const decision = {
+        decisionId: 'nine-princes-inline-e2e',
+        round: state.currentRoom.gameState.currentRound,
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        candidates: cards.map(card => ({
+          card,
+          promotedFace: {
+            suit: card.suit,
+            rank: rankOrder[rankOrder.indexOf(card.rank) + 1]
+          }
+        }))
+      };
+
+      window.__ninePrincesResponses = [];
+      const originalEmit = socketService.socket.emit.bind(socketService.socket);
+      socketService.socket.emit = (event, payload, ...args) => {
+        if (event === 'respond_nine_princes') {
+          window.__ninePrincesResponses.push(payload);
+          return socketService.socket;
+        }
+        return originalEmit(event, payload, ...args);
+      };
+      useGameStore.setState({
+        selectedCards: [],
+        currentRoom: {
+          ...state.currentRoom,
+          gameState: {
+            ...state.currentRoom.gameState,
+            ninePrinces: {
+              resolved: false,
+              pending: {
+                decisionId: decision.decisionId,
+                round: decision.round,
+                playerId: decision.playerId,
+                playerName: decision.playerName
+              },
+              lastResult: null
+            }
+          }
+        }
+      });
+      socketService.socket.listeners('nine_princes_selection_required')
+        .forEach(listener => listener(decision));
+      return cards.map(card => card.id);
+    });
+
+    expect(candidateIds).toHaveLength(2);
+    await expect(chooserPage.getByRole('dialog', { name: '九子夺嫡' })).toHaveCount(0);
+    const controls = chooserPage.getByTestId('nine-princes-inline-controls');
+    const confirmButton = chooserPage.getByTestId('nine-princes-confirm');
+    const skipButton = chooserPage.getByTestId('nine-princes-skip');
+    await expect(controls).toBeVisible();
+    await expect(confirmButton).toBeDisabled();
+    const controlsBox = await controls.boundingBox();
+    expect(controlsBox).not.toBeNull();
+    expect(controlsBox.x).toBeGreaterThanOrEqual(0);
+    expect(controlsBox.x + controlsBox.width).toBeLessThanOrEqual(667);
+
+    const firstCandidate = chooserPage.locator(
+      `.my-hand .card[data-card-id="${candidateIds[0]}"]`
+    );
+    const secondCandidate = chooserPage.locator(
+      `.my-hand .card[data-card-id="${candidateIds[1]}"]`
+    );
+    await firstCandidate.dispatchEvent('click');
+    await expect(firstCandidate).toHaveClass(/selected/);
+    await expect(confirmButton).toBeEnabled();
+
+    await secondCandidate.dispatchEvent('click');
+    await expect(firstCandidate).not.toHaveClass(/selected/);
+    await expect(secondCandidate).toHaveClass(/selected/);
+    await confirmButton.click();
+    await expect.poll(() => chooserPage.evaluate(
+      () => window.__ninePrincesResponses?.length || 0
+    )).toBe(1);
+    expect(await chooserPage.evaluate(
+      () => window.__ninePrincesResponses[0].cardId
+    )).toBe(candidateIds[1]);
+
+    await chooserPage.evaluate(async () => {
+      const socketService = (await import('/src/services/socket.js')).default;
+      const { useGameStore } = await import('/src/store/gameStore.js');
+      const state = useGameStore.getState();
+      const cards = state.myCards
+        .filter(card => card.suit !== 'joker' && card.rank !== 'A')
+        .slice(0, 2);
+      socketService.socket.listeners('nine_princes_selection_required').forEach(listener => listener({
+        decisionId: 'nine-princes-inline-e2e-skip',
+        round: state.currentRoom.gameState.currentRound,
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        candidates: cards.map(card => ({
+          card,
+          promotedFace: { suit: card.suit, rank: card.rank }
+        }))
+      }));
+    });
+    await expect(confirmButton).toBeDisabled();
+    await skipButton.click();
+    await expect.poll(() => chooserPage.evaluate(
+      () => window.__ninePrincesResponses?.length || 0
+    )).toBe(2);
+    expect(await chooserPage.evaluate(
+      () => window.__ninePrincesResponses[1].cardId
+    )).toBeNull();
+  } finally {
+    await context.close();
+  }
+});
+
 test('mobile portrait prompts rotation and landscape keeps the full hand inside the table', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '世事无常');

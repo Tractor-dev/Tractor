@@ -772,6 +772,24 @@ export default function GameBoard({ onReturnToRoom }) {
   const hasTimeReversalDecisionPending = Boolean(
     gameState?.timeReversal?.decisionState || timeReversalDecision
   );
+  const ninePrincesPending = gameState?.ninePrinces?.pending || ninePrincesDecision || null;
+  const hasPendingNinePrincesDecision = Boolean(ninePrincesPending);
+  const isNinePrincesChooser = Boolean(
+    ninePrincesDecision?.playerId === currentPlayer?.id
+  );
+  const ninePrincesCandidates = ninePrincesDecision?.candidates || [];
+  const ninePrincesEligibleCardIdSet = useMemo(
+    () => new Set(ninePrincesCandidates.map(candidate => candidate.card.id)),
+    [ninePrincesCandidates]
+  );
+  const selectedNinePrincesCandidate = ninePrincesCandidates.find(
+    candidate => selectedCards.includes(candidate.card.id)
+  ) || null;
+  const ninePrincesDisabledCardIds = isNinePrincesChooser
+    ? myCards
+        .filter(card => !ninePrincesEligibleCardIdSet.has(card.id))
+        .map(card => card.id)
+    : [];
   const isMagicTrickPrepared = Boolean(
     activeSkill?.effect === 'swap_two_plays_at_round_end'
     && magicTrickPreparedRound === gameState?.currentRound
@@ -2013,6 +2031,7 @@ export default function GameBoard({ onReturnToRoom }) {
       setNinePrincesDecision(current => (
         current?.playerId === playerId ? null : current
       ));
+      if (playerId === currentPlayer?.id) clearSelection();
       if (playerId === currentPlayer?.id && promoted) return;
       messageApi.info(
         promoted
@@ -5381,6 +5400,43 @@ export default function GameBoard({ onReturnToRoom }) {
     toggleCardSelection(cardId);
   };
 
+  const handleNinePrincesCardClick = (cardId) => {
+    if (!isNinePrincesChooser) return;
+    const candidate = ninePrincesCandidates.find(item => item.card.id === cardId);
+    if (!candidate) {
+      messageApi.warning('这张牌已经无法继续晋升');
+      return;
+    }
+    if (selectedCards.length === 1 && selectedCards[0] === cardId) {
+      clearSelection();
+      return;
+    }
+    setSelectedCards([cardId]);
+    messageApi.info(
+      `已选择 ${formatPublicCard(candidate.card)}，将晋升为 ${formatPublicCard(candidate.promotedFace)}`,
+      2
+    );
+  };
+
+  const handleConfirmNinePrinces = () => {
+    if (!selectedNinePrincesCandidate) {
+      messageApi.warning('请先在手牌中选择一张要晋升的牌');
+      return;
+    }
+    socket.emit(SOCKET_EVENTS.RESPOND_NINE_PRINCES, {
+      roomId: currentRoom.id,
+      cardId: selectedNinePrincesCandidate.card.id
+    });
+  };
+
+  const handleSkipNinePrinces = () => {
+    clearSelection();
+    socket.emit(SOCKET_EVENTS.RESPOND_NINE_PRINCES, {
+      roomId: currentRoom.id,
+      cardId: null
+    });
+  };
+
   const handleSubmitCardExchange = () => {
     if (!cardExchange || selectedCards.length !== cardExchange.requiredCards) {
       messageApi.warning(
@@ -5918,6 +5974,47 @@ export default function GameBoard({ onReturnToRoom }) {
         );
 
       case GamePhases.PLAYING:
+        if (hasPendingNinePrincesDecision) {
+          if (isNinePrincesChooser) {
+            return (
+              <div
+                className="play-controls nine-princes-inline-controls"
+                data-testid="nine-princes-inline-controls"
+              >
+                <Text className="nine-princes-inline-hint">
+                  {selectedNinePrincesCandidate
+                    ? `${formatPublicCard(selectedNinePrincesCandidate.card)} → ${formatPublicCard(selectedNinePrincesCandidate.promotedFace)}`
+                    : '九子夺嫡 · 点选一张手牌'}
+                </Text>
+                <Button
+                  key="confirm-nine-princes"
+                  type="primary"
+                  data-testid="nine-princes-confirm"
+                  disabled={!selectedNinePrincesCandidate}
+                  onClick={handleConfirmNinePrinces}
+                  style={{ ...buttonStyle, width: '104px' }}
+                >
+                  确认晋升
+                </Button>
+                <Button
+                  key="skip-nine-princes"
+                  data-testid="nine-princes-skip"
+                  onClick={handleSkipNinePrinces}
+                  style={{ ...buttonStyle, width: '104px' }}
+                >
+                  放弃晋升
+                </Button>
+              </div>
+            );
+          }
+          return (
+            <div className="play-controls nine-princes-inline-controls">
+              <Button disabled style={{ ...buttonStyle, width: '210px' }}>
+                等待 {ninePrincesPending?.playerName || '本轮赢家'} 选择晋升牌
+              </Button>
+            </div>
+          );
+        }
         if (cardExchangeAnimation) {
           return (
             <div className="card-exchange-controls">
@@ -6532,22 +6629,36 @@ export default function GameBoard({ onReturnToRoom }) {
               playedCards={displayedPlayedCards}
               throwFailedPreviews={viewingLastRound ? {} : throwFailedPreviews}
               shownCards={{}}
-              myCards={transformedPreviewCards}
+              myCards={hasPendingNinePrincesDecision ? myCards : transformedPreviewCards}
               woodenOxCard={woodenOxDisplayCard}
               selectedCards={selectedCards}
-              disabledCardIds={ruleDisabledCardIds}
-              disabledCardReason={ruleDisabledCardReason}
+              disabledCardIds={isNinePrincesChooser
+                ? ninePrincesDisabledCardIds
+                : hasPendingNinePrincesDecision
+                  ? myCards.map(card => card.id)
+                  : ruleDisabledCardIds}
+              disabledCardReason={hasPendingNinePrincesDecision
+                ? '九子夺嫡只能选择仍可晋升的手牌'
+                : ruleDisabledCardReason}
               virtualizedCardIds={virtualizedCardIds}
-              transformableCardIds={transformableCardIds}
-              onCardClick={cardExchangeAnimation || isProxyTurn || isOpenHandSelf
+              transformableCardIds={hasPendingNinePrincesDecision ? [] : transformableCardIds}
+              onCardClick={hasPendingNinePrincesDecision
+                ? (isNinePrincesChooser ? handleNinePrincesCardClick : undefined)
+                : cardExchangeAnimation || isProxyTurn || isOpenHandSelf
+                  ? undefined
+                  : (cardExchange ? handleDrawingCardClick : handlePlayingCardClick)}
+              onRequestCardTransformation={hasPendingNinePrincesDecision
                 ? undefined
-                : (cardExchange ? handleDrawingCardClick : handlePlayingCardClick)}
-              onRequestCardTransformation={handleRequestCardTransformation}
-              onCancelCardTransformation={handleCancelExplicitTransformation}
-              onReorder={cardExchangeAnimation || hasSubmittedCardExchange || icebergSelection || isProxyTurn || isOpenHandSelf || hasTimeReversalDecisionPending || explicitTransformationList.length > 0
+                : handleRequestCardTransformation}
+              onCancelCardTransformation={hasPendingNinePrincesDecision
+                ? undefined
+                : handleCancelExplicitTransformation}
+              onReorder={cardExchangeAnimation || hasSubmittedCardExchange || icebergSelection || isProxyTurn || isOpenHandSelf || hasTimeReversalDecisionPending || hasPendingNinePrincesDecision || explicitTransformationList.length > 0
                 ? undefined
                 : reorderCards}
-              disableMyHand={cardExchangeAnimation
+              disableMyHand={hasPendingNinePrincesDecision
+                ? !isNinePrincesChooser
+                : cardExchangeAnimation
                 ? true
                 : strawBoatDecision
                   ? true
@@ -6578,7 +6689,8 @@ export default function GameBoard({ onReturnToRoom }) {
               openHand={openHand}
               ruleVisibleHands={ruleVisibleHands}
               playerTargeting={{
-                active: ['compare_and_exchange', 'swap_two_plays_at_round_end'].includes(activeSkill?.effect)
+                active: !hasPendingNinePrincesDecision
+                  && ['compare_and_exchange', 'swap_two_plays_at_round_end'].includes(activeSkill?.effect)
                   && isActiveSkillArmed,
                 targetPlayerId: equivalentReciprocityTarget?.id || null,
                 selectedPlayerIds: magicTrickTargetIds,
@@ -6590,8 +6702,14 @@ export default function GameBoard({ onReturnToRoom }) {
               }}
               onPlayerTargetClick={handleEquivalentReciprocityTarget}
               openHandSelectedCards={selectedCards}
-              onOpenHandCardClick={isProxyTurn && !hasTimeReversalDecisionPending ? toggleCardSelection : undefined}
-              canControlOpenHand={isProxyTurn && !hasTimeReversalDecisionPending}
+              onOpenHandCardClick={isProxyTurn
+                && !hasTimeReversalDecisionPending
+                && !hasPendingNinePrincesDecision
+                ? toggleCardSelection
+                : undefined}
+              canControlOpenHand={isProxyTurn
+                && !hasTimeReversalDecisionPending
+                && !hasPendingNinePrincesDecision}
               currentTurnPlayerId={currentTurnPlayerId}
               currentWinningPlayerId={viewingLastRound
                 ? lastRoundWinnerPlayerId
@@ -6613,7 +6731,8 @@ export default function GameBoard({ onReturnToRoom }) {
               selectedDivineWeaponCardId={selectedDivineWeaponCardId}
               onDivineWeaponCardClick={handleDivineWeaponCardClick}
               canSelectDivineWeapon={Boolean(
-                isActiveSkillArmed
+                !hasPendingNinePrincesDecision
+                && isActiveSkillArmed
                 && activeSkill?.effect === 'transform_matching_card'
                 && !divineWeapon?.usedThisRound
               )}
@@ -8094,70 +8213,6 @@ export default function GameBoard({ onReturnToRoom }) {
         <p className="player-decision-secondary-text">
           选择保留结果不会消耗技能；多名玩家预备时，首个确认倒流的人发动成功。
         </p>
-      </Modal>
-
-      <Modal
-        title="九子夺嫡"
-        open={Boolean(ninePrincesDecision)}
-        wrapClassName="player-decision-modal-wrap"
-        width={560}
-        closable={false}
-        maskClosable={false}
-        keyboard={false}
-        footer={(
-          <Button
-            onClick={() => {
-              socket.emit(SOCKET_EVENTS.RESPOND_NINE_PRINCES, {
-                roomId: currentRoom.id,
-                cardId: null
-              });
-            }}
-          >
-            放弃本轮晋升
-          </Button>
-        )}
-      >
-        <p className="player-decision-primary-text">
-          你赢下了对方阵营打出的分牌，可以令一张剩余手牌沿当前牌力序列永久提升一级。
-        </p>
-        <p className="player-decision-secondary-text">
-          选择内容属于你的手牌信息，不会向其他玩家公开。升出白王时，己方立即获得10分，
-          且本局不再触发九子夺嫡。
-        </p>
-        <div className="nine-princes-card-options">
-          {(ninePrincesDecision?.candidates || []).map(candidate => (
-            <button
-              key={candidate.card.id}
-              type="button"
-              className="nine-princes-card-option"
-              title={`${formatPublicCard(candidate.card)} 晋升为 ${formatPublicCard(candidate.promotedFace)}`}
-              onClick={() => {
-                socket.emit(SOCKET_EVENTS.RESPOND_NINE_PRINCES, {
-                  roomId: currentRoom.id,
-                  cardId: candidate.card.id
-                });
-              }}
-            >
-              <Card
-                card={candidate.card}
-                small
-                trumpSuit={trumpSuit}
-                trumpRank={trumpRank}
-              />
-              <span className="nine-princes-card-arrow">→</span>
-              <Card
-                card={{
-                  ...candidate.card,
-                  ...candidate.promotedFace,
-                  id: `${candidate.card.id}-nine-princes-preview`
-                }}
-                small
-                trumpSuit={trumpSuit}
-                trumpRank={trumpRank}
-              />
-            </button>
-          ))}
-        </div>
       </Modal>
 
       {/* 埋底玩家选择弹窗 */}
