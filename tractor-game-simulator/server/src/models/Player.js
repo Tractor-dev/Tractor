@@ -15,6 +15,7 @@ export class Player {
     this.shownCards = new Set();
     this.position = position;
     this.isReady = false;
+    this.isReadyForNext = false;
     this.isOnline = true;
     this.hasConfirmedReveal = false;
     this.isBot = isBot; // 标记是否为bot
@@ -38,6 +39,7 @@ export class Player {
     this.cards = [];
     this.shownCards.clear();
     this.isReady = false;
+    this.isReadyForNext = false;
     this.hasConfirmedReveal = false;
   }
 
@@ -51,6 +53,7 @@ export class Player {
       cardsCount: this.cards.length,
       position: this.position,
       isReady: this.isReady,
+      isReadyForNext: this.isReadyForNext,
       isOnline: this.isOnline,
       hasConfirmedReveal: this.hasConfirmedReveal,
       isBot: this.isBot

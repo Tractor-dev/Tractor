@@ -43,6 +43,7 @@ import { ruleIncludesId } from '../../utils/ruleCatalog';
 import { sortCards } from '../../utils/cardUtils';
 import Hand from './Hand';
 import Card from './Card';
+import GameBackgroundMusic from './GameBackgroundMusic';
 import GameTable from './GameTable';
 import MobileLandscapeGuard from './MobileLandscapeGuard';
 import RuleSelector from './RuleSelector';
@@ -126,7 +127,11 @@ export default function GameBoard({ onReturnToRoom }) {
   const [playHistory, setPlayHistory] = useState(() => (
     getCurrentRoundPlayHistory(currentRoom?.gameState)
   )); // 出牌历史记录 [{ playerId, playerName, timestamp }, ...]
-  const [revealedBottomCards, setRevealedBottomCards] = useState([]); // 终局展示的底牌
+  const [revealedBottomCards, setRevealedBottomCards] = useState(() => (
+    currentRoom?.gameState?.revealedBottomCards
+      || currentRoom?.gameState?.bottomScoreResult?.bottomCards
+      || []
+  )); // 终局展示的底牌
   const [publicBottomCards, setPublicBottomCards] = useState([]); // “昭然若揭”发牌开始即公开的底牌
   const [myBottomCards, setMyBottomCards] = useState([]); // 查看底牌弹窗中的牌
   const [trumpSuit, setTrumpSuit] = useState(null); // 主牌花色
@@ -228,9 +233,15 @@ export default function GameBoard({ onReturnToRoom }) {
   const [magicTrickPreparedRound, setMagicTrickPreparedRound] = useState(null);
   const [attackerScore, setAttackerScore] = useState(0); // 闲家当前得分
   const [collectedPointCards, setCollectedPointCards] = useState([]); // 闲家收集的分数牌
-  const [bottomScoreResult, setBottomScoreResult] = useState(null); // 底牌得分结果
-  const [upgradeResult, setUpgradeResult] = useState(null); // 升级结果
-  const [isReadyForNext, setIsReadyForNext] = useState(false); // 是否已准备下一局
+  const [bottomScoreResult, setBottomScoreResult] = useState(
+    () => currentRoom?.gameState?.bottomScoreResult || null
+  ); // 底牌得分结果
+  const [upgradeResult, setUpgradeResult] = useState(
+    () => currentRoom?.gameState?.upgradeResult || null
+  ); // 升级结果
+  const [isReadyForNext, setIsReadyForNext] = useState(() => Boolean(
+    currentRoom?.players?.find(player => player.id === currentPlayer?.id)?.isReadyForNext
+  )); // 是否已准备下一局
   const [justPlayedCards, setJustPlayedCards] = useState(false); // 标记是否刚刚出过牌
   // React state 与 Zustand 手牌更新可能落在不同批次。出牌后必须同步锁住自动选牌，
   // 否则 removeCards 先触发重绘时，剩余的唯一对子/拖拉机会短暂被再次选中。
@@ -947,6 +958,41 @@ export default function GameBoard({ onReturnToRoom }) {
       setCollectedPointCards(gameState.collectedPointCards);
     }
   }, [gameState?.attackerScore, gameState?.collectedPointCards]);
+
+  // 终局结算属于可恢复的公开状态，不能只靠一次性 bottom_revealed 事件。
+  // 返回房间、刷新或断线重连后，直接用最新房间快照重建亮底、投降亮牌与升级结果。
+  useEffect(() => {
+    if (![GamePhases.REVEALING, GamePhases.FINISHED].includes(roomPhase)) return;
+
+    const snapshotResult = gameState?.bottomScoreResult;
+    if (!snapshotResult) return;
+
+    setBottomScoreResult(snapshotResult);
+    setUpgradeResult(gameState?.upgradeResult || null);
+    setRevealedBottomCards(
+      gameState?.revealedBottomCards
+        || snapshotResult.bottomCards
+        || []
+    );
+    if (Number.isFinite(snapshotResult.totalScore)) {
+      setAttackerScore(snapshotResult.totalScore);
+    }
+    if (Array.isArray(snapshotResult.collectedPointCards)) {
+      setCollectedPointCards(snapshotResult.collectedPointCards);
+    }
+  }, [
+    roomPhase,
+    gameState?.bottomScoreResult,
+    gameState?.upgradeResult,
+    gameState?.revealedBottomCards
+  ]);
+
+  // “下一局已准备”同样以房间玩家快照为准，其他人准备和本人重连后都会同步。
+  useEffect(() => {
+    if (roomPhase !== GamePhases.REVEALING) return;
+    const roomPlayer = currentRoom?.players?.find(player => player.id === currentPlayer?.id);
+    setIsReadyForNext(Boolean(roomPlayer?.isReadyForNext));
+  }, [roomPhase, currentRoom?.players, currentPlayer?.id]);
 
   // 每次选规则时全房间自动展示候选，确认权仍只属于服务端指定的选择者。
   useEffect(() => {
@@ -6798,6 +6844,7 @@ export default function GameBoard({ onReturnToRoom }) {
               isRuleSelectionPending={gameState?.isRuleSelectionPending}
               renderControls={renderControlButtons()}
               isWaitingForReady={false}
+              isWaitingForNextGame
               currentTrumpDeclaration={currentTrumpDeclaration}
               currentInferiorDeclaration={currentInferiorDeclaration}
               buryingPlayerId={gameState?.buryingPlayerId}
@@ -6878,6 +6925,7 @@ export default function GameBoard({ onReturnToRoom }) {
       {contextHolder}
       {modalContextHolder}
       <MobileLandscapeGuard />
+      <GameBackgroundMusic />
 
       <Modal
         title="烛尽天明 · 初始烛态"

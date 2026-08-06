@@ -596,6 +596,60 @@ test('mobile landscape keeps an active skill and all core actions inside the con
   }
 });
 
+test('甩牌失败预览在桌面与移动横屏都停在主视角正前方', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { context, pages } = await openTestModeGame(browser, '昭然若揭');
+
+  try {
+    await Promise.all(pages.map(page => page.setViewportSize({ width: 1440, height: 900 })));
+    await finishDealerBury(pages);
+    await Promise.all(pages.map(async page => {
+      const musicToggle = page.getByRole('button', { name: '关闭背景音乐《情缘》' });
+      if (await musicToggle.count()) await musicToggle.click();
+    }));
+
+    const measureThrowPreviewGeometry = page => page.evaluate(async () => {
+        const { useGameStore } = await import('/src/store/gameStore.js');
+        const socketService = (await import('/src/services/socket.js')).default;
+        const state = useGameStore.getState();
+        const previewKey = `${Date.now()}`;
+        const attemptedCardObjects = ['A', 'K', 'Q', 'J', '10'].map((rank, index) => ({
+          id: `throw-preview-${previewKey}-${index}`,
+          suit: 'hearts',
+          rank
+        }));
+        socketService.socket.listeners('throw_failed').forEach(listener => listener({
+          playerId: state.currentPlayer.id,
+          playerName: state.currentPlayer.name,
+          message: '甩牌失败',
+          attemptedCardObjects,
+          forcedCards: [attemptedCardObjects[4]]
+        }));
+        // 抖动动画结束后仍处于一秒停留期，此时牌组中心必须回到玩家中心。
+        await new Promise(resolve => setTimeout(resolve, 320));
+
+        const preview = document.querySelector('.played-cards-bottom.throw-failed-preview')?.getBoundingClientRect();
+        const player = document.querySelector('.player-bottom')?.getBoundingClientRect();
+        return {
+          hasCenterTableFeature: document.querySelector('.game-table')?.classList.contains('has-center-table-feature'),
+          previewCenter: preview ? preview.left + preview.width / 2 : null,
+          playerCenter: player ? player.left + player.width / 2 : null
+        };
+      });
+    const expectCenteredPreview = geometry => {
+      expect(geometry.hasCenterTableFeature).toBe(true);
+      expect(geometry.previewCenter).not.toBeNull();
+      expect(Math.abs(geometry.previewCenter - geometry.playerCenter)).toBeLessThanOrEqual(1);
+    };
+
+    expectCenteredPreview(await measureThrowPreviewGeometry(pages[0]));
+    await pages[0].setViewportSize({ width: 667, height: 375 });
+    expectCenteredPreview(await measureThrowPreviewGeometry(pages[0]));
+  } finally {
+    await context.close();
+  }
+});
+
 test('mobile landscape does not reserve a dock for removed second-battlefield public cards', async ({ browser }, testInfo) => {
   test.setTimeout(120_000);
   const { context, pages } = await openTestModeGame(browser, '第二战场');
@@ -2056,7 +2110,7 @@ test('烛尽天明在轮末事件分帧到达时也只在清桌后切换烛态',
 });
 
 test('第二战场不再显示公共牌，只在四家桌前显示各自累计牌', async ({ browser }, testInfo) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const { context, pages } = await openTestModeGame(browser, '第二战场');
 
   try {
@@ -2068,6 +2122,25 @@ test('第二战场不再显示公共牌，只在四家桌前显示各自累计�
     ];
     await Promise.all(pages.map((page, index) => page.setViewportSize(viewportSizes[index])));
     await finishDealerBury(pages);
+
+    const bgmAudio = pages[0].locator('.game-bgm-audio');
+    const bgmToggle = pages[0].getByRole('button', { name: '关闭背景音乐《情缘》' });
+    await expect(bgmAudio).toHaveAttribute('src', '/audio/qingyuan-xu-peidong.mp3');
+    await expect(bgmAudio).toHaveAttribute('loop', '');
+    await expect(bgmAudio).toHaveAttribute('preload', 'auto');
+    await expect(bgmToggle).toBeVisible();
+    await expect(bgmToggle).toHaveAttribute('aria-pressed', 'true');
+    await bgmToggle.click();
+    await expect(pages[0].getByRole('button', { name: '播放背景音乐《情缘》' })).toHaveAttribute('aria-pressed', 'false');
+    await pages[0].getByRole('button', { name: '播放背景音乐《情缘》' }).click();
+    await expect(pages[0].getByRole('button', { name: '关闭背景音乐《情缘》' })).toHaveAttribute('aria-pressed', 'true');
+    // 后续是四页面长流程布局测试，关闭测试环境中的实际音频解码，避免影响牌桌断言耗时。
+    await Promise.all(pages.map(async playerPage => {
+      const enabledToggle = playerPage.getByRole('button', { name: '关闭背景音乐《情缘》' });
+      await expect(enabledToggle).toHaveAttribute('aria-pressed', 'true');
+      await enabledToggle.click();
+    }));
+
     for (const playerPage of pages) {
       await expect(playerPage.getByTestId('second-battlefield-tray')).toHaveCount(0);
 
@@ -2154,6 +2227,14 @@ test('第二战场不再显示公共牌，只在四家桌前显示各自累计�
         return {
           blockedPositions,
           stagedPairs,
+          bgmOverlapsTopPlayer: overlaps(
+            rect('.game-bgm-control'),
+            rect('.position-top .player-top')
+          ),
+          bgmOverlapsRulePanel: overlaps(
+            rect('.game-bgm-control'),
+            rect('.center-content.table-tools')
+          ),
           topOverlapsScorePanel: overlaps(
             rect('.second-battlefield-staged-top'),
             rect('.score-panel')
@@ -2163,6 +2244,8 @@ test('第二战场不再显示公共牌，只在四家桌前显示各自累计�
       expect(overlappingAreas).toEqual({
         blockedPositions: [],
         stagedPairs: [],
+        bgmOverlapsTopPlayer: false,
+        bgmOverlapsRulePanel: false,
         topOverlapsScorePanel: false
       });
     }
@@ -3875,13 +3958,37 @@ test('开局早投降时用四宫格完整公开四家的大量剩余手牌', as
         copyIndex: index % 2
       }));
 
+      const settlementSnapshot = {
+        resultText: 'surrender settlement',
+        bottomPoints: 0,
+        bottomMultiplier: 0,
+        bottomScoreGained: 0,
+        totalScore: 80,
+        collectedPointCards: [],
+        bottomCards,
+        currentGameTrumpSuit: 'hearts',
+        currentGameTrumpRank: '2',
+        surrender: {
+          accepted: true,
+          winningSide: 'attacker',
+          revealedHands
+        }
+      };
       useGameStore.setState({
         currentRoom: {
           ...state.currentRoom,
+          players: roomPlayers.map((player, playerIndex) => ({
+            ...player,
+            isReadyForNext: playerIndex === 0
+          })),
           gameState: {
             ...state.currentRoom.gameState,
             phase: 'revealing',
-            attackerScore: 80
+            attackerScore: 80,
+            collectedPointCards: [],
+            revealedBottomCards: bottomCards,
+            bottomScoreResult: settlementSnapshot,
+            upgradeResult: null
           }
         }
       });
@@ -3912,6 +4019,9 @@ test('开局早投降时用四宫格完整公开四家的大量剩余手牌', as
     await expect(showdown).toContainText('共 100 张');
     await expect(handPanels).toHaveCount(4);
     await expect(showdown.locator('.card')).toHaveCount(100);
+    await expect(page.locator('.player-left')).toBeVisible();
+    await expect(page.locator('.player-right')).toBeVisible();
+    await expect(page.locator('.ready-badge')).toHaveCount(3);
 
     const handGeometry = await handPanels.evaluateAll(panels => panels.map(panel => {
       const panelRect = panel.getBoundingClientRect();
@@ -3946,6 +4056,16 @@ test('开局早投降时用四宫格完整公开四家的大量剩余手牌', as
     expect(settlementBox.x).toBeGreaterThanOrEqual(centerBox.x);
     expect(settlementBox.x + settlementBox.width).toBeLessThanOrEqual(centerBox.x + centerBox.width);
     expect(settlementBox.height).toBeLessThanOrEqual(centerBox.height);
+
+    // Returning to the room unmounts GameBoard. Re-entering must rebuild the
+    // settlement from the room snapshot instead of relying on a past socket event.
+    await page.locator('.return-room-button').click();
+    await expect(page.locator('.room-resume-panel')).toBeVisible();
+    await page.locator('.room-resume-panel .ant-btn-primary').click();
+    await expect(page.locator('[data-testid="surrender-showdown"]')).toBeVisible();
+    await expect(page.locator('[data-testid="surrender-showdown"] .surrender-showdown-hand')).toHaveCount(4);
+    await expect(page.locator('.player-left')).toBeVisible();
+    await expect(page.locator('.player-right')).toBeVisible();
 
     await page.locator('.game-table').screenshot({
       path: testInfo.outputPath('surrender-showdown-100-cards.png')

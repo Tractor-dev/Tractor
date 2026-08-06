@@ -841,22 +841,31 @@
   box-shadow: 0 18px 48px rgba(0, 24, 18, 0.38), inset 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.settlement-view.has-surrender-showdown .position-left,
-.settlement-view.has-surrender-showdown .position-right {
+.settlement-view.has-surrender-showdown .position-middle {
+  grid-template-columns: minmax(170px, 0.65fr) minmax(520px, 2fr) minmax(170px, 0.65fr);
+  gap: 12px;
+}
+
+/* 终局已经用四宫格公开全手牌，不再保留两侧的末墩牌区占位；玩家框仍完整可见。 */
+.settlement-view.has-surrender-showdown .position-left > .played-cards-area,
+.settlement-view.has-surrender-showdown .position-right > .played-cards-area {
   display: none;
 }
 
-.settlement-view.has-surrender-showdown .table-center {
-  grid-column: 1 / -1;
-}
-
 .center-content.settlement-panel.has-surrender-showdown {
-  width: min(980px, calc(100vw - 96px));
-  max-width: 980px;
+  width: min(720px, 100%);
+  max-width: 720px;
   max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-gutter: stable;
+}
+
+@media (max-width: 900px) {
+  .settlement-view.has-surrender-showdown .position-middle {
+    grid-template-columns: 104px minmax(360px, 1fr) 104px;
+    gap: 6px;
+  }
 }
 
 .settlement-content {
@@ -1865,11 +1874,11 @@
 }
 
 @keyframes throwFailedPreviewShake {
-  0% { transform: translateX(0); }
-  28% { transform: translateX(-5px); }
-  56% { transform: translateX(4px); }
-  78% { transform: translateX(-2px); }
-  100% { transform: translateX(0); }
+  0% { translate: 0 0; }
+  28% { translate: -5px 0; }
+  56% { translate: 4px 0; }
+  78% { translate: -2px 0; }
+  100% { translate: 0 0; }
 }
 
 .position-top .played-cards-area,
@@ -4655,6 +4664,11 @@
    */
   .game-table.has-center-table-feature .player-bottom > .played-cards-area {
     left: 70%;
+  }
+
+  /* 完整甩牌失败牌面只停留一秒，应回到玩家正前方，不能继承中央功能区的右移轨道。 */
+  .game-table.has-center-table-feature .player-bottom > .played-cards-area.throw-failed-preview {
+    left: 50%;
   }
 
   .game-table.has-center-table-feature .position-left > .played-cards-area,

@@ -72,6 +72,7 @@ const getJokerSubstitutionSourceLabel = (played, substitution) => {
  * @param {Function} props.onSelectRule - 选择规则的回调
  * @param {ReactNode} props.renderControls - 渲染控制区域的函数或组件
  * @param {Boolean} props.isWaitingForReady - 是否在等待玩家准备阶段
+ * @param {Boolean} props.isWaitingForNextGame - 是否在终局等待下一局准备
  * @param {ReactNode} props.trumpDeclarationComponent - 亮主条组件
  * @param {Object} props.currentTrumpDeclaration - 当前亮主信息
  * @param {Object} props.currentInferiorDeclaration - “三六九等”当前亮劣信息
@@ -132,6 +133,7 @@ export default function GameTable({
   isRuleSelectionPending = false,
   renderControls = null,
   isWaitingForReady = false,
+  isWaitingForNextGame = false,
   trumpDeclarationComponent = null,
   currentTrumpDeclaration = null,
   currentInferiorDeclaration = null,
@@ -551,6 +553,10 @@ export default function GameTable({
     );
     const isSelectedTarget = playerTargeting?.targetPlayerId === player.id
       || playerTargeting?.selectedPlayerIds?.includes(player.id);
+    const shouldShowReadyState = isWaitingForReady || isWaitingForNextGame;
+    const isPlayerReady = isWaitingForNextGame
+      ? Boolean(player.isReadyForNext)
+      : Boolean(player.isReady);
 
     // 检查是否是庄家
     // 优先使用 dealerPlayerIndex（从第二局开始就知道了）
@@ -591,13 +597,13 @@ export default function GameTable({
               {isDealer && <span className="dealer-badge">庄</span>}
               {isSecondaryBuryingPlayer && <span className="secondary-burying-badge">埋</span>}
               {isOpenHand && <span className="open-hand-avatar-badge">明</span>}
-              {isWaitingForReady && player.isReady !== undefined && (
+              {shouldShowReadyState && (
                 <span
-                  className={`ready-badge ${player.isReady ? 'is-ready' : 'not-ready'}`}
-                  aria-label={player.isReady ? '已准备' : '未准备'}
-                  title={player.isReady ? '已准备' : '未准备'}
+                  className={`ready-badge ${isPlayerReady ? 'is-ready' : 'not-ready'}`}
+                  aria-label={isPlayerReady ? '已准备' : '未准备'}
+                  title={isPlayerReady ? '已准备' : '未准备'}
                 >
-                  {player.isReady ? '✓' : '○'}
+                  {isPlayerReady ? '✓' : '○'}
                 </span>
               )}
             </span>
@@ -2545,15 +2551,19 @@ export default function GameTable({
                       </span>
                     ) : null;
                   })()}
-                  {isWaitingForReady && positions.bottom.isReady !== undefined && (
+                  {(isWaitingForReady || isWaitingForNextGame) && (
                     <Text
                       strong
                       style={{
                         fontSize: '14px',
-                        color: positions.bottom.isReady ? '#52c41a' : '#d9d9d9'
+                        color: (isWaitingForNextGame
+                          ? positions.bottom.isReadyForNext
+                          : positions.bottom.isReady) ? '#52c41a' : '#d9d9d9'
                       }}
                     >
-                      {positions.bottom.isReady ? '✓ 已准备' : '○ 未准备'}
+                      {(isWaitingForNextGame
+                        ? positions.bottom.isReadyForNext
+                        : positions.bottom.isReady) ? '✓ 已准备' : '○ 未准备'}
                     </Text>
                   )}
                   {openHand?.playerId === positions.bottom.id && (

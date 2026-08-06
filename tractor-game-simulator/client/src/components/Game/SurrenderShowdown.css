@@ -195,13 +195,11 @@
   font-size: 11px;
 }
 
-@media (max-width: 920px) {
+@media (max-width: 560px) {
   .surrender-showdown-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-}
 
-@media (max-width: 560px) {
   .surrender-showdown-heading > div > span {
     display: none;
   }

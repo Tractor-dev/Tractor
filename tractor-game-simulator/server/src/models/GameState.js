@@ -310,6 +310,10 @@ export class GameState {
     // 得分相关
     this.collectedPointCards = []; // 闲家收集的分数牌
     this.attackerScore = 0; // 闲家总得分
+    // 终局结算必须保存在权威快照中。bottom_revealed 只负责实时提示，
+    // 刷新、断线重连或暂时返回房间后都要能从这里恢复完整结算界面。
+    this.bottomScoreResult = null;
+    this.upgradeResult = null;
     this.lastRoundLeadingPattern = null; // 最后一轮的首发牌型（用于计算底牌倍数）
     this.lastRoundWinnerIndex = null; // 最后一轮的获胜者索引
 
@@ -532,6 +536,8 @@ export class GameState {
     // 重置得分相关
     this.collectedPointCards = [];
     this.attackerScore = 0;
+    this.bottomScoreResult = null;
+    this.upgradeResult = null;
     this.lastRoundLeadingPattern = null;
     this.lastRoundWinnerIndex = null;
 
@@ -1241,6 +1247,17 @@ export class GameState {
       )
         ? null
         : this.attackerScore,
+      // 结算阶段所有这些内容都已经公开。把一次性 bottom_revealed 的有效载荷
+      // 同时写入房间快照，客户端重建时不再依赖是否碰巧收到那条 Socket 消息。
+      bottomScoreResult: [GamePhases.REVEALING, GamePhases.FINISHED].includes(this.phase)
+        ? this.bottomScoreResult
+        : null,
+      upgradeResult: [GamePhases.REVEALING, GamePhases.FINISHED].includes(this.phase)
+        ? this.upgradeResult
+        : null,
+      revealedBottomCards: [GamePhases.REVEALING, GamePhases.FINISHED].includes(this.phase)
+        ? this.bottomCards.map(card => card.toJSON ? card.toJSON() : card)
+        : [],
       lastRoundWinnerIndex: this.lastRoundWinnerIndex,
       // 升级相关
       team1Level: this.team1Level,

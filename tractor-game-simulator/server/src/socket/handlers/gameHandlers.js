@@ -2823,7 +2823,11 @@ export function registerGameHandlers(io, socket, roomManager) {
       const allReady = gameEngine.readyForNextGame(player.id);
 
       // 广播准备状态
-      const readyCount = room.players.filter(p => p.isReadyForNext).length;
+      // 最后一位准备会同步触发 startNextGame，并立即清空准备标记；这里仍应广播 4/4，
+      // 否则客户端会在“开始下一局”之后误看到一次 0/4。
+      const readyCount = allReady
+        ? room.players.length
+        : room.players.filter(p => p.isReadyForNext).length;
       io.to(room.id).emit('player_ready_for_next', {
         playerId: player.id,
         playerName: player.name,

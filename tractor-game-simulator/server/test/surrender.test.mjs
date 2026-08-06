@@ -213,3 +213,34 @@ test('无人生还只暗置牌面，不会误禁投降', () => {
   });
   assert.doesNotThrow(() => engine.requestSurrender(room.players[0].id));
 });
+
+test('surrender settlement and next-game readiness survive room snapshots', () => {
+  const { room, engine } = createSurrenderGame({ attackerScore: 20 });
+  room.players.forEach((player, playerIndex) => {
+    player.addCard(new Card(playerIndex % 2 === 0 ? 'hearts' : 'clubs', 'K', 0));
+  });
+  engine.requestSurrender(room.players[0].id);
+  engine.prepareSurrenderReview({ completedRound: 3 });
+  engine.respondSurrender(room.players[2].id, true);
+
+  const settlementSnapshot = room.toJSON();
+  assert.equal(settlementSnapshot.gameState.phase, GamePhases.REVEALING);
+  assert.equal(settlementSnapshot.gameState.bottomScoreResult.surrender.revealedHands.length, 4);
+  assert.equal(settlementSnapshot.gameState.upgradeResult.attackerWon, true);
+  assert.deepEqual(
+    settlementSnapshot.gameState.revealedBottomCards,
+    room.gameState.bottomCards.map(card => card.toJSON())
+  );
+  assert.deepEqual(
+    settlementSnapshot.players.map(player => player.isReadyForNext),
+    [false, false, false, false]
+  );
+
+  for (let playerIndex = 0; playerIndex < 3; playerIndex += 1) {
+    assert.equal(engine.readyForNextGame(room.players[playerIndex].id), false);
+    assert.equal(room.toJSON().players[playerIndex].isReadyForNext, true);
+  }
+  assert.equal(engine.readyForNextGame(room.players[3].id), true);
+  assert.notEqual(room.gameState.phase, GamePhases.REVEALING);
+  assert.ok(room.players.every(player => player.isReadyForNext === false));
+});

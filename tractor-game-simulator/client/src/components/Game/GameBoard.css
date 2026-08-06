@@ -36,6 +36,96 @@
 .game-board::after { right: -12vw; top: -13vw; transform: scaleX(-1) rotate(12deg); }
 .game-board > * { position: relative; z-index: 1; }
 
+.game-bgm-control {
+  position: absolute;
+  z-index: 180;
+  top: 40px;
+  right: calc(clamp(320px, 23vw, 390px) + 52px);
+  pointer-events: none;
+}
+
+.game-bgm-audio {
+  display: none;
+}
+
+.game-bgm-toggle {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 226, 117, 0.58);
+  border-radius: 999px;
+  color: #fff3bd;
+  background: linear-gradient(145deg, rgba(8, 69, 50, 0.96), rgba(5, 45, 37, 0.96));
+  box-shadow: 0 7px 18px rgba(0, 25, 18, 0.3), inset 0 1px rgba(255, 255, 255, 0.12);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.game-bgm-toggle:hover {
+  border-color: rgba(255, 233, 145, 0.9);
+  background: linear-gradient(145deg, rgba(13, 91, 62, 0.98), rgba(7, 58, 45, 0.98));
+  transform: translateY(-1px);
+}
+
+.game-bgm-toggle:focus-visible {
+  outline: 2px solid #fff0a8;
+  outline-offset: 2px;
+}
+
+.game-bgm-toggle.is-disabled {
+  border-color: rgba(215, 231, 220, 0.28);
+  color: rgba(232, 241, 235, 0.72);
+  background: rgba(6, 43, 35, 0.9);
+}
+
+.game-bgm-note {
+  color: #ffe36f;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.game-bgm-label {
+  min-width: 42px;
+  white-space: nowrap;
+}
+
+.game-bgm-levels {
+  height: 15px;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.game-bgm-levels i {
+  width: 2px;
+  height: 5px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.42;
+}
+
+.game-bgm-levels i:nth-child(2) { height: 10px; }
+.game-bgm-levels i:nth-child(3) { height: 14px; }
+
+.game-bgm-toggle.is-playing .game-bgm-levels i {
+  opacity: 0.9;
+  animation: gameBgmLevel 720ms ease-in-out infinite alternate;
+}
+
+.game-bgm-toggle.is-playing .game-bgm-levels i:nth-child(2) { animation-delay: -240ms; }
+.game-bgm-toggle.is-playing .game-bgm-levels i:nth-child(3) { animation-delay: -480ms; }
+
+@keyframes gameBgmLevel {
+  from { transform: scaleY(0.42); }
+  to { transform: scaleY(1); }
+}
+
 .main-game-area {
   flex: 1;
   display: flex;
@@ -1049,6 +1139,23 @@
 }
 
 @media (orientation: landscape) and (max-height: 620px) {
+  .game-bgm-control {
+    top: max(7px, env(safe-area-inset-top));
+    right: calc(clamp(188px, 31vw, 248px) + max(22px, env(safe-area-inset-right)));
+  }
+
+  .game-bgm-toggle {
+    width: 34px;
+    height: 32px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .game-bgm-label,
+  .game-bgm-levels {
+    display: none;
+  }
+
   .game-board,
   .main-game-area,
   .phase-content.playing-phase {
